@@ -15,6 +15,9 @@ public record Registration(
         Boolean privacyConsentAgreed,
         Boolean feePaid,
         RegistrationStatus status,
+        String adminMemo,
+        Boolean newcomer,
+        Boolean careTarget,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {

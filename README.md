@@ -2,7 +2,7 @@
 
 `church-retreat-ops`는 교회 수련회 준비와 현장 운영을 위한 백엔드 프로젝트입니다.
 
-현재는 백엔드 기반, 관리자 인증 기반, 참가자 등록 Phase 2가 구현되어 있습니다. 조 편성, 공지, 일정, 체크인, 프론트엔드는 아직 구현하지 않았습니다.
+현재는 백엔드 기반, 관리자 인증 기반, 참가자 등록, 관리자 참가자 관리 Phase 3가 구현되어 있습니다. 조 편성, 공지, 일정, 체크인, 프론트엔드는 아직 구현하지 않았습니다.
 
 ## 현재 완료된 단계
 
@@ -47,6 +47,17 @@
 - 관리자 등록 목록/상세/이력 읽기 API
 
 자세한 내용은 [docs/phase2-participant-registration.md](docs/phase2-participant-registration.md)를 참고합니다.
+
+### Phase 3: 관리자 참가자 관리
+
+- 관리자 참가비 납부 상태 변경 API
+- 관리자 등록 상태 변경 API
+- 관리자 메모
+- 새가족 여부와 돌봄 대상 태그
+- 관리자 상세/이력 조회 시 개인정보 접근 로그 저장
+- 역할 기반 운영 권한: `STAFF`는 조회, `CHAIR` 이상은 관리 변경
+
+자세한 내용은 [docs/phase3-admin-participant-management.md](docs/phase3-admin-participant-management.md)를 참고합니다.
 
 ## 기술 스택
 
@@ -204,6 +215,29 @@ curl -s http://localhost:8080/api/admin/registrations/1 \
   -H 'Authorization: Bearer <accessToken>'
 ```
 
+관리자 참가자 관리:
+
+```bash
+curl -s -X PATCH http://localhost:8080/api/admin/registrations/1/fee-paid \
+  -H 'Authorization: Bearer <accessToken>' \
+  -H 'Content-Type: application/json' \
+  -d '{"feePaid":true}'
+
+curl -s -X PATCH http://localhost:8080/api/admin/registrations/1/status \
+  -H 'Authorization: Bearer <accessToken>' \
+  -H 'Content-Type: application/json' \
+  -d '{"status":"CANCELLED"}'
+
+curl -s -X PATCH http://localhost:8080/api/admin/registrations/1/management \
+  -H 'Authorization: Bearer <accessToken>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "adminMemo":"Needs first-time attendee follow-up.",
+    "newcomer":true,
+    "careTarget":true
+  }'
+```
+
 ## 환경 변수
 
 운영 환경에서는 아래 값을 환경 변수로 주입해야 합니다.
@@ -235,6 +269,9 @@ JWT가 필요한 API:
 - `GET /api/admin/registrations`
 - `GET /api/admin/registrations/{id}`
 - `GET /api/admin/registrations/{id}/histories`
+- `PATCH /api/admin/registrations/{id}/fee-paid`
+- `PATCH /api/admin/registrations/{id}/status`
+- `PATCH /api/admin/registrations/{id}/management`
 - 그 외 API는 기본적으로 인증 필요
 
 ## 아직 구현하지 않은 범위

@@ -21,7 +21,7 @@ public interface RegistrationMapper {
     @Select("""
             SELECT id, name, normalized_name, gender, birth_year, phone_number, phone_last_four,
                    church_cell_department, lookup_key_hash, privacy_consent_agreed, fee_paid,
-                   status, created_at, updated_at
+                   status, admin_memo, newcomer, care_target, created_at, updated_at
             FROM registrations
             WHERE id = #{id}
             """)
@@ -38,6 +38,9 @@ public interface RegistrationMapper {
             @Arg(column = "privacy_consent_agreed", javaType = Boolean.class),
             @Arg(column = "fee_paid", javaType = Boolean.class),
             @Arg(column = "status", javaType = RegistrationStatus.class),
+            @Arg(column = "admin_memo", javaType = String.class),
+            @Arg(column = "newcomer", javaType = Boolean.class),
+            @Arg(column = "care_target", javaType = Boolean.class),
             @Arg(column = "created_at", javaType = OffsetDateTime.class),
             @Arg(column = "updated_at", javaType = OffsetDateTime.class)
     })
@@ -46,7 +49,7 @@ public interface RegistrationMapper {
     @Select("""
             SELECT id, name, normalized_name, gender, birth_year, phone_number, phone_last_four,
                    church_cell_department, lookup_key_hash, privacy_consent_agreed, fee_paid,
-                   status, created_at, updated_at
+                   status, admin_memo, newcomer, care_target, created_at, updated_at
             FROM registrations
             WHERE normalized_name = #{normalizedName}
               AND phone_number = #{phoneNumber}
@@ -65,6 +68,9 @@ public interface RegistrationMapper {
             @Arg(column = "privacy_consent_agreed", javaType = Boolean.class),
             @Arg(column = "fee_paid", javaType = Boolean.class),
             @Arg(column = "status", javaType = RegistrationStatus.class),
+            @Arg(column = "admin_memo", javaType = String.class),
+            @Arg(column = "newcomer", javaType = Boolean.class),
+            @Arg(column = "care_target", javaType = Boolean.class),
             @Arg(column = "created_at", javaType = OffsetDateTime.class),
             @Arg(column = "updated_at", javaType = OffsetDateTime.class)
     })
@@ -76,7 +82,7 @@ public interface RegistrationMapper {
     @Select("""
             SELECT id, name, normalized_name, gender, birth_year, phone_number, phone_last_four,
                    church_cell_department, lookup_key_hash, privacy_consent_agreed, fee_paid,
-                   status, created_at, updated_at
+                   status, admin_memo, newcomer, care_target, created_at, updated_at
             FROM registrations
             WHERE normalized_name = #{normalizedName}
               AND phone_last_four = #{phoneLastFour}
@@ -96,6 +102,9 @@ public interface RegistrationMapper {
             @Arg(column = "privacy_consent_agreed", javaType = Boolean.class),
             @Arg(column = "fee_paid", javaType = Boolean.class),
             @Arg(column = "status", javaType = RegistrationStatus.class),
+            @Arg(column = "admin_memo", javaType = String.class),
+            @Arg(column = "newcomer", javaType = Boolean.class),
+            @Arg(column = "care_target", javaType = Boolean.class),
             @Arg(column = "created_at", javaType = OffsetDateTime.class),
             @Arg(column = "updated_at", javaType = OffsetDateTime.class)
     })
@@ -107,7 +116,7 @@ public interface RegistrationMapper {
     @Select("""
             SELECT id, name, normalized_name, gender, birth_year, phone_number, phone_last_four,
                    church_cell_department, lookup_key_hash, privacy_consent_agreed, fee_paid,
-                   status, created_at, updated_at
+                   status, admin_memo, newcomer, care_target, created_at, updated_at
             FROM registrations
             ORDER BY created_at DESC, id DESC
             LIMIT #{limit}
@@ -126,6 +135,9 @@ public interface RegistrationMapper {
             @Arg(column = "privacy_consent_agreed", javaType = Boolean.class),
             @Arg(column = "fee_paid", javaType = Boolean.class),
             @Arg(column = "status", javaType = RegistrationStatus.class),
+            @Arg(column = "admin_memo", javaType = String.class),
+            @Arg(column = "newcomer", javaType = Boolean.class),
+            @Arg(column = "care_target", javaType = Boolean.class),
             @Arg(column = "created_at", javaType = OffsetDateTime.class),
             @Arg(column = "updated_at", javaType = OffsetDateTime.class)
     })
@@ -174,6 +186,32 @@ public interface RegistrationMapper {
             WHERE id = #{id}
             """)
     int selfUpdate(RegistrationSelfUpdate registration);
+
+    @Update("""
+            UPDATE registrations
+            SET fee_paid = #{feePaid},
+                updated_at = now()
+            WHERE id = #{id}
+            """)
+    int updateFeePaid(@Param("id") Long id, @Param("feePaid") Boolean feePaid);
+
+    @Update("""
+            UPDATE registrations
+            SET status = #{status},
+                updated_at = now()
+            WHERE id = #{id}
+            """)
+    int updateStatus(@Param("id") Long id, @Param("status") RegistrationStatus status);
+
+    @Update("""
+            UPDATE registrations
+            SET admin_memo = #{adminMemo},
+                newcomer = #{newcomer},
+                care_target = #{careTarget},
+                updated_at = now()
+            WHERE id = #{id}
+            """)
+    int updateManagement(RegistrationManagementUpdate registration);
 
     class RegistrationInsert {
         private Long id;
@@ -289,6 +327,14 @@ public interface RegistrationMapper {
             String phoneNumber,
             String phoneLastFour,
             String churchCellDepartment
+    ) {
+    }
+
+    record RegistrationManagementUpdate(
+            Long id,
+            String adminMemo,
+            Boolean newcomer,
+            Boolean careTarget
     ) {
     }
 

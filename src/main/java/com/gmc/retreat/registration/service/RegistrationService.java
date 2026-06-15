@@ -1,13 +1,17 @@
 package com.gmc.retreat.registration.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gmc.retreat.admin.domain.AdminRole;
 import com.gmc.retreat.error.BusinessException;
 import com.gmc.retreat.error.ErrorCode;
 import com.gmc.retreat.registration.domain.Registration;
 import com.gmc.retreat.registration.domain.RegistrationActorType;
 import com.gmc.retreat.registration.domain.RegistrationHistoryChangeType;
 import com.gmc.retreat.registration.domain.RegistrationStatus;
+import com.gmc.retreat.registration.dto.AdminRegistrationFeePaidUpdateRequest;
+import com.gmc.retreat.registration.dto.AdminRegistrationManagementUpdateRequest;
 import com.gmc.retreat.registration.dto.AdminRegistrationResponse;
+import com.gmc.retreat.registration.dto.AdminRegistrationStatusUpdateRequest;
 import com.gmc.retreat.registration.dto.PageResponse;
 import com.gmc.retreat.registration.dto.RegistrationCreateRequest;
 import com.gmc.retreat.registration.dto.RegistrationCreateResponse;
@@ -20,8 +24,12 @@ import com.gmc.retreat.registration.mapper.RegistrationHistoryMapper;
 import com.gmc.retreat.registration.mapper.RegistrationHistoryMapper.RegistrationHistoryInsert;
 import com.gmc.retreat.registration.mapper.RegistrationMapper;
 import com.gmc.retreat.registration.mapper.RegistrationMapper.RegistrationInsert;
+import com.gmc.retreat.registration.mapper.RegistrationMapper.RegistrationManagementUpdate;
 import com.gmc.retreat.registration.mapper.RegistrationMapper.RegistrationOverwrite;
 import com.gmc.retreat.registration.mapper.RegistrationMapper.RegistrationSelfUpdate;
+import com.gmc.retreat.registration.mapper.RegistrationPrivacyAccessLogMapper;
+import com.gmc.retreat.registration.mapper.RegistrationPrivacyAccessLogMapper.RegistrationPrivacyAccessLogInsert;
+import com.gmc.retreat.security.auth.AdminPrincipal;
 import java.util.List;
 import java.util.Map;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -34,9 +42,12 @@ public class RegistrationService {
 
     private static final String LOOKUP_KEY_NOTICE =
             "This lookup key is shown only once. Please save it safely.";
+    private static final String DETAIL_VIEW = "DETAIL_VIEW";
+    private static final String HISTORY_VIEW = "HISTORY_VIEW";
 
     private final RegistrationMapper registrationMapper;
     private final RegistrationHistoryMapper registrationHistoryMapper;
+    private final RegistrationPrivacyAccessLogMapper privacyAccessLogMapper;
     private final LookupKeyGenerator lookupKeyGenerator;
     private final PasswordEncoder passwordEncoder;
     private final RegistrationProperties registrationProperties;
@@ -45,6 +56,7 @@ public class RegistrationService {
     public RegistrationService(
             RegistrationMapper registrationMapper,
             RegistrationHistoryMapper registrationHistoryMapper,
+            RegistrationPrivacyAccessLogMapper privacyAccessLogMapper,
             LookupKeyGenerator lookupKeyGenerator,
             PasswordEncoder passwordEncoder,
             RegistrationProperties registrationProperties,
@@ -52,6 +64,7 @@ public class RegistrationService {
     ) {
         this.registrationMapper = registrationMapper;
         this.registrationHistoryMapper = registrationHistoryMapper;
+        this.privacyAccessLogMapper = privacyAccessLogMapper;
         this.lookupKeyGenerator = lookupKeyGenerator;
         this.passwordEncoder = passwordEncoder;
         this.registrationProperties = registrationProperties;
@@ -160,7 +173,8 @@ public class RegistrationService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<AdminRegistrationResponse> findRegistrations(int page, int size) {
+    public PageResponse<AdminRegistrationResponse> findRegistrations(AdminPrincipal admin, int page, int size) {
+        requireRole(admin, AdminRole.STAFF);
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 100);
         List<AdminRegistrationResponse> content = registrationMapper.findPage(safeSize, safePage * safeSize)
@@ -170,22 +184,100 @@ public class RegistrationService {
         return PageResponse.of(content, safePage, safeSize, registrationMapper.countAll());
     }
 
-    @Transactional(readOnly = true)
-    public AdminRegistrationResponse findRegistration(Long id) {
+    @Transactional
+    public AdminRegistrationResponse findRegistration(AdminPrincipal admin, Long id) {
+        requireRole(admin, AdminRole.STAFF);
         Registration registration = registrationMapper.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.REGISTRATION_NOT_FOUND));
+        insertPrivacyAccessLog(registration.id(), admin.id(), DETAIL_VIEW, "phone_number");
         return AdminRegistrationResponse.detail(registration);
     }
 
-    @Transactional(readOnly = true)
-    public List<RegistrationHistoryResponse> findHistories(Long registrationId) {
+    @Transactional
+    public List<RegistrationHistoryResponse> findHistories(AdminPrincipal admin, Long registrationId) {
+        requireRole(admin, AdminRole.STAFF);
         if (registrationMapper.findById(registrationId).isEmpty()) {
             throw new BusinessException(ErrorCode.REGISTRATION_NOT_FOUND);
         }
+        insertPrivacyAccessLog(registrationId, admin.id(), HISTORY_VIEW, "history_snapshots");
         return registrationHistoryMapper.findByRegistrationId(registrationId)
                 .stream()
                 .map(RegistrationHistoryResponse::from)
                 .toList();
+    }
+
+    @Transactional
+    public AdminRegistrationResponse updateFeePaid(
+            AdminPrincipal admin,
+            Long id,
+            AdminRegistrationFeePaidUpdateRequest request
+    ) {
+        requireRole(admin, AdminRole.CHAIR);
+        Registration registration = registrationMapper.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.REGISTRATION_NOT_FOUND));
+        String previousSnapshot = snapshot(registration);
+        registrationMapper.updateFeePaid(id, request.feePaid());
+        Registration updated = registrationMapper.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
+        insertAdminHistory(
+                updated.id(),
+                RegistrationHistoryChangeType.FEE_PAYMENT_UPDATED,
+                previousSnapshot,
+                snapshot(updated),
+                admin.id()
+        );
+        return AdminRegistrationResponse.detail(updated);
+    }
+
+    @Transactional
+    public AdminRegistrationResponse updateStatus(
+            AdminPrincipal admin,
+            Long id,
+            AdminRegistrationStatusUpdateRequest request
+    ) {
+        requireRole(admin, AdminRole.CHAIR);
+        Registration registration = registrationMapper.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.REGISTRATION_NOT_FOUND));
+        String previousSnapshot = snapshot(registration);
+        registrationMapper.updateStatus(id, request.status());
+        Registration updated = registrationMapper.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
+        insertAdminHistory(
+                updated.id(),
+                RegistrationHistoryChangeType.STATUS_UPDATED,
+                previousSnapshot,
+                snapshot(updated),
+                admin.id()
+        );
+        return AdminRegistrationResponse.detail(updated);
+    }
+
+    @Transactional
+    public AdminRegistrationResponse updateManagement(
+            AdminPrincipal admin,
+            Long id,
+            AdminRegistrationManagementUpdateRequest request
+    ) {
+        requireRole(admin, AdminRole.CHAIR);
+        Registration registration = registrationMapper.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.REGISTRATION_NOT_FOUND));
+        String previousSnapshot = snapshot(registration);
+        registrationMapper.updateManagement(new RegistrationManagementUpdate(
+                id,
+                normalizeOptional(request.adminMemo()),
+                request.newcomer(),
+                request.careTarget()
+        ));
+        Registration updated = registrationMapper.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
+        insertAdminHistory(
+                updated.id(),
+                RegistrationHistoryChangeType.ADMIN_MANAGEMENT_UPDATED,
+                previousSnapshot,
+                snapshot(updated),
+                admin.id()
+        );
+        return AdminRegistrationResponse.detail(updated);
     }
 
     private Registration authenticateParticipant(String name, String phoneLastFour, String lookupKey) {
@@ -213,6 +305,37 @@ public class RegistrationService {
         ));
     }
 
+    private void insertAdminHistory(
+            Long registrationId,
+            RegistrationHistoryChangeType changeType,
+            String previousSnapshot,
+            String newSnapshot,
+            Long adminUserId
+    ) {
+        registrationHistoryMapper.insert(new RegistrationHistoryInsert(
+                registrationId,
+                changeType,
+                previousSnapshot,
+                newSnapshot,
+                RegistrationActorType.ADMIN,
+                adminUserId
+        ));
+    }
+
+    private void insertPrivacyAccessLog(
+            Long registrationId,
+            Long adminUserId,
+            String accessType,
+            String sensitiveFields
+    ) {
+        privacyAccessLogMapper.insert(new RegistrationPrivacyAccessLogInsert(
+                registrationId,
+                adminUserId,
+                accessType,
+                sensitiveFields
+        ));
+    }
+
     private String snapshot(Registration registration) {
         try {
             Map<String, Object> snapshot = Map.ofEntries(
@@ -226,7 +349,10 @@ public class RegistrationService {
                             ? "" : registration.churchCellDepartment()),
                     Map.entry("privacyConsentAgreed", registration.privacyConsentAgreed()),
                     Map.entry("feePaid", registration.feePaid()),
-                    Map.entry("status", registration.status())
+                    Map.entry("status", registration.status()),
+                    Map.entry("adminMemo", registration.adminMemo() == null ? "" : registration.adminMemo()),
+                    Map.entry("newcomer", registration.newcomer()),
+                    Map.entry("careTarget", registration.careTarget())
             );
             return objectMapper.writeValueAsString(snapshot);
         } catch (Exception exception) {
@@ -250,5 +376,11 @@ public class RegistrationService {
             return null;
         }
         return value.trim();
+    }
+
+    private void requireRole(AdminPrincipal admin, AdminRole requiredRole) {
+        if (admin == null || !admin.role().hasAuthorityAtLeast(requiredRole)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
     }
 }
