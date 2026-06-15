@@ -1,0 +1,21 @@
+package com.gmc.retreat.registration.domain;
+
+import java.time.OffsetDateTime;
+
+public record Registration(
+        Long id,
+        String name,
+        String normalizedName,
+        Gender gender,
+        Integer birthYear,
+        String phoneNumber,
+        String phoneLastFour,
+        String churchCellDepartment,
+        String lookupKeyHash,
+        Boolean privacyConsentAgreed,
+        Boolean feePaid,
+        RegistrationStatus status,
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
+) {
+}

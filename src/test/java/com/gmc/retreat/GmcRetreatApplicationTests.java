@@ -3,6 +3,7 @@ package com.gmc.retreat;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -10,6 +11,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gmc.retreat.admin.domain.AdminRole;
 import com.gmc.retreat.admin.service.SystemAdminBootstrapper;
+import com.gmc.retreat.registration.service.RegistrationProperties;
+import com.gmc.retreat.registration.service.RegistrationService;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
@@ -17,6 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +29,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -68,6 +73,15 @@ class GmcRetreatApplicationTests {
 
     @Autowired
     private SystemAdminBootstrapper systemAdminBootstrapper;
+
+    @Autowired
+    private RegistrationService registrationService;
+
+    @BeforeEach
+    void cleanRegistrationData() {
+        jdbcTemplate.update("DELETE FROM registration_histories");
+        jdbcTemplate.update("DELETE FROM registrations");
+    }
 
     @Test
     void contextLoadsAndFlywayMigrationRuns() {
@@ -248,6 +262,229 @@ class GmcRetreatApplicationTests {
                 .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
     }
 
+    @Test
+    void registrationCreationSucceedsAndReturnsLookupKeyOnce() throws Exception {
+        MvcResult result = createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true);
+
+        String responseBody = result.getResponse().getContentAsString();
+        JsonNode response = objectMapper.readTree(responseBody);
+        String lookupKey = response.path("data").path("lookupKey").asText();
+
+        assertThat(response.path("success").asBoolean()).isTrue();
+        assertThat(response.path("data").path("resultType").asText()).isEqualTo("CREATED");
+        assertThat(response.path("data").path("registration").path("name").asText()).isEqualTo("Grace Kim");
+        assertThat(lookupKey).isNotBlank();
+        assertThat(countOccurrences(responseBody, lookupKey)).isEqualTo(1);
+    }
+
+    @Test
+    void databaseStoresBcryptLookupKeyHashInsteadOfPlaintextLookupKey() throws Exception {
+        JsonNode response = objectMapper.readTree(
+                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+        String lookupKey = response.path("data").path("lookupKey").asText();
+
+        String lookupKeyHash = jdbcTemplate.queryForObject(
+                "SELECT lookup_key_hash FROM registrations WHERE name = 'Grace Kim'",
+                String.class
+        );
+
+        assertThat(lookupKeyHash).isNotEqualTo(lookupKey);
+        assertThat(lookupKeyHash).startsWith("$2");
+        assertThat(passwordEncoder.matches(lookupKey, lookupKeyHash)).isTrue();
+    }
+
+    @Test
+    void duplicateRegistrationOverwritesExistingActiveRowAndInsertsOverwrittenHistory() throws Exception {
+        JsonNode first = objectMapper.readTree(
+                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+        Long registrationId = first.path("data").path("registration").path("id").asLong();
+
+        MvcResult duplicateResult = createRegistration("Grace Kim", "01012345678", "College", true);
+        JsonNode duplicate = objectMapper.readTree(duplicateResult.getResponse().getContentAsString());
+
+        Integer activeCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM registrations
+                        WHERE normalized_name = 'Grace Kim'
+                          AND phone_number = '01012345678'
+                          AND status = 'REGISTERED'
+                        """,
+                Integer.class
+        );
+        Integer overwrittenHistoryCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM registration_histories
+                        WHERE registration_id = ?
+                          AND change_type = 'OVERWRITTEN'
+                        """,
+                Integer.class,
+                registrationId
+        );
+
+        assertThat(duplicate.path("data").path("resultType").asText()).isEqualTo("OVERWRITTEN");
+        assertThat(duplicate.path("data").path("registration").path("id").asLong()).isEqualTo(registrationId);
+        assertThat(duplicate.path("data").path("registration").path("churchCellDepartment").asText())
+                .isEqualTo("College");
+        assertThat(activeCount).isEqualTo(1);
+        assertThat(overwrittenHistoryCount).isEqualTo(1);
+    }
+
+    @Test
+    void selfLookupSucceedsWithNamePhoneLastFourAndLookupKey() throws Exception {
+        JsonNode created = objectMapper.readTree(
+                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+
+        mockMvc.perform(post("/api/registrations/self/lookup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "Grace Kim",
+                                "phoneLastFour", "5678",
+                                "lookupKey", created.path("data").path("lookupKey").asText()
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.name").value("Grace Kim"))
+                .andExpect(jsonPath("$.data.phoneNumber").value("010****5678"));
+    }
+
+    @Test
+    void selfLookupFailsWithWrongLookupKey() throws Exception {
+        createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true);
+
+        mockMvc.perform(post("/api/registrations/self/lookup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "Grace Kim",
+                                "phoneLastFour", "5678",
+                                "lookupKey", "wrong-key"
+                        ))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("REGISTRATION_LOOKUP_FAILED"));
+    }
+
+    @Test
+    void selfUpdateSucceedsWhenSelfEditEnabled() throws Exception {
+        JsonNode created = objectMapper.readTree(
+                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+
+        mockMvc.perform(put("/api/registrations/self")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(selfUpdateRequest(created.path("data").path("lookupKey").asText(), "010-9999-0000")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.phoneNumber").value("010****0000"))
+                .andExpect(jsonPath("$.data.churchCellDepartment").value("Updated Cell"));
+
+        Integer updatedCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM registration_histories WHERE change_type = 'SELF_UPDATED'",
+                Integer.class
+        );
+        assertThat(updatedCount).isEqualTo(1);
+    }
+
+    @Test
+    void selfUpdateFailsWhenSelfEditDisabled() throws Exception {
+        JsonNode created = objectMapper.readTree(
+                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+        ReflectionTestUtils.setField(registrationService, "registrationProperties", new RegistrationProperties(false));
+
+        try {
+            mockMvc.perform(put("/api/registrations/self")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(selfUpdateRequest(created.path("data").path("lookupKey").asText(), "010-9999-0000")))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.error.code").value("REGISTRATION_EDIT_CLOSED"));
+        } finally {
+            ReflectionTestUtils.setField(registrationService, "registrationProperties", new RegistrationProperties(true));
+        }
+    }
+
+    @Test
+    void registrationCreationFailsWhenPrivacyConsentIsFalse() throws Exception {
+        mockMvc.perform(post("/api/registrations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registrationRequest("Grace Kim", "010-1234-5678", "Young Adults", false)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
+    void adminRegistrationListAndDetailRequireJwt() throws Exception {
+        mockMvc.perform(get("/api/admin/registrations"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
+
+        mockMvc.perform(get("/api/admin/registrations/1"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
+    }
+
+    @Test
+    void registrationResponsesNeverExposeLookupKeyHash() throws Exception {
+        JsonNode created = objectMapper.readTree(
+                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+        String lookupKey = created.path("data").path("lookupKey").asText();
+        Long registrationId = created.path("data").path("registration").path("id").asLong();
+        String accessToken = loginAndGetAccessToken();
+
+        MvcResult lookupResult = mockMvc.perform(post("/api/registrations/self/lookup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "Grace Kim",
+                                "phoneLastFour", "5678",
+                                "lookupKey", lookupKey
+                        ))))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        MvcResult updateResult = mockMvc.perform(put("/api/registrations/self")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(selfUpdateRequest(lookupKey, "010-9999-0000")))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        MvcResult adminListResult = mockMvc.perform(get("/api/admin/registrations")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        MvcResult adminDetailResult = mockMvc.perform(get("/api/admin/registrations/" + registrationId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        assertThat(created.toString()).doesNotContain("lookupKeyHash", "lookup_key_hash");
+        assertThat(lookupResult.getResponse().getContentAsString()).doesNotContain("lookupKeyHash", "lookup_key_hash");
+        assertThat(updateResult.getResponse().getContentAsString()).doesNotContain("lookupKeyHash", "lookup_key_hash");
+        assertThat(adminListResult.getResponse().getContentAsString()).doesNotContain("lookupKeyHash", "lookup_key_hash");
+        assertThat(adminDetailResult.getResponse().getContentAsString()).doesNotContain("lookupKeyHash", "lookup_key_hash");
+    }
+
     @Nested
     class RoleHierarchyTests {
 
@@ -274,6 +511,59 @@ class GmcRetreatApplicationTests {
 
         JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
         return response.path("data").path("accessToken").asText();
+    }
+
+    private MvcResult createRegistration(
+            String name,
+            String phoneNumber,
+            String churchCellDepartment,
+            boolean privacyConsentAgreed
+    ) throws Exception {
+        return mockMvc.perform(post("/api/registrations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registrationRequest(name, phoneNumber, churchCellDepartment, privacyConsentAgreed)))
+                .andExpect(status().isOk())
+                .andReturn();
+    }
+
+    private String registrationRequest(
+            String name,
+            String phoneNumber,
+            String churchCellDepartment,
+            boolean privacyConsentAgreed
+    ) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "name", name,
+                "gender", "FEMALE",
+                "birthYear", 1991,
+                "phoneNumber", phoneNumber,
+                "churchCellDepartment", churchCellDepartment,
+                "privacyConsentAgreed", privacyConsentAgreed
+        ));
+    }
+
+    private String selfUpdateRequest(String lookupKey, String phoneNumber) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "name", "Grace Kim",
+                "phoneLastFour", "5678",
+                "lookupKey", lookupKey,
+                "update", Map.of(
+                        "gender", "FEMALE",
+                        "birthYear", 1992,
+                        "phoneNumber", phoneNumber,
+                        "churchCellDepartment", "Updated Cell"
+                )
+        ));
+    }
+
+    private int countOccurrences(String value, String needle) {
+        int count = 0;
+        int index = 0;
+        while ((index = value.indexOf(needle, index)) >= 0) {
+            count++;
+            index += needle.length();
+        }
+        return count;
     }
 
     private String signedToken(Map<String, Object> payload) throws Exception {
