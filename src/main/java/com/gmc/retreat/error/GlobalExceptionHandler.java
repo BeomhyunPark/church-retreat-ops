@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -38,6 +39,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(ErrorCode.INVALID_REQUEST.getStatus())
                 .body(ApiResponse.error(ErrorCode.INVALID_REQUEST, message));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleHttpMessageNotReadableException(
+            HttpMessageNotReadableException exception
+    ) {
+        return ResponseEntity
+                .status(ErrorCode.INVALID_REQUEST.getStatus())
+                .body(ApiResponse.error(ErrorCode.INVALID_REQUEST));
     }
 
     @ExceptionHandler(AuthenticationException.class)

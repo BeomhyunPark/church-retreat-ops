@@ -11,3 +11,13 @@ spring:
 
 server:
   port: 8080
+
+app:
+  jwt:
+    secret: ${APP_JWT_SECRET:local-dev-secret-change-me-local-dev-secret-change-me}
+    access-token-expiration-minutes: 120
+  bootstrap:
+    system-admin:
+      email: ${APP_SYSTEM_ADMIN_EMAIL:admin@gmc.local}
+      password: ${APP_SYSTEM_ADMIN_PASSWORD:admin1234!}
+      name: ${APP_SYSTEM_ADMIN_NAME:System Admin}
