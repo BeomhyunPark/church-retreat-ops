@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: church-retreat-ops-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: church_retreat_ops
+      POSTGRES_USER: retreat_app
+      POSTGRES_PASSWORD: retreat_app_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U retreat_app -d church_retreat_ops"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
