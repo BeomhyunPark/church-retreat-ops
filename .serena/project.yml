@@ -1,0 +1,19 @@
+project_name: "church-retreat-ops"
+languages: ["java"]
+encoding: "utf-8"
+ignore_all_files_in_gitignore: true
+ignored_paths:
+  - "build/"
+  - ".gradle/"
+  - ".idea/"
+  - "logs/"
+  - "docker-data/"
+read_only: false
+initial_prompt: |
+  This is the church-retreat-ops Java Spring Boot project.
+
+  Treat AGENTS.md as the main source of project rules and read it before making changes.
+  Do not work directly on main. Do not push.
+  Do not expose lookupKeyHash.
+  Follow the existing controller, service, mapper, DTO, security, error, and test style.
+  Do not implement future phases unless explicitly requested.
