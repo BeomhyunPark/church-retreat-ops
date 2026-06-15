@@ -2,7 +2,7 @@
 
 `church-retreat-ops`는 교회 수련회 준비와 현장 운영을 위한 백엔드 프로젝트입니다.
 
-현재는 백엔드 기반과 관리자 인증 기반만 구현되어 있습니다. 참가자 등록, 조 편성, 공지, 일정, 체크인, 프론트엔드는 아직 구현하지 않았습니다.
+현재는 백엔드 기반, 관리자 인증 기반, 참가자 등록 Phase 2가 구현되어 있습니다. 조 편성, 공지, 일정, 체크인, 프론트엔드는 아직 구현하지 않았습니다.
 
 ## 현재 완료된 단계
 
@@ -32,6 +32,21 @@
 - JWT 인증 필터
 - 현재 로그인한 관리자 프로필 API
 - 기본 역할 계층 로직
+
+### Phase 2: 참가자 등록 / 본인 조회 / 관리자 읽기 API
+
+- `registrations`, `registration_histories` 테이블
+- 참가자 등록 API
+- 개인정보 동의 필수 검증
+- 전화번호 정규화와 DB check constraint
+- 개인 조회 키 1회 표시 및 BCrypt 해시 저장
+- 동일 이름 + 전화번호 활성 등록 중복 시 기존 행 덮어쓰기
+- 등록 생성, 덮어쓰기, 본인 수정 이력 저장
+- 이름 + 전화번호 마지막 4자리 + 조회 키 본인 조회
+- 설정 기반 본인 수정 허용/차단
+- 관리자 등록 목록/상세/이력 읽기 API
+
+자세한 내용은 [docs/phase2-participant-registration.md](docs/phase2-participant-registration.md)를 참고합니다.
 
 ## 기술 스택
 
@@ -102,6 +117,8 @@ docker compose down -v
 
 테스트는 Testcontainers PostgreSQL을 사용하므로 Docker Desktop이 실행 중이어야 합니다.
 
+Phase 2 통합 테스트도 같은 명령에 포함됩니다.
+
 ## Health Check
 
 ```bash
@@ -130,6 +147,63 @@ curl -s http://localhost:8080/api/admin/auth/me \
   -H 'Authorization: Bearer <accessToken>'
 ```
 
+## 참가자 등록 테스트
+
+참가자 등록은 공개 API입니다. 응답의 `data.lookupKey`는 이 응답에서만 평문으로 표시됩니다.
+
+```bash
+curl -s -X POST http://localhost:8080/api/registrations \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name":"Grace Kim",
+    "gender":"FEMALE",
+    "birthYear":1991,
+    "phoneNumber":"010-1234-5678",
+    "churchCellDepartment":"Young Adults",
+    "privacyConsentAgreed":true
+  }'
+```
+
+본인 조회:
+
+```bash
+curl -s -X POST http://localhost:8080/api/registrations/self/lookup \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name":"Grace Kim",
+    "phoneLastFour":"5678",
+    "lookupKey":"<lookupKey>"
+  }'
+```
+
+본인 수정:
+
+```bash
+curl -s -X PUT http://localhost:8080/api/registrations/self \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name":"Grace Kim",
+    "phoneLastFour":"5678",
+    "lookupKey":"<lookupKey>",
+    "update":{
+      "gender":"FEMALE",
+      "birthYear":1992,
+      "phoneNumber":"010-9999-0000",
+      "churchCellDepartment":"Updated Cell"
+    }
+  }'
+```
+
+관리자 등록 목록과 상세는 JWT가 필요합니다.
+
+```bash
+curl -s http://localhost:8080/api/admin/registrations \
+  -H 'Authorization: Bearer <accessToken>'
+
+curl -s http://localhost:8080/api/admin/registrations/1 \
+  -H 'Authorization: Bearer <accessToken>'
+```
+
 ## 환경 변수
 
 운영 환경에서는 아래 값을 환경 변수로 주입해야 합니다.
@@ -139,6 +213,7 @@ APP_JWT_SECRET
 APP_SYSTEM_ADMIN_EMAIL
 APP_SYSTEM_ADMIN_PASSWORD
 APP_SYSTEM_ADMIN_NAME
+APP_REGISTRATION_SELF_EDIT_ENABLED
 ```
 
 로컬 기본값은 개발 편의를 위한 값입니다. 운영 환경에서 기본 관리자 계정 정보와 JWT secret을 그대로 사용하면 안 됩니다.
@@ -149,19 +224,24 @@ APP_SYSTEM_ADMIN_NAME
 
 - `GET /api/health`
 - `POST /api/admin/auth/login`
+- `POST /api/registrations`
+- `POST /api/registrations/self/lookup`
+- `PUT /api/registrations/self`
 - Swagger/OpenAPI 경로가 추가될 경우를 대비한 기본 공개 경로
 
 JWT가 필요한 API:
 
 - `GET /api/admin/auth/me`
+- `GET /api/admin/registrations`
+- `GET /api/admin/registrations/{id}`
+- `GET /api/admin/registrations/{id}/histories`
 - 그 외 API는 기본적으로 인증 필요
 
 ## 아직 구현하지 않은 범위
 
 아래 기능은 현재 단계에서 의도적으로 제외되어 있습니다.
 
-- 참가자 등록
-- 참가자 조회 또는 참가자 로그인
+- 참가자 로그인 계정
 - 조 편성
 - 공지
 - 일정

@@ -21,3 +21,5 @@ app:
       email: ${APP_SYSTEM_ADMIN_EMAIL:admin@gmc.local}
       password: ${APP_SYSTEM_ADMIN_PASSWORD:admin1234!}
       name: ${APP_SYSTEM_ADMIN_NAME:System Admin}
+  registration:
+    self-edit-enabled: ${APP_REGISTRATION_SELF_EDIT_ENABLED:true}
