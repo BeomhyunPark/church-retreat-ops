@@ -1,0 +1,45 @@
+@baseUrl = http://localhost:8080
+
+### Register participant
+POST {{baseUrl}}/api/registrations
+Content-Type: application/json
+
+{
+  "name": "Grace Kim",
+  "gender": "FEMALE",
+  "birthYear": 1991,
+  "phoneNumber": "010-1234-5678",
+  "churchCellDepartment": "Young Adults",
+  "privacyConsentAgreed": true
+}
+
+> {%
+    client.global.set("participantId", response.body.data.registration.id);
+    client.global.set("participantLookupKey", response.body.data.lookupKey);
+%}
+
+### Self lookup
+POST {{baseUrl}}/api/registrations/self/lookup
+Content-Type: application/json
+
+{
+  "name": "Grace Kim",
+  "phoneLastFour": "5678",
+  "lookupKey": "{{participantLookupKey}}"
+}
+
+### Self update
+PUT {{baseUrl}}/api/registrations/self
+Content-Type: application/json
+
+{
+  "name": "Grace Kim",
+  "phoneLastFour": "5678",
+  "lookupKey": "{{participantLookupKey}}",
+  "update": {
+    "gender": "FEMALE",
+    "birthYear": 1992,
+    "phoneNumber": "010-9999-0000",
+    "churchCellDepartment": "Updated Cell"
+  }
+}

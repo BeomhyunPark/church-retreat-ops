@@ -17,4 +17,5 @@ logs/
 *.log
 
 docker-data/
-http/
+http/admin-auth.http
+http/*.local.http

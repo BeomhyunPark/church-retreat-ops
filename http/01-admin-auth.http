@@ -1,0 +1,18 @@
+@baseUrl = http://localhost:8080
+
+### Admin login
+POST {{baseUrl}}/api/admin/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@gmc.local",
+  "password": "admin1234!"
+}
+
+> {%
+    client.global.set("adminToken", response.body.data.accessToken);
+%}
+
+### Current admin profile
+GET {{baseUrl}}/api/admin/auth/me
+Authorization: Bearer {{adminToken}}
