@@ -10,10 +10,36 @@ ignored_paths:
   - "docker-data/"
 read_only: false
 initial_prompt: |
-  This is the church-retreat-ops Java Spring Boot project.
+  This is `church-retreat-ops`, a Java 21 Spring Boot backend for GMC Retreat App.
 
-  Treat AGENTS.md as the main source of project rules and read it before making changes.
-  Do not work directly on main. Do not push.
-  Do not expose lookupKeyHash.
-  Follow the existing controller, service, mapper, DTO, security, error, and test style.
-  Do not implement future phases unless explicitly requested.
+  Always follow AGENTS.md first.
+
+  Token-efficient workflow:
+  - Prefer Serena symbolic tools before reading files.
+  - Use project overview, symbol overview, find symbol, find references, and pattern search before opening source files.
+  - Do not read entire source files unless strictly necessary.
+  - When editing Java code, first identify the relevant package/class/method, then read only the required symbol body.
+  - When checking existing style, inspect the smallest matching existing controller/service/mapper/dto/test example.
+  - Avoid repeatedly reading the same file.
+  - Avoid dumping large code blocks in responses.
+  - Summarize findings briefly before editing.
+  - For broad tasks, inspect only relevant files and propose a short plan first.
+
+  Project rules:
+  - Do not work directly on main.
+  - Do not push.
+  - Existing Flyway migrations must not be modified.
+  - Add new migrations only.
+  - Follow existing controller/service/mapper/dto/security/error/test style.
+  - Update tests for behavior changes.
+  - Update README/docs/http files for phase-level features.
+  - Participants are not admin_users.
+  - Never expose lookupKeyHash in responses, logs, docs, examples, or HTTP files.
+  - Roles: STAFF < CHAIR < PASTOR < SYSTEM_ADMIN.
+  - STAFF is read-oriented.
+  - CHAIR/PASTOR+ can perform management changes.
+  - SYSTEM_ADMIN is system-level only.
+  - Newcomer/care target is a participant attribute, not a role.
+  - Church middle group/cell is separate from app authorization.
+  - Church cell is not retreat group.
+  - Do not implement future phases unless explicitly requested.
