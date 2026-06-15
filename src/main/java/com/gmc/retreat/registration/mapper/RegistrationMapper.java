@@ -19,11 +19,15 @@ import org.apache.ibatis.annotations.Update;
 public interface RegistrationMapper {
 
     @Select("""
-            SELECT id, name, normalized_name, gender, birth_year, phone_number, phone_last_four,
-                   church_cell_department, lookup_key_hash, privacy_consent_agreed, fee_paid,
-                   status, admin_memo, newcomer, care_target, created_at, updated_at
-            FROM registrations
-            WHERE id = #{id}
+            SELECT r.id, r.name, r.normalized_name, r.gender, r.birth_year, r.phone_number, r.phone_last_four,
+                   r.church_cell_department, r.church_cell_id, cc.name AS church_cell_name,
+                   mg.id AS middle_group_id, mg.name AS middle_group_name,
+                   r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
+                   r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at
+            FROM registrations r
+            LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
+            LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
+            WHERE r.id = #{id}
             """)
     @ConstructorArgs({
             @Arg(column = "id", javaType = Long.class),
@@ -34,6 +38,10 @@ public interface RegistrationMapper {
             @Arg(column = "phone_number", javaType = String.class),
             @Arg(column = "phone_last_four", javaType = String.class),
             @Arg(column = "church_cell_department", javaType = String.class),
+            @Arg(column = "church_cell_id", javaType = Long.class),
+            @Arg(column = "church_cell_name", javaType = String.class),
+            @Arg(column = "middle_group_id", javaType = Long.class),
+            @Arg(column = "middle_group_name", javaType = String.class),
             @Arg(column = "lookup_key_hash", javaType = String.class),
             @Arg(column = "privacy_consent_agreed", javaType = Boolean.class),
             @Arg(column = "fee_paid", javaType = Boolean.class),
@@ -47,13 +55,17 @@ public interface RegistrationMapper {
     Optional<Registration> findById(@Param("id") Long id);
 
     @Select("""
-            SELECT id, name, normalized_name, gender, birth_year, phone_number, phone_last_four,
-                   church_cell_department, lookup_key_hash, privacy_consent_agreed, fee_paid,
-                   status, admin_memo, newcomer, care_target, created_at, updated_at
-            FROM registrations
-            WHERE normalized_name = #{normalizedName}
-              AND phone_number = #{phoneNumber}
-              AND status = 'REGISTERED'
+            SELECT r.id, r.name, r.normalized_name, r.gender, r.birth_year, r.phone_number, r.phone_last_four,
+                   r.church_cell_department, r.church_cell_id, cc.name AS church_cell_name,
+                   mg.id AS middle_group_id, mg.name AS middle_group_name,
+                   r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
+                   r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at
+            FROM registrations r
+            LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
+            LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
+            WHERE r.normalized_name = #{normalizedName}
+              AND r.phone_number = #{phoneNumber}
+              AND r.status = 'REGISTERED'
             """)
     @ConstructorArgs({
             @Arg(column = "id", javaType = Long.class),
@@ -64,6 +76,10 @@ public interface RegistrationMapper {
             @Arg(column = "phone_number", javaType = String.class),
             @Arg(column = "phone_last_four", javaType = String.class),
             @Arg(column = "church_cell_department", javaType = String.class),
+            @Arg(column = "church_cell_id", javaType = Long.class),
+            @Arg(column = "church_cell_name", javaType = String.class),
+            @Arg(column = "middle_group_id", javaType = Long.class),
+            @Arg(column = "middle_group_name", javaType = String.class),
             @Arg(column = "lookup_key_hash", javaType = String.class),
             @Arg(column = "privacy_consent_agreed", javaType = Boolean.class),
             @Arg(column = "fee_paid", javaType = Boolean.class),
@@ -80,14 +96,18 @@ public interface RegistrationMapper {
     );
 
     @Select("""
-            SELECT id, name, normalized_name, gender, birth_year, phone_number, phone_last_four,
-                   church_cell_department, lookup_key_hash, privacy_consent_agreed, fee_paid,
-                   status, admin_memo, newcomer, care_target, created_at, updated_at
-            FROM registrations
-            WHERE normalized_name = #{normalizedName}
-              AND phone_last_four = #{phoneLastFour}
-              AND status = 'REGISTERED'
-            ORDER BY id ASC
+            SELECT r.id, r.name, r.normalized_name, r.gender, r.birth_year, r.phone_number, r.phone_last_four,
+                   r.church_cell_department, r.church_cell_id, cc.name AS church_cell_name,
+                   mg.id AS middle_group_id, mg.name AS middle_group_name,
+                   r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
+                   r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at
+            FROM registrations r
+            LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
+            LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
+            WHERE r.normalized_name = #{normalizedName}
+              AND r.phone_last_four = #{phoneLastFour}
+              AND r.status = 'REGISTERED'
+            ORDER BY r.id ASC
             """)
     @ConstructorArgs({
             @Arg(column = "id", javaType = Long.class),
@@ -98,6 +118,10 @@ public interface RegistrationMapper {
             @Arg(column = "phone_number", javaType = String.class),
             @Arg(column = "phone_last_four", javaType = String.class),
             @Arg(column = "church_cell_department", javaType = String.class),
+            @Arg(column = "church_cell_id", javaType = Long.class),
+            @Arg(column = "church_cell_name", javaType = String.class),
+            @Arg(column = "middle_group_id", javaType = Long.class),
+            @Arg(column = "middle_group_name", javaType = String.class),
             @Arg(column = "lookup_key_hash", javaType = String.class),
             @Arg(column = "privacy_consent_agreed", javaType = Boolean.class),
             @Arg(column = "fee_paid", javaType = Boolean.class),
@@ -114,11 +138,15 @@ public interface RegistrationMapper {
     );
 
     @Select("""
-            SELECT id, name, normalized_name, gender, birth_year, phone_number, phone_last_four,
-                   church_cell_department, lookup_key_hash, privacy_consent_agreed, fee_paid,
-                   status, admin_memo, newcomer, care_target, created_at, updated_at
-            FROM registrations
-            ORDER BY created_at DESC, id DESC
+            SELECT r.id, r.name, r.normalized_name, r.gender, r.birth_year, r.phone_number, r.phone_last_four,
+                   r.church_cell_department, r.church_cell_id, cc.name AS church_cell_name,
+                   mg.id AS middle_group_id, mg.name AS middle_group_name,
+                   r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
+                   r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at
+            FROM registrations r
+            LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
+            LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
+            ORDER BY r.created_at DESC, r.id DESC
             LIMIT #{limit}
             OFFSET #{offset}
             """)
@@ -131,6 +159,10 @@ public interface RegistrationMapper {
             @Arg(column = "phone_number", javaType = String.class),
             @Arg(column = "phone_last_four", javaType = String.class),
             @Arg(column = "church_cell_department", javaType = String.class),
+            @Arg(column = "church_cell_id", javaType = Long.class),
+            @Arg(column = "church_cell_name", javaType = String.class),
+            @Arg(column = "middle_group_id", javaType = Long.class),
+            @Arg(column = "middle_group_name", javaType = String.class),
             @Arg(column = "lookup_key_hash", javaType = String.class),
             @Arg(column = "privacy_consent_agreed", javaType = Boolean.class),
             @Arg(column = "fee_paid", javaType = Boolean.class),
@@ -212,6 +244,14 @@ public interface RegistrationMapper {
             WHERE id = #{id}
             """)
     int updateManagement(RegistrationManagementUpdate registration);
+
+    @Update("""
+            UPDATE registrations
+            SET church_cell_id = #{churchCellId},
+                updated_at = now()
+            WHERE id = #{id}
+            """)
+    int updateChurchCell(@Param("id") Long id, @Param("churchCellId") Long churchCellId);
 
     class RegistrationInsert {
         private Long id;

@@ -2,12 +2,14 @@ package com.gmc.retreat.registration.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gmc.retreat.admin.domain.AdminRole;
+import com.gmc.retreat.community.service.CommunityService;
 import com.gmc.retreat.error.BusinessException;
 import com.gmc.retreat.error.ErrorCode;
 import com.gmc.retreat.registration.domain.Registration;
 import com.gmc.retreat.registration.domain.RegistrationActorType;
 import com.gmc.retreat.registration.domain.RegistrationHistoryChangeType;
 import com.gmc.retreat.registration.domain.RegistrationStatus;
+import com.gmc.retreat.registration.dto.AdminParticipantChurchCellUpdateRequest;
 import com.gmc.retreat.registration.dto.AdminRegistrationFeePaidUpdateRequest;
 import com.gmc.retreat.registration.dto.AdminRegistrationManagementUpdateRequest;
 import com.gmc.retreat.registration.dto.AdminRegistrationResponse;
@@ -48,6 +50,7 @@ public class RegistrationService {
     private final RegistrationMapper registrationMapper;
     private final RegistrationHistoryMapper registrationHistoryMapper;
     private final RegistrationPrivacyAccessLogMapper privacyAccessLogMapper;
+    private final CommunityService communityService;
     private final LookupKeyGenerator lookupKeyGenerator;
     private final PasswordEncoder passwordEncoder;
     private final RegistrationProperties registrationProperties;
@@ -57,6 +60,7 @@ public class RegistrationService {
             RegistrationMapper registrationMapper,
             RegistrationHistoryMapper registrationHistoryMapper,
             RegistrationPrivacyAccessLogMapper privacyAccessLogMapper,
+            CommunityService communityService,
             LookupKeyGenerator lookupKeyGenerator,
             PasswordEncoder passwordEncoder,
             RegistrationProperties registrationProperties,
@@ -65,6 +69,7 @@ public class RegistrationService {
         this.registrationMapper = registrationMapper;
         this.registrationHistoryMapper = registrationHistoryMapper;
         this.privacyAccessLogMapper = privacyAccessLogMapper;
+        this.communityService = communityService;
         this.lookupKeyGenerator = lookupKeyGenerator;
         this.passwordEncoder = passwordEncoder;
         this.registrationProperties = registrationProperties;
@@ -280,6 +285,33 @@ public class RegistrationService {
         return AdminRegistrationResponse.detail(updated);
     }
 
+    @Transactional
+    public AdminRegistrationResponse updateParticipantChurchCell(
+            AdminPrincipal admin,
+            Long participantId,
+            AdminParticipantChurchCellUpdateRequest request
+    ) {
+        requireRole(admin, AdminRole.CHAIR);
+        Registration registration = registrationMapper.findById(participantId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.REGISTRATION_NOT_FOUND));
+        if (request.churchCellId() != null) {
+            communityService.ensureCellExists(request.churchCellId());
+        }
+
+        String previousSnapshot = snapshot(registration);
+        registrationMapper.updateChurchCell(participantId, request.churchCellId());
+        Registration updated = registrationMapper.findById(participantId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
+        insertAdminHistory(
+                updated.id(),
+                RegistrationHistoryChangeType.CHURCH_CELL_UPDATED,
+                previousSnapshot,
+                snapshot(updated),
+                admin.id()
+        );
+        return AdminRegistrationResponse.detail(updated);
+    }
+
     private Registration authenticateParticipant(String name, String phoneLastFour, String lookupKey) {
         String normalizedName = normalizeName(name);
         return registrationMapper.findActiveByNormalizedNameAndPhoneLastFour(normalizedName, phoneLastFour)
@@ -347,6 +379,10 @@ public class RegistrationService {
                     Map.entry("phoneLastFour", registration.phoneLastFour()),
                     Map.entry("churchCellDepartment", registration.churchCellDepartment() == null
                             ? "" : registration.churchCellDepartment()),
+                    Map.entry("churchCellId", registration.churchCellId() == null ? "" : registration.churchCellId()),
+                    Map.entry("churchCellName", registration.churchCellName() == null ? "" : registration.churchCellName()),
+                    Map.entry("middleGroupId", registration.middleGroupId() == null ? "" : registration.middleGroupId()),
+                    Map.entry("middleGroupName", registration.middleGroupName() == null ? "" : registration.middleGroupName()),
                     Map.entry("privacyConsentAgreed", registration.privacyConsentAgreed()),
                     Map.entry("feePaid", registration.feePaid()),
                     Map.entry("status", registration.status()),

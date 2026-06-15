@@ -83,6 +83,8 @@ class GmcRetreatApplicationTests {
         jdbcTemplate.update("DELETE FROM registration_privacy_access_logs");
         jdbcTemplate.update("DELETE FROM registration_histories");
         jdbcTemplate.update("DELETE FROM registrations");
+        jdbcTemplate.update("DELETE FROM church_cells");
+        jdbcTemplate.update("DELETE FROM church_middle_groups");
     }
 
     @Test
@@ -108,6 +110,42 @@ class GmcRetreatApplicationTests {
         );
 
         assertThat(tableCount).isEqualTo(1);
+    }
+
+    @Test
+    void flywayMigrationCreatesCommunityTablesAndRegistrationChurchCellLink() {
+        Integer middleGroupTableCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM information_schema.tables
+                        WHERE table_schema = 'public'
+                          AND table_name = 'church_middle_groups'
+                        """,
+                Integer.class
+        );
+        Integer cellTableCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM information_schema.tables
+                        WHERE table_schema = 'public'
+                          AND table_name = 'church_cells'
+                        """,
+                Integer.class
+        );
+        Integer registrationChurchCellColumnCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM information_schema.columns
+                        WHERE table_schema = 'public'
+                          AND table_name = 'registrations'
+                          AND column_name = 'church_cell_id'
+                        """,
+                Integer.class
+        );
+
+        assertThat(middleGroupTableCount).isEqualTo(1);
+        assertThat(cellTableCount).isEqualTo(1);
+        assertThat(registrationChurchCellColumnCount).isEqualTo(1);
     }
 
     @Test
@@ -646,6 +684,196 @@ class GmcRetreatApplicationTests {
         assertThat(detailSensitiveFields).isEqualTo("phone_number");
     }
 
+    @Test
+    void staffCanReadCommunityDataButCannotCreateOrUpdateIt() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long middleGroupId = createMiddleGroup(chairToken, "Alpha", "Elder A");
+        Long cellId = createCell(chairToken, middleGroupId, "A1", "Leader A1");
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+
+        mockMvc.perform(get("/api/admin/community/middle-groups")
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].name").value("Alpha"));
+
+        mockMvc.perform(get("/api/admin/community/cells/" + cellId)
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.name").value("A1"))
+                .andExpect(jsonPath("$.data.middleGroupName").value("Alpha"));
+
+        mockMvc.perform(post("/api/admin/community/middle-groups")
+                        .header("Authorization", "Bearer " + staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(middleGroupRequest("Beta", "Elder B", 1)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+
+        mockMvc.perform(patch("/api/admin/community/cells/" + cellId)
+                        .header("Authorization", "Bearer " + staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cellRequest(middleGroupId, "A1 Updated", "Leader A1", 0)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    void chairCanCreateAndPastorCanUpdateCommunityStructure() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        String pastorToken = accessTokenForRole(AdminRole.PASTOR);
+        Long middleGroupId = createMiddleGroup(chairToken, "Alpha", "Elder A");
+        Long cellId = createCell(chairToken, middleGroupId, "A1", "Leader A1");
+
+        mockMvc.perform(patch("/api/admin/community/middle-groups/" + middleGroupId)
+                        .header("Authorization", "Bearer " + pastorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(middleGroupRequest("Alpha Updated", "Elder A", 2)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.name").value("Alpha Updated"))
+                .andExpect(jsonPath("$.data.displayOrder").value(2));
+
+        mockMvc.perform(patch("/api/admin/community/cells/" + cellId)
+                        .header("Authorization", "Bearer " + pastorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cellRequest(middleGroupId, "A1 Updated", "Leader A2", 3)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.name").value("A1 Updated"))
+                .andExpect(jsonPath("$.data.cellLeaderName").value("Leader A2"));
+
+        mockMvc.perform(patch("/api/admin/community/middle-groups/" + middleGroupId + "/active")
+                        .header("Authorization", "Bearer " + pastorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("active", false))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.active").value(false));
+
+        mockMvc.perform(patch("/api/admin/community/cells/" + cellId + "/active")
+                        .header("Authorization", "Bearer " + pastorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("active", false))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.active").value(false));
+    }
+
+    @Test
+    void duplicateCommunityNamesFollowMiddleGroupAndCellRules() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long alphaId = createMiddleGroup(chairToken, "Alpha", "Elder A");
+        Long betaId = createMiddleGroup(chairToken, "Beta", "Elder B");
+        createCell(chairToken, alphaId, "Shared", "Leader A");
+
+        mockMvc.perform(post("/api/admin/community/middle-groups")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(middleGroupRequest("Alpha", "Another Elder", 5)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("DUPLICATE_COMMUNITY_NAME"));
+
+        mockMvc.perform(post("/api/admin/community/cells")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cellRequest(alphaId, "Shared", "Leader B", 1)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("DUPLICATE_COMMUNITY_NAME"));
+
+        mockMvc.perform(post("/api/admin/community/cells")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cellRequest(betaId, "Shared", "Leader C", 1)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.middleGroupId").value(betaId))
+                .andExpect(jsonPath("$.data.name").value("Shared"));
+    }
+
+    @Test
+    void communityTreeIncludesMiddleGroupsAndCells() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long middleGroupId = createMiddleGroup(chairToken, "Alpha", "Elder A");
+        createCell(chairToken, middleGroupId, "A1", "Leader A1");
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+
+        mockMvc.perform(get("/api/admin/community/tree")
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.middleGroups[0].name").value("Alpha"))
+                .andExpect(jsonPath("$.data.middleGroups[0].cells[0].name").value("A1"))
+                .andExpect(jsonPath("$.data.middleGroups[0].cells[0].cellLeaderName").value("Leader A1"));
+    }
+
+    @Test
+    void chairCanLinkAndUnlinkParticipantChurchCellWithoutChangingFreeTextDepartment() throws Exception {
+        JsonNode created = objectMapper.readTree(
+                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+        Long participantId = created.path("data").path("registration").path("id").asLong();
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long middleGroupId = createMiddleGroup(chairToken, "Alpha", "Elder A");
+        Long cellId = createCell(chairToken, middleGroupId, "A1", "Leader A1");
+
+        mockMvc.perform(patch("/api/admin/participants/" + participantId + "/church-cell")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("churchCellId", cellId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.churchCellDepartment").value("Young Adults"))
+                .andExpect(jsonPath("$.data.churchCellId").value(cellId))
+                .andExpect(jsonPath("$.data.churchCellName").value("A1"))
+                .andExpect(jsonPath("$.data.middleGroupId").value(middleGroupId))
+                .andExpect(jsonPath("$.data.middleGroupName").value("Alpha"));
+
+        mockMvc.perform(get("/api/admin/registrations")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].churchCellId").value(cellId))
+                .andExpect(jsonPath("$.data.content[0].churchCellName").value("A1"))
+                .andExpect(jsonPath("$.data.content[0].middleGroupName").value("Alpha"))
+                .andExpect(jsonPath("$.data.content[0].churchCellDepartment").value("Young Adults"));
+
+        mockMvc.perform(patch("/api/admin/participants/" + participantId + "/church-cell")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"churchCellId\":null}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.churchCellDepartment").value("Young Adults"))
+                .andExpect(jsonPath("$.data.churchCellId").doesNotExist())
+                .andExpect(jsonPath("$.data.churchCellName").doesNotExist());
+
+        String freeTextDepartment = jdbcTemplate.queryForObject(
+                "SELECT church_cell_department FROM registrations WHERE id = ?",
+                String.class,
+                participantId
+        );
+        assertThat(freeTextDepartment).isEqualTo("Young Adults");
+    }
+
+    @Test
+    void staffCannotLinkParticipantChurchCellAndInvalidChurchCellFails() throws Exception {
+        JsonNode created = objectMapper.readTree(
+                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+        Long participantId = created.path("data").path("registration").path("id").asLong();
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+
+        mockMvc.perform(patch("/api/admin/participants/" + participantId + "/church-cell")
+                        .header("Authorization", "Bearer " + staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("churchCellId", 999L))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+
+        mockMvc.perform(patch("/api/admin/participants/" + participantId + "/church-cell")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("churchCellId", 999L))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("COMMUNITY_NOT_FOUND"));
+    }
+
     @Nested
     class RoleHierarchyTests {
 
@@ -682,6 +910,49 @@ class GmcRetreatApplicationTests {
                 "role", role.name(),
                 "iat", Instant.now().getEpochSecond(),
                 "exp", Instant.now().plusSeconds(3600).getEpochSecond()
+        ));
+    }
+
+    private Long createMiddleGroup(String accessToken, String name, String elderName) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/admin/community/middle-groups")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(middleGroupRequest(name, elderName, 0)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
+        return response.path("data").path("id").asLong();
+    }
+
+    private Long createCell(String accessToken, Long middleGroupId, String name, String cellLeaderName) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/admin/community/cells")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cellRequest(middleGroupId, name, cellLeaderName, 0)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
+        return response.path("data").path("id").asLong();
+    }
+
+    private String middleGroupRequest(String name, String elderName, int displayOrder) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "name", name,
+                "elderName", elderName,
+                "description", name + " description",
+                "displayOrder", displayOrder
+        ));
+    }
+
+    private String cellRequest(Long middleGroupId, String name, String cellLeaderName, int displayOrder) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "middleGroupId", middleGroupId,
+                "name", name,
+                "cellLeaderName", cellLeaderName,
+                "description", name + " description",
+                "displayOrder", displayOrder
         ));
     }
 

@@ -10,6 +10,8 @@ public enum ErrorCode {
     REGISTRATION_EDIT_CLOSED(HttpStatus.FORBIDDEN, "Registration self edit is closed."),
     DUPLICATE_REGISTRATION(HttpStatus.CONFLICT, "Active registration already exists."),
     INVALID_PHONE_NUMBER(HttpStatus.BAD_REQUEST, "Invalid phone number."),
+    COMMUNITY_NOT_FOUND(HttpStatus.NOT_FOUND, "Community resource was not found."),
+    DUPLICATE_COMMUNITY_NAME(HttpStatus.CONFLICT, "Community name already exists."),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Authentication is required."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "Access is denied."),
     NOT_FOUND(HttpStatus.NOT_FOUND, "Resource was not found."),

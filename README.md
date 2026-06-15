@@ -2,7 +2,7 @@
 
 `church-retreat-ops`는 교회 수련회 준비와 현장 운영을 위한 백엔드 프로젝트입니다.
 
-현재는 백엔드 기반, 관리자 인증 기반, 참가자 등록, 관리자 참가자 관리 Phase 3가 구현되어 있습니다. 조 편성, 공지, 일정, 체크인, 프론트엔드는 아직 구현하지 않았습니다.
+현재는 백엔드 기반, 관리자 인증 기반, 참가자 등록, 관리자 참가자 관리, 공동체 구조 Phase 4가 구현되어 있습니다. 조 편성, 공지, 일정, 체크인, 프론트엔드는 아직 구현하지 않았습니다.
 
 ## 현재 완료된 단계
 
@@ -58,6 +58,19 @@
 - 역할 기반 운영 권한: `STAFF`는 조회, `CHAIR` 이상은 관리 변경
 
 자세한 내용은 [docs/phase3-admin-participant-management.md](docs/phase3-admin-participant-management.md)를 참고합니다.
+
+### Phase 4: 공동체 구조
+
+- 교회 중그룹 `church_middle_groups`
+- 교회 셀 `church_cells`
+- 참가자와 교회 셀의 nullable 링크 `registrations.church_cell_id`
+- 기존 자유 입력 `churchCellDepartment` 유지
+- 중그룹/셀 CRUD와 활성 상태 변경 API
+- 공동체 트리 API
+- 관리자 참가자 교회 셀 link/unlink API
+- 관리자 참가자 목록/상세 응답에 정규화된 중그룹/셀 정보 포함
+
+자세한 내용은 [docs/phase4-community-structure.md](docs/phase4-community-structure.md)를 참고합니다.
 
 ## 기술 스택
 
@@ -238,6 +251,41 @@ curl -s -X PATCH http://localhost:8080/api/admin/registrations/1/management \
   }'
 ```
 
+## 공동체 구조 테스트
+
+중그룹과 셀 관리는 JWT가 필요합니다. `STAFF`는 조회, `CHAIR` 이상은 생성/수정/활성 상태 변경과 참가자 셀 연결을 수행할 수 있습니다.
+
+```bash
+curl -s -X POST http://localhost:8080/api/admin/community/middle-groups \
+  -H 'Authorization: Bearer <accessToken>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name":"Alpha",
+    "elderName":"Elder A",
+    "description":"Alpha middle group",
+    "displayOrder":0
+  }'
+
+curl -s -X POST http://localhost:8080/api/admin/community/cells \
+  -H 'Authorization: Bearer <accessToken>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "middleGroupId":1,
+    "name":"A1",
+    "cellLeaderName":"Leader A1",
+    "description":"A1 cell",
+    "displayOrder":0
+  }'
+
+curl -s http://localhost:8080/api/admin/community/tree \
+  -H 'Authorization: Bearer <accessToken>'
+
+curl -s -X PATCH http://localhost:8080/api/admin/participants/1/church-cell \
+  -H 'Authorization: Bearer <accessToken>' \
+  -H 'Content-Type: application/json' \
+  -d '{"churchCellId":1}'
+```
+
 ## 환경 변수
 
 운영 환경에서는 아래 값을 환경 변수로 주입해야 합니다.
@@ -272,6 +320,18 @@ JWT가 필요한 API:
 - `PATCH /api/admin/registrations/{id}/fee-paid`
 - `PATCH /api/admin/registrations/{id}/status`
 - `PATCH /api/admin/registrations/{id}/management`
+- `GET /api/admin/community/middle-groups`
+- `GET /api/admin/community/middle-groups/{id}`
+- `POST /api/admin/community/middle-groups`
+- `PATCH /api/admin/community/middle-groups/{id}`
+- `PATCH /api/admin/community/middle-groups/{id}/active`
+- `GET /api/admin/community/cells`
+- `GET /api/admin/community/cells/{id}`
+- `POST /api/admin/community/cells`
+- `PATCH /api/admin/community/cells/{id}`
+- `PATCH /api/admin/community/cells/{id}/active`
+- `GET /api/admin/community/tree`
+- `PATCH /api/admin/participants/{participantId}/church-cell`
 - 그 외 API는 기본적으로 인증 필요
 
 ## 아직 구현하지 않은 범위
@@ -279,10 +339,11 @@ JWT가 필요한 API:
 아래 기능은 현재 단계에서 의도적으로 제외되어 있습니다.
 
 - 참가자 로그인 계정
-- 조 편성
+- 수련회 조 편성
 - 공지
 - 일정
 - 체크인
 - 프론트엔드
+- 장로/셀 리더 로그인 또는 `admin_users` 연결
 
 참가자는 관리자 계정이 아닙니다. 관리자 로그인 계정은 수련회 운영진과 시스템 관리자를 위한 `admin_users`에만 저장됩니다.

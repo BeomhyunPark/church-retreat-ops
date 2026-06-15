@@ -1,0 +1,115 @@
+@baseUrl = http://localhost:8080
+
+### Create middle group
+POST {{baseUrl}}/api/admin/community/middle-groups
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Alpha",
+  "elderName": "Elder A",
+  "description": "Alpha middle group",
+  "displayOrder": 0
+}
+
+> {%
+    client.global.set("middleGroupId", response.body.data.id);
+%}
+
+### List middle groups
+GET {{baseUrl}}/api/admin/community/middle-groups
+Authorization: Bearer {{adminToken}}
+
+### Middle group detail
+GET {{baseUrl}}/api/admin/community/middle-groups/{{middleGroupId}}
+Authorization: Bearer {{adminToken}}
+
+### Update middle group
+PATCH {{baseUrl}}/api/admin/community/middle-groups/{{middleGroupId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Alpha Updated",
+  "elderName": "Elder A",
+  "description": "Updated Alpha middle group",
+  "displayOrder": 1
+}
+
+### Update middle group active
+PATCH {{baseUrl}}/api/admin/community/middle-groups/{{middleGroupId}}/active
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "active": true
+}
+
+### Create cell
+POST {{baseUrl}}/api/admin/community/cells
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "middleGroupId": {{middleGroupId}},
+  "name": "A1",
+  "cellLeaderName": "Leader A1",
+  "description": "A1 cell",
+  "displayOrder": 0
+}
+
+> {%
+    client.global.set("churchCellId", response.body.data.id);
+%}
+
+### List cells
+GET {{baseUrl}}/api/admin/community/cells?middleGroupId={{middleGroupId}}&active=true
+Authorization: Bearer {{adminToken}}
+
+### Cell detail
+GET {{baseUrl}}/api/admin/community/cells/{{churchCellId}}
+Authorization: Bearer {{adminToken}}
+
+### Update cell
+PATCH {{baseUrl}}/api/admin/community/cells/{{churchCellId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "middleGroupId": {{middleGroupId}},
+  "name": "A1 Updated",
+  "cellLeaderName": "Leader A1",
+  "description": "Updated A1 cell",
+  "displayOrder": 1
+}
+
+### Update cell active
+PATCH {{baseUrl}}/api/admin/community/cells/{{churchCellId}}/active
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "active": true
+}
+
+### Community tree
+GET {{baseUrl}}/api/admin/community/tree
+Authorization: Bearer {{adminToken}}
+
+### Link participant church cell
+PATCH {{baseUrl}}/api/admin/participants/{{participantId}}/church-cell
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "churchCellId": {{churchCellId}}
+}
+
+### Unlink participant church cell
+PATCH {{baseUrl}}/api/admin/participants/{{participantId}}/church-cell
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "churchCellId": null
+}

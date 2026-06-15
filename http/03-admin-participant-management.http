@@ -1,0 +1,53 @@
+@baseUrl = http://localhost:8080
+
+### Admin participant list
+GET {{baseUrl}}/api/admin/registrations?page=0&size=20
+Authorization: Bearer {{adminToken}}
+
+### Admin participant detail
+GET {{baseUrl}}/api/admin/registrations/{{participantId}}
+Authorization: Bearer {{adminToken}}
+
+### Admin participant history
+GET {{baseUrl}}/api/admin/registrations/{{participantId}}/histories
+Authorization: Bearer {{adminToken}}
+
+### Update fee paid
+PATCH {{baseUrl}}/api/admin/registrations/{{participantId}}/fee-paid
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "feePaid": true
+}
+
+### Update registration status
+PATCH {{baseUrl}}/api/admin/registrations/{{participantId}}/status
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "status": "REGISTERED"
+}
+
+### Update admin memo
+PATCH {{baseUrl}}/api/admin/registrations/{{participantId}}/management
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "adminMemo": "Needs first-time attendee follow-up.",
+  "newcomer": false,
+  "careTarget": false
+}
+
+### Update newcomer and care target
+PATCH {{baseUrl}}/api/admin/registrations/{{participantId}}/management
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "adminMemo": "Needs first-time attendee follow-up.",
+  "newcomer": true,
+  "careTarget": true
+}
