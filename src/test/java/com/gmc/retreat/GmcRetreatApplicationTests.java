@@ -2,6 +2,7 @@ package com.gmc.retreat;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -79,6 +80,7 @@ class GmcRetreatApplicationTests {
 
     @BeforeEach
     void cleanRegistrationData() {
+        jdbcTemplate.update("DELETE FROM registration_privacy_access_logs");
         jdbcTemplate.update("DELETE FROM registration_histories");
         jdbcTemplate.update("DELETE FROM registrations");
     }
@@ -485,6 +487,165 @@ class GmcRetreatApplicationTests {
         assertThat(adminDetailResult.getResponse().getContentAsString()).doesNotContain("lookupKeyHash", "lookup_key_hash");
     }
 
+    @Test
+    void staffCanViewParticipantListAndDetail() throws Exception {
+        JsonNode created = objectMapper.readTree(
+                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+        Long registrationId = created.path("data").path("registration").path("id").asLong();
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+
+        mockMvc.perform(get("/api/admin/registrations")
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.content[0].phoneNumber").value("010****5678"));
+
+        mockMvc.perform(get("/api/admin/registrations/" + registrationId)
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.phoneNumber").value("01012345678"));
+    }
+
+    @Test
+    void chairCanUpdateFeeStatusMemoAndCareTags() throws Exception {
+        JsonNode created = objectMapper.readTree(
+                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+        Long registrationId = created.path("data").path("registration").path("id").asLong();
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+
+        mockMvc.perform(patch("/api/admin/registrations/" + registrationId + "/fee-paid")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("feePaid", true))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.feePaid").value(true));
+
+        mockMvc.perform(patch("/api/admin/registrations/" + registrationId + "/status")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("status", "CANCELLED"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("CANCELLED"));
+
+        mockMvc.perform(patch("/api/admin/registrations/" + registrationId + "/management")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "adminMemo", "Needs first-time attendee follow-up.",
+                                "newcomer", true,
+                                "careTarget", true
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.adminMemo").value("Needs first-time attendee follow-up."))
+                .andExpect(jsonPath("$.data.newcomer").value(true))
+                .andExpect(jsonPath("$.data.careTarget").value(true));
+
+        Integer adminHistoryCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM registration_histories
+                        WHERE registration_id = ?
+                          AND actor_type = 'ADMIN'
+                          AND actor_admin_user_id = 1
+                          AND change_type IN (
+                              'FEE_PAYMENT_UPDATED',
+                              'STATUS_UPDATED',
+                              'ADMIN_MANAGEMENT_UPDATED'
+                          )
+                        """,
+                Integer.class,
+                registrationId
+        );
+        assertThat(adminHistoryCount).isEqualTo(3);
+    }
+
+    @Test
+    void staffCannotPerformParticipantManagementChanges() throws Exception {
+        JsonNode created = objectMapper.readTree(
+                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+        Long registrationId = created.path("data").path("registration").path("id").asLong();
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+
+        mockMvc.perform(patch("/api/admin/registrations/" + registrationId + "/fee-paid")
+                        .header("Authorization", "Bearer " + staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("feePaid", true))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+
+        mockMvc.perform(patch("/api/admin/registrations/" + registrationId + "/status")
+                        .header("Authorization", "Bearer " + staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("status", "CANCELLED"))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+
+        mockMvc.perform(patch("/api/admin/registrations/" + registrationId + "/management")
+                        .header("Authorization", "Bearer " + staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "adminMemo", "No change",
+                                "newcomer", true,
+                                "careTarget", true
+                        ))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    void sensitiveAdminViewsCreatePrivacyAccessLogs() throws Exception {
+        JsonNode created = objectMapper.readTree(
+                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+        Long registrationId = created.path("data").path("registration").path("id").asLong();
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+
+        mockMvc.perform(get("/api/admin/registrations/" + registrationId)
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/admin/registrations/" + registrationId + "/histories")
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk());
+
+        Integer privacyLogCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM registration_privacy_access_logs
+                        WHERE registration_id = ?
+                          AND admin_user_id = 1
+                          AND access_type IN ('DETAIL_VIEW', 'HISTORY_VIEW')
+                        """,
+                Integer.class,
+                registrationId
+        );
+        String detailSensitiveFields = jdbcTemplate.queryForObject(
+                """
+                        SELECT sensitive_fields
+                        FROM registration_privacy_access_logs
+                        WHERE registration_id = ?
+                          AND access_type = 'DETAIL_VIEW'
+                        """,
+                String.class,
+                registrationId
+        );
+
+        assertThat(privacyLogCount).isEqualTo(2);
+        assertThat(detailSensitiveFields).isEqualTo("phone_number");
+    }
+
     @Nested
     class RoleHierarchyTests {
 
@@ -511,6 +672,17 @@ class GmcRetreatApplicationTests {
 
         JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
         return response.path("data").path("accessToken").asText();
+    }
+
+    private String accessTokenForRole(AdminRole role) throws Exception {
+        return signedToken(Map.of(
+                "sub", "1",
+                "email", "admin@gmc.local",
+                "name", "System Admin",
+                "role", role.name(),
+                "iat", Instant.now().getEpochSecond(),
+                "exp", Instant.now().plusSeconds(3600).getEpochSecond()
+        ));
     }
 
     private MvcResult createRegistration(

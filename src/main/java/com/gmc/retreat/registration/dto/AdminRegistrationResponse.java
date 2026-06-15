@@ -15,6 +15,9 @@ public record AdminRegistrationResponse(
         String churchCellDepartment,
         Boolean feePaid,
         RegistrationStatus status,
+        String adminMemo,
+        Boolean newcomer,
+        Boolean careTarget,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {
@@ -36,6 +39,9 @@ public record AdminRegistrationResponse(
                 registration.churchCellDepartment(),
                 registration.feePaid(),
                 registration.status(),
+                registration.adminMemo(),
+                registration.newcomer(),
+                registration.careTarget(),
                 registration.createdAt(),
                 registration.updatedAt()
         );
