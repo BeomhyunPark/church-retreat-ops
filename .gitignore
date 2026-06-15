@@ -19,3 +19,11 @@ logs/
 docker-data/
 http/admin-auth.http
 http/*.local.http
+
+# Serena local data
+.serena/project.local.yml
+.serena/cache/
+.serena/index/
+.serena/logs/
+.serena/dashboard/
+.serena/memories/
