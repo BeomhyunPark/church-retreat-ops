@@ -15,6 +15,8 @@ public enum ErrorCode {
     RETREAT_GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "Retreat group was not found."),
     DUPLICATE_RETREAT_GROUP_NAME(HttpStatus.CONFLICT, "Retreat group name already exists."),
     DUPLICATE_RETREAT_GROUP_ASSIGNMENT(HttpStatus.CONFLICT, "Participant is already assigned to a retreat group."),
+    ANNOUNCEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "Announcement was not found."),
+    DUPLICATE_ANNOUNCEMENT_TARGET(HttpStatus.CONFLICT, "Announcement target already exists."),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Authentication is required."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "Access is denied."),
     NOT_FOUND(HttpStatus.NOT_FOUND, "Resource was not found."),

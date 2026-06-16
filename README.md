@@ -2,7 +2,7 @@
 
 `church-retreat-ops`는 교회 수련회 준비와 현장 운영을 위한 백엔드 프로젝트입니다.
 
-현재는 백엔드 기반, 관리자 인증 기반, 참가자 등록, 관리자 참가자 관리, 공동체 구조, 수련회 조 편성 Phase 5가 구현되어 있습니다. 공지, 일정, 체크인, 프론트엔드는 아직 구현하지 않았습니다.
+현재는 백엔드 기반, 관리자 인증 기반, 참가자 등록, 관리자 참가자 관리, 공동체 구조, 수련회 조 편성, 공지 도메인 Phase 6가 구현되어 있습니다. 일정, 체크인, 프론트엔드는 아직 구현하지 않았습니다.
 
 ## 현재 완료된 단계
 
@@ -85,6 +85,19 @@
 - 기존 교회 중그룹/셀과 `churchCellDepartment` 응답 동작 유지
 
 자세한 내용은 [docs/phase5-retreat-group-assignment.md](docs/phase5-retreat-group-assignment.md)를 참고합니다.
+
+### Phase 6: 공지 도메인
+
+- 관리자 공지 `announcements`
+- 공지 대상 조건 `announcement_targets`
+- 공지 생성/목록/상세/수정 API
+- 공지 활성/비활성 상태 변경 API
+- 공지 고정/고정 해제 API
+- 노출 기간 `visibleFrom`, `visibleUntil`
+- 전체, 등록 상태, 납부 상태, 새가족, 돌봄 대상, 교회 중그룹/셀, 수련회 조, 관리자 역할 대상 조건
+- `STAFF` 이상 조회, `CHAIR` 이상 변경
+
+자세한 내용은 [docs/phase6-announcement-domain.md](docs/phase6-announcement-domain.md)를 참고합니다.
 
 ## 기술 스택
 
@@ -331,6 +344,37 @@ curl -s http://localhost:8080/api/admin/retreat-groups/tree \
   -H 'Authorization: Bearer <accessToken>'
 ```
 
+## 공지 도메인 테스트
+
+공지 관리는 JWT가 필요합니다. `STAFF`는 조회, `CHAIR` 이상은 생성/수정/활성 상태 변경/고정 상태 변경을 수행할 수 있습니다.
+
+```bash
+curl -s -X POST http://localhost:8080/api/admin/announcements \
+  -H 'Authorization: Bearer <accessToken>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "title":"Retreat check-in starts at 3 PM",
+    "content":"Please arrive at the main lobby and check in with your group.",
+    "pinned":true,
+    "active":true,
+    "visibleFrom":"2026-07-01T00:00:00Z",
+    "visibleUntil":"2026-07-31T23:59:59Z",
+    "targets":[
+      {
+        "targetType":"ALL"
+      }
+    ]
+  }'
+
+curl -s http://localhost:8080/api/admin/announcements \
+  -H 'Authorization: Bearer <accessToken>'
+
+curl -s -X PATCH http://localhost:8080/api/admin/announcements/1/pinned \
+  -H 'Authorization: Bearer <accessToken>' \
+  -H 'Content-Type: application/json' \
+  -d '{"pinned":false}'
+```
+
 ## 환경 변수
 
 운영 환경에서는 아래 값을 환경 변수로 주입해야 합니다.
@@ -388,6 +432,12 @@ JWT가 필요한 API:
 - `DELETE /api/admin/participants/{participantId}/retreat-group`
 - `PATCH /api/admin/retreat-groups/{groupId}/leader`
 - `DELETE /api/admin/retreat-groups/{groupId}/leader`
+- `GET /api/admin/announcements`
+- `GET /api/admin/announcements/{id}`
+- `POST /api/admin/announcements`
+- `PATCH /api/admin/announcements/{id}`
+- `PATCH /api/admin/announcements/{id}/active`
+- `PATCH /api/admin/announcements/{id}/pinned`
 - 그 외 API는 기본적으로 인증 필요
 
 ## 아직 구현하지 않은 범위
@@ -395,10 +445,11 @@ JWT가 필요한 API:
 아래 기능은 현재 단계에서 의도적으로 제외되어 있습니다.
 
 - 참가자 로그인 계정
-- 공지
 - 일정
 - 체크인
 - 프론트엔드
 - 장로/셀 리더 로그인 또는 `admin_users` 연결
+- 카카오톡, SMS, 푸시, 이메일 공지 발송
+- 참가자 공개 공지 화면과 읽음 확인
 
 참가자는 관리자 계정이 아닙니다. 관리자 로그인 계정은 수련회 운영진과 시스템 관리자를 위한 `admin_users`에만 저장됩니다.

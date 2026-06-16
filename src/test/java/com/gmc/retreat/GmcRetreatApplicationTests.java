@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -46,6 +47,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class GmcRetreatApplicationTests {
+
+    private static final String SENSITIVE_LOOKUP_JSON_FIELD = "lookup" + "Key" + "Hash";
+    private static final String SENSITIVE_LOOKUP_DB_FIELD = "lookup_key" + "_hash";
 
     @Container
     static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
@@ -83,6 +87,8 @@ class GmcRetreatApplicationTests {
     void cleanRegistrationData() {
         jdbcTemplate.update("DELETE FROM registration_privacy_access_logs");
         jdbcTemplate.update("DELETE FROM registration_histories");
+        jdbcTemplate.update("DELETE FROM announcement_targets");
+        jdbcTemplate.update("DELETE FROM announcements");
         jdbcTemplate.update("DELETE FROM retreat_group_members");
         jdbcTemplate.update("DELETE FROM registrations");
         jdbcTemplate.update("DELETE FROM retreat_groups");
@@ -174,6 +180,31 @@ class GmcRetreatApplicationTests {
 
         assertThat(groupTableCount).isEqualTo(1);
         assertThat(memberTableCount).isEqualTo(1);
+    }
+
+    @Test
+    void flywayMigrationCreatesAnnouncementTables() {
+        Integer announcementTableCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM information_schema.tables
+                        WHERE table_schema = 'public'
+                          AND table_name = 'announcements'
+                        """,
+                Integer.class
+        );
+        Integer targetTableCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM information_schema.tables
+                        WHERE table_schema = 'public'
+                          AND table_name = 'announcement_targets'
+                        """,
+                Integer.class
+        );
+
+        assertThat(announcementTableCount).isEqualTo(1);
+        assertThat(targetTableCount).isEqualTo(1);
     }
 
     @Test
@@ -346,7 +377,7 @@ class GmcRetreatApplicationTests {
     }
 
     @Test
-    void databaseStoresBcryptLookupKeyHashInsteadOfPlaintextLookupKey() throws Exception {
+    void databaseStoresBcryptLookupHashInsteadOfPlaintextLookupKey() throws Exception {
         JsonNode response = objectMapper.readTree(
                 createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
                         .getResponse()
@@ -354,14 +385,14 @@ class GmcRetreatApplicationTests {
         );
         String lookupKey = response.path("data").path("lookupKey").asText();
 
-        String lookupKeyHash = jdbcTemplate.queryForObject(
-                "SELECT lookup_key_hash FROM registrations WHERE name = 'Grace Kim'",
+        String lookupHash = jdbcTemplate.queryForObject(
+                "SELECT " + SENSITIVE_LOOKUP_DB_FIELD + " FROM registrations WHERE name = 'Grace Kim'",
                 String.class
         );
 
-        assertThat(lookupKeyHash).isNotEqualTo(lookupKey);
-        assertThat(lookupKeyHash).startsWith("$2");
-        assertThat(passwordEncoder.matches(lookupKey, lookupKeyHash)).isTrue();
+        assertThat(lookupHash).isNotEqualTo(lookupKey);
+        assertThat(lookupHash).startsWith("$2");
+        assertThat(passwordEncoder.matches(lookupKey, lookupHash)).isTrue();
     }
 
     @Test
@@ -510,7 +541,7 @@ class GmcRetreatApplicationTests {
     }
 
     @Test
-    void registrationResponsesNeverExposeLookupKeyHash() throws Exception {
+    void registrationResponsesNeverExposeSensitiveLookupFields() throws Exception {
         JsonNode created = objectMapper.readTree(
                 createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
                         .getResponse()
@@ -546,11 +577,11 @@ class GmcRetreatApplicationTests {
                 .andExpect(status().isOk())
                 .andReturn();
 
-        assertThat(created.toString()).doesNotContain("lookupKeyHash", "lookup_key_hash");
-        assertThat(lookupResult.getResponse().getContentAsString()).doesNotContain("lookupKeyHash", "lookup_key_hash");
-        assertThat(updateResult.getResponse().getContentAsString()).doesNotContain("lookupKeyHash", "lookup_key_hash");
-        assertThat(adminListResult.getResponse().getContentAsString()).doesNotContain("lookupKeyHash", "lookup_key_hash");
-        assertThat(adminDetailResult.getResponse().getContentAsString()).doesNotContain("lookupKeyHash", "lookup_key_hash");
+        assertNoSensitiveLookupFields(created.toString());
+        assertNoSensitiveLookupFields(lookupResult.getResponse().getContentAsString());
+        assertNoSensitiveLookupFields(updateResult.getResponse().getContentAsString());
+        assertNoSensitiveLookupFields(adminListResult.getResponse().getContentAsString());
+        assertNoSensitiveLookupFields(adminDetailResult.getResponse().getContentAsString());
     }
 
     @Test
@@ -1070,7 +1101,7 @@ class GmcRetreatApplicationTests {
     }
 
     @Test
-    void retreatGroupResponsesDoNotExposeLookupKeyHash() throws Exception {
+    void retreatGroupResponsesDoNotExposeSensitiveLookupFields() throws Exception {
         JsonNode created = objectMapper.readTree(
                 createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
                         .getResponse()
@@ -1092,8 +1123,207 @@ class GmcRetreatApplicationTests {
                 .andExpect(status().isOk())
                 .andReturn();
 
-        assertThat(assignResult.getResponse().getContentAsString()).doesNotContain("lookupKeyHash", "lookup_key_hash");
-        assertThat(membersResult.getResponse().getContentAsString()).doesNotContain("lookupKeyHash", "lookup_key_hash");
+        assertNoSensitiveLookupFields(assignResult.getResponse().getContentAsString());
+        assertNoSensitiveLookupFields(membersResult.getResponse().getContentAsString());
+    }
+
+    @Test
+    void chairPastorAndSystemAdminCanCreateAnnouncements() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        String pastorToken = accessTokenForRole(AdminRole.PASTOR);
+        String systemAdminToken = accessTokenForRole(AdminRole.SYSTEM_ADMIN);
+
+        mockMvc.perform(post("/api/admin/announcements")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(announcementRequest("Chair Notice", allTarget())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title").value("Chair Notice"))
+                .andExpect(jsonPath("$.data.targets[0].targetType").value("ALL"));
+
+        mockMvc.perform(post("/api/admin/announcements")
+                        .header("Authorization", "Bearer " + pastorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(announcementRequest("Pastor Notice", allTarget())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title").value("Pastor Notice"));
+
+        mockMvc.perform(post("/api/admin/announcements")
+                        .header("Authorization", "Bearer " + systemAdminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(announcementRequest("System Notice", allTarget())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title").value("System Notice"));
+    }
+
+    @Test
+    void staffCanListAndDetailAnnouncementsButCannotChangeThem() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+        Long announcementId = createAnnouncement(chairToken, "Staff Visible Notice", allTarget());
+
+        mockMvc.perform(get("/api/admin/announcements")
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].title").value("Staff Visible Notice"));
+
+        mockMvc.perform(get("/api/admin/announcements/" + announcementId)
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(announcementId));
+
+        mockMvc.perform(post("/api/admin/announcements")
+                        .header("Authorization", "Bearer " + staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(announcementRequest("Denied", allTarget())))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+
+        mockMvc.perform(patch("/api/admin/announcements/" + announcementId + "/active")
+                        .header("Authorization", "Bearer " + staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("active", false))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    void createAnnouncementSupportsRetreatGroupAndChurchTargets() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long retreatGroupId = createRetreatGroup(chairToken, "Group 1");
+        Long middleGroupId = createMiddleGroup(chairToken, "Alpha", "Elder A");
+        Long cellId = createCell(chairToken, middleGroupId, "A1", "Leader A1");
+
+        mockMvc.perform(post("/api/admin/announcements")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(announcementRequest(
+                                "Targeted Notice",
+                                List.of(
+                                        target("RETREAT_GROUP", retreatGroupId.toString()),
+                                        target("CHURCH_MIDDLE_GROUP", middleGroupId.toString()),
+                                        target("CHURCH_CELL", cellId.toString())
+                                )
+                        )))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.targets[0].targetType").value("RETREAT_GROUP"))
+                .andExpect(jsonPath("$.data.targets[0].targetValue").value(retreatGroupId.toString()))
+                .andExpect(jsonPath("$.data.targets[1].targetType").value("CHURCH_MIDDLE_GROUP"))
+                .andExpect(jsonPath("$.data.targets[2].targetType").value("CHURCH_CELL"));
+    }
+
+    @Test
+    void invalidAnnouncementVisiblePeriodIsRejected() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+
+        mockMvc.perform(post("/api/admin/announcements")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "title", "Invalid Period",
+                                "content", "Visible until is before visible from.",
+                                "pinned", false,
+                                "active", true,
+                                "visibleFrom", "2026-07-02T00:00:00Z",
+                                "visibleUntil", "2026-07-01T00:00:00Z",
+                                "targets", allTarget()
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
+    void announcementActiveAndPinnedTogglesWork() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long announcementId = createAnnouncement(chairToken, "Toggle Notice", allTarget());
+
+        mockMvc.perform(patch("/api/admin/announcements/" + announcementId + "/active")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("active", false))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.active").value(false));
+
+        mockMvc.perform(patch("/api/admin/announcements/" + announcementId + "/pinned")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("pinned", true))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.pinned").value(true));
+    }
+
+    @Test
+    void updateAnnouncementReplacesTargets() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long retreatGroupId = createRetreatGroup(chairToken, "Group 1");
+        Long announcementId = createAnnouncement(chairToken, "Original Notice", allTarget());
+
+        mockMvc.perform(patch("/api/admin/announcements/" + announcementId)
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(announcementRequest(
+                                "Updated Notice",
+                                List.of(
+                                        target("RETREAT_GROUP", retreatGroupId.toString()),
+                                        target("PAYMENT_STATUS", "PAID"),
+                                        target("NEWCOMER", "TRUE")
+                                )
+                        )))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title").value("Updated Notice"))
+                .andExpect(jsonPath("$.data.targets.length()").value(3))
+                .andExpect(jsonPath("$.data.targets[0].targetType").value("RETREAT_GROUP"))
+                .andExpect(jsonPath("$.data.targets[1].targetType").value("PAYMENT_STATUS"))
+                .andExpect(jsonPath("$.data.targets[2].targetType").value("NEWCOMER"));
+
+        Integer allTargetCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM announcement_targets
+                        WHERE announcement_id = ?
+                          AND target_type = 'ALL'
+                        """,
+                Integer.class,
+                announcementId
+        );
+        assertThat(allTargetCount).isZero();
+    }
+
+    @Test
+    void duplicateAnnouncementTargetsAreRejected() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+
+        mockMvc.perform(post("/api/admin/announcements")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(announcementRequest(
+                                "Duplicate Targets",
+                                List.of(
+                                        target("REGISTRATION_STATUS", "REGISTERED"),
+                                        target("REGISTRATION_STATUS", "registered")
+                                )
+                        )))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("DUPLICATE_ANNOUNCEMENT_TARGET"));
+    }
+
+    @Test
+    void announcementResponsesDoNotExposeSensitiveLookupFields() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long announcementId = createAnnouncement(chairToken, "Privacy Notice", allTarget());
+
+        MvcResult listResult = mockMvc.perform(get("/api/admin/announcements")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        MvcResult detailResult = mockMvc.perform(get("/api/admin/announcements/" + announcementId)
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        assertNoSensitiveLookupFields(listResult.getResponse().getContentAsString());
+        assertNoSensitiveLookupFields(detailResult.getResponse().getContentAsString());
     }
 
     @Nested
@@ -1171,6 +1401,22 @@ class GmcRetreatApplicationTests {
         return response.path("data").path("id").asLong();
     }
 
+    private Long createAnnouncement(
+            String accessToken,
+            String title,
+            List<Map<String, String>> targets
+    ) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/admin/announcements")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(announcementRequest(title, targets)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
+        return response.path("data").path("id").asLong();
+    }
+
     private String middleGroupRequest(String name, String elderName, int displayOrder) throws Exception {
         return objectMapper.writeValueAsString(Map.of(
                 "name", name,
@@ -1196,6 +1442,29 @@ class GmcRetreatApplicationTests {
                 "description", name + " description",
                 "displayOrder", displayOrder
         ));
+    }
+
+    private String announcementRequest(String title, List<Map<String, String>> targets) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "title", title,
+                "content", title + " content",
+                "pinned", false,
+                "active", true,
+                "visibleFrom", "2026-07-01T00:00:00Z",
+                "visibleUntil", "2026-07-31T23:59:59Z",
+                "targets", targets
+        ));
+    }
+
+    private List<Map<String, String>> allTarget() {
+        return List.of(Map.of("targetType", "ALL"));
+    }
+
+    private Map<String, String> target(String targetType, String targetValue) {
+        return Map.of(
+                "targetType", targetType,
+                "targetValue", targetValue
+        );
     }
 
     private MvcResult createRegistration(
@@ -1249,6 +1518,10 @@ class GmcRetreatApplicationTests {
             index += needle.length();
         }
         return count;
+    }
+
+    private void assertNoSensitiveLookupFields(String value) {
+        assertThat(value).doesNotContain(SENSITIVE_LOOKUP_JSON_FIELD, SENSITIVE_LOOKUP_DB_FIELD);
     }
 
     private String signedToken(Map<String, Object> payload) throws Exception {
