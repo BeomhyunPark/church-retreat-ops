@@ -124,3 +124,11 @@ The priority order is:
 4. Test coverage
 5. Documentation accuracy
 6. Token efficiency
+
+MCP usage rules:
+- Use PostgreSQL MCP only for read-only schema inspection and SELECT verification.
+- Do not use DB MCP to mutate data.
+- Use GitHub MCP for repository, PR, Actions, and status inspection only.
+- Do not create, close, merge, or modify GitHub PRs/issues without explicit user approval.
+- Do not push commits or modify remote branches.
+- Never expose or log secrets, PATs, database URLs, lookup keys, lookupKeyHash, lookup_key_hash, tokenHash, token_hash, or QR token hashes.

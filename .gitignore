@@ -27,3 +27,5 @@ http/*.local.http
 .serena/logs/
 .serena/dashboard/
 .serena/memories/
+
+.env.codex.local
