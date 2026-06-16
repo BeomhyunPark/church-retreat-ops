@@ -2,7 +2,7 @@
 
 `church-retreat-ops`는 교회 수련회 준비와 현장 운영을 위한 백엔드 프로젝트입니다.
 
-현재는 백엔드 기반, 관리자 인증 기반, 참가자 등록, 관리자 참가자 관리, 공동체 구조, 수련회 조 편성, 공지 도메인 Phase 6가 구현되어 있습니다. 일정, 체크인, 프론트엔드는 아직 구현하지 않았습니다.
+현재는 백엔드 기반, 관리자 인증 기반, 참가자 등록, 관리자 참가자 관리, 공동체 구조, 수련회 조 편성, 공지 도메인, 일정 도메인 Phase 7이 구현되어 있습니다. 체크인과 프론트엔드는 아직 구현하지 않았습니다.
 
 ## 현재 완료된 단계
 
@@ -98,6 +98,19 @@
 - `STAFF` 이상 조회, `CHAIR` 이상 변경
 
 자세한 내용은 [docs/phase6-announcement-domain.md](docs/phase6-announcement-domain.md)를 참고합니다.
+
+### Phase 7: 일정 도메인
+
+- 관리자 일정 `retreat_schedule_items`
+- 일정 생성/목록/상세/수정 API
+- 일정 활성/비활성 상태 변경 API
+- 일정 일자 `scheduleDate`, 시작/종료 시각 `startsAt`, `endsAt`
+- `startsAt`과 `endsAt`은 모두 `scheduleDate`와 같은 날짜여야 함
+- 일정 카테고리와 간단한 대상 구분
+- 장소, 설명, 같은 날 정렬용 `displayOrder`
+- `STAFF` 이상 조회, `CHAIR` 이상 변경
+
+자세한 내용은 [docs/phase7-schedule-domain.md](docs/phase7-schedule-domain.md)를 참고합니다.
 
 ## 기술 스택
 
@@ -375,6 +388,36 @@ curl -s -X PATCH http://localhost:8080/api/admin/announcements/1/pinned \
   -d '{"pinned":false}'
 ```
 
+## 일정 도메인 테스트
+
+일정 관리는 JWT가 필요합니다. `STAFF`는 조회, `CHAIR` 이상은 생성/수정/활성 상태 변경을 수행할 수 있습니다.
+
+```bash
+curl -s -X POST http://localhost:8080/api/admin/schedules \
+  -H 'Authorization: Bearer <accessToken>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "title":"Opening Worship",
+    "description":"Retreat opening worship in the main chapel.",
+    "scheduleDate":"2026-07-01",
+    "startsAt":"2026-07-01T09:00:00Z",
+    "endsAt":"2026-07-01T10:30:00Z",
+    "location":"Main Chapel",
+    "category":"WORSHIP",
+    "targetAudience":"ALL",
+    "active":true,
+    "displayOrder":0
+  }'
+
+curl -s 'http://localhost:8080/api/admin/schedules?date=2026-07-01&category=WORSHIP&active=true' \
+  -H 'Authorization: Bearer <accessToken>'
+
+curl -s -X PATCH http://localhost:8080/api/admin/schedules/1/active \
+  -H 'Authorization: Bearer <accessToken>' \
+  -H 'Content-Type: application/json' \
+  -d '{"active":false}'
+```
+
 ## 환경 변수
 
 운영 환경에서는 아래 값을 환경 변수로 주입해야 합니다.
@@ -438,6 +481,11 @@ JWT가 필요한 API:
 - `PATCH /api/admin/announcements/{id}`
 - `PATCH /api/admin/announcements/{id}/active`
 - `PATCH /api/admin/announcements/{id}/pinned`
+- `GET /api/admin/schedules`
+- `GET /api/admin/schedules/{id}`
+- `POST /api/admin/schedules`
+- `PATCH /api/admin/schedules/{id}`
+- `PATCH /api/admin/schedules/{id}/active`
 - 그 외 API는 기본적으로 인증 필요
 
 ## 아직 구현하지 않은 범위
@@ -445,11 +493,11 @@ JWT가 필요한 API:
 아래 기능은 현재 단계에서 의도적으로 제외되어 있습니다.
 
 - 참가자 로그인 계정
-- 일정
 - 체크인
 - 프론트엔드
 - 장로/셀 리더 로그인 또는 `admin_users` 연결
 - 카카오톡, SMS, 푸시, 이메일 공지 발송
 - 참가자 공개 공지 화면과 읽음 확인
+- 참가자 공개 일정 화면, 일정 알림, 캘린더 연동, 반복 일정, 출석 추적
 
 참가자는 관리자 계정이 아닙니다. 관리자 로그인 계정은 수련회 운영진과 시스템 관리자를 위한 `admin_users`에만 저장됩니다.
