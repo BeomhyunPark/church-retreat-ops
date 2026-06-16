@@ -1,0 +1,37 @@
+@baseUrl = http://localhost:8080
+
+### Fee roster
+GET {{baseUrl}}/api/admin/fees
+Authorization: Bearer {{adminToken}}
+
+### Fee roster filters
+GET {{baseUrl}}/api/admin/fees?feePaid=false&retreatGroupId={{retreatGroupId}}&churchCellId={{churchCellId}}&keyword=Grace
+Authorization: Bearer {{adminToken}}
+
+### Fee detail
+GET {{baseUrl}}/api/admin/fees/{{participantId}}
+Authorization: Bearer {{adminToken}}
+
+### Fee events
+GET {{baseUrl}}/api/admin/fees/{{participantId}}/events
+Authorization: Bearer {{adminToken}}
+
+### Mark fee paid
+PATCH {{baseUrl}}/api/admin/fees/{{participantId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "feePaid": true,
+  "reason": "Confirmed by treasurer"
+}
+
+### Revert fee to unpaid
+PATCH {{baseUrl}}/api/admin/fees/{{participantId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "feePaid": false,
+  "reason": "Marked paid by mistake"
+}

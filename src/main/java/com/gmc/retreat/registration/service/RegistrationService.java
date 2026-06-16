@@ -5,6 +5,8 @@ import com.gmc.retreat.admin.domain.AdminRole;
 import com.gmc.retreat.community.service.CommunityService;
 import com.gmc.retreat.error.BusinessException;
 import com.gmc.retreat.error.ErrorCode;
+import com.gmc.retreat.fee.mapper.FeeMapper;
+import com.gmc.retreat.fee.mapper.FeeMapper.FeeEventInsert;
 import com.gmc.retreat.registration.domain.Registration;
 import com.gmc.retreat.registration.domain.RegistrationActorType;
 import com.gmc.retreat.registration.domain.RegistrationHistoryChangeType;
@@ -50,6 +52,7 @@ public class RegistrationService {
     private final RegistrationMapper registrationMapper;
     private final RegistrationHistoryMapper registrationHistoryMapper;
     private final RegistrationPrivacyAccessLogMapper privacyAccessLogMapper;
+    private final FeeMapper feeMapper;
     private final CommunityService communityService;
     private final LookupKeyGenerator lookupKeyGenerator;
     private final PasswordEncoder passwordEncoder;
@@ -60,6 +63,7 @@ public class RegistrationService {
             RegistrationMapper registrationMapper,
             RegistrationHistoryMapper registrationHistoryMapper,
             RegistrationPrivacyAccessLogMapper privacyAccessLogMapper,
+            FeeMapper feeMapper,
             CommunityService communityService,
             LookupKeyGenerator lookupKeyGenerator,
             PasswordEncoder passwordEncoder,
@@ -69,6 +73,7 @@ public class RegistrationService {
         this.registrationMapper = registrationMapper;
         this.registrationHistoryMapper = registrationHistoryMapper;
         this.privacyAccessLogMapper = privacyAccessLogMapper;
+        this.feeMapper = feeMapper;
         this.communityService = communityService;
         this.lookupKeyGenerator = lookupKeyGenerator;
         this.passwordEncoder = passwordEncoder;
@@ -220,8 +225,17 @@ public class RegistrationService {
         requireRole(admin, AdminRole.CHAIR);
         Registration registration = registrationMapper.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.REGISTRATION_NOT_FOUND));
+        String reason = normalizeFeeReason(request.feePaid(), request.reason());
         String previousSnapshot = snapshot(registration);
-        registrationMapper.updateFeePaid(id, request.feePaid());
+        Boolean previousFeePaid = feeMapper.updateFeePaidIfChanged(id, request.feePaid(), admin.id())
+                .orElseThrow(() -> noFeeChangeException(id, request.feePaid()));
+        feeMapper.insertEvent(new FeeEventInsert(
+                id,
+                previousFeePaid,
+                request.feePaid(),
+                admin.id(),
+                reason
+        ));
         Registration updated = registrationMapper.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
         insertAdminHistory(
@@ -416,6 +430,26 @@ public class RegistrationService {
             return null;
         }
         return value.trim();
+    }
+
+    private String normalizeFeeReason(Boolean feePaid, String value) {
+        String reason = normalizeOptional(value);
+        if (Boolean.FALSE.equals(feePaid) && reason == null) {
+            throw new BusinessException(ErrorCode.FEE_REVERT_REASON_REQUIRED);
+        }
+        return reason;
+    }
+
+    private BusinessException noFeeChangeException(Long participantId, Boolean requestedFeePaid) {
+        Boolean currentFeePaid = feeMapper.findFeePaidByParticipantId(participantId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.REGISTRATION_NOT_FOUND));
+        if (Boolean.TRUE.equals(currentFeePaid) && Boolean.TRUE.equals(requestedFeePaid)) {
+            return new BusinessException(ErrorCode.FEE_ALREADY_PAID);
+        }
+        if (Boolean.FALSE.equals(currentFeePaid) && Boolean.FALSE.equals(requestedFeePaid)) {
+            return new BusinessException(ErrorCode.FEE_ALREADY_UNPAID);
+        }
+        return new BusinessException(ErrorCode.INVALID_REQUEST);
     }
 
     private void requireRole(AdminPrincipal admin, AdminRole requiredRole) {
