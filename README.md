@@ -2,7 +2,7 @@
 
 `church-retreat-ops`는 교회 수련회 준비와 현장 운영을 위한 백엔드 프로젝트입니다.
 
-현재는 백엔드 기반, 관리자 인증 기반, 참가자 등록, 관리자 참가자 관리, 공동체 구조 Phase 4가 구현되어 있습니다. 조 편성, 공지, 일정, 체크인, 프론트엔드는 아직 구현하지 않았습니다.
+현재는 백엔드 기반, 관리자 인증 기반, 참가자 등록, 관리자 참가자 관리, 공동체 구조, 수련회 조 편성 Phase 5가 구현되어 있습니다. 공지, 일정, 체크인, 프론트엔드는 아직 구현하지 않았습니다.
 
 ## 현재 완료된 단계
 
@@ -71,6 +71,20 @@
 - 관리자 참가자 목록/상세 응답에 정규화된 중그룹/셀 정보 포함
 
 자세한 내용은 [docs/phase4-community-structure.md](docs/phase4-community-structure.md)를 참고합니다.
+
+### Phase 5: 수련회 조 편성
+
+- 수련회 조 `retreat_groups`
+- 수련회 조원 배정 `retreat_group_members`
+- 한 참가자는 한 수련회 조에만 배정
+- 한 수련회 조에는 한 명의 조장만 지정
+- 수련회 조 CRUD와 활성 상태 변경 API
+- 참가자 수련회 조 배정/해제 API
+- 수련회 조장 지정/해제 API
+- 관리자 참가자 목록/상세 응답에 수련회 조 정보 포함
+- 기존 교회 중그룹/셀과 `churchCellDepartment` 응답 동작 유지
+
+자세한 내용은 [docs/phase5-retreat-group-assignment.md](docs/phase5-retreat-group-assignment.md)를 참고합니다.
 
 ## 기술 스택
 
@@ -141,7 +155,7 @@ docker compose down -v
 
 테스트는 Testcontainers PostgreSQL을 사용하므로 Docker Desktop이 실행 중이어야 합니다.
 
-Phase 2 통합 테스트도 같은 명령에 포함됩니다.
+Phase 2 이후 통합 테스트도 같은 명령에 포함됩니다.
 
 ## Health Check
 
@@ -286,6 +300,37 @@ curl -s -X PATCH http://localhost:8080/api/admin/participants/1/church-cell \
   -d '{"churchCellId":1}'
 ```
 
+## 수련회 조 편성 테스트
+
+수련회 조는 교회 중그룹/셀과 별도의 임시 운영 구조입니다. `STAFF`는 조회, `CHAIR` 이상은 생성/수정/활성 상태 변경, 참가자 배정/해제, 조장 지정/해제를 수행할 수 있습니다.
+
+```bash
+curl -s -X POST http://localhost:8080/api/admin/retreat-groups \
+  -H 'Authorization: Bearer <accessToken>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name":"Group 1",
+    "description":"First retreat group",
+    "displayOrder":0
+  }'
+
+curl -s -X PATCH http://localhost:8080/api/admin/participants/1/retreat-group \
+  -H 'Authorization: Bearer <accessToken>' \
+  -H 'Content-Type: application/json' \
+  -d '{"retreatGroupId":1}'
+
+curl -s http://localhost:8080/api/admin/retreat-groups/1/members \
+  -H 'Authorization: Bearer <accessToken>'
+
+curl -s -X PATCH http://localhost:8080/api/admin/retreat-groups/1/leader \
+  -H 'Authorization: Bearer <accessToken>' \
+  -H 'Content-Type: application/json' \
+  -d '{"participantId":1}'
+
+curl -s http://localhost:8080/api/admin/retreat-groups/tree \
+  -H 'Authorization: Bearer <accessToken>'
+```
+
 ## 환경 변수
 
 운영 환경에서는 아래 값을 환경 변수로 주입해야 합니다.
@@ -332,6 +377,17 @@ JWT가 필요한 API:
 - `PATCH /api/admin/community/cells/{id}/active`
 - `GET /api/admin/community/tree`
 - `PATCH /api/admin/participants/{participantId}/church-cell`
+- `GET /api/admin/retreat-groups`
+- `GET /api/admin/retreat-groups/{id}`
+- `POST /api/admin/retreat-groups`
+- `PATCH /api/admin/retreat-groups/{id}`
+- `PATCH /api/admin/retreat-groups/{id}/active`
+- `GET /api/admin/retreat-groups/{id}/members`
+- `GET /api/admin/retreat-groups/tree`
+- `PATCH /api/admin/participants/{participantId}/retreat-group`
+- `DELETE /api/admin/participants/{participantId}/retreat-group`
+- `PATCH /api/admin/retreat-groups/{groupId}/leader`
+- `DELETE /api/admin/retreat-groups/{groupId}/leader`
 - 그 외 API는 기본적으로 인증 필요
 
 ## 아직 구현하지 않은 범위
@@ -339,7 +395,6 @@ JWT가 필요한 API:
 아래 기능은 현재 단계에서 의도적으로 제외되어 있습니다.
 
 - 참가자 로그인 계정
-- 수련회 조 편성
 - 공지
 - 일정
 - 체크인

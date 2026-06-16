@@ -383,6 +383,10 @@ public class RegistrationService {
                     Map.entry("churchCellName", registration.churchCellName() == null ? "" : registration.churchCellName()),
                     Map.entry("middleGroupId", registration.middleGroupId() == null ? "" : registration.middleGroupId()),
                     Map.entry("middleGroupName", registration.middleGroupName() == null ? "" : registration.middleGroupName()),
+                    Map.entry("retreatGroupId", registration.retreatGroupId() == null ? "" : registration.retreatGroupId()),
+                    Map.entry("retreatGroupName", registration.retreatGroupName() == null ? "" : registration.retreatGroupName()),
+                    Map.entry("retreatGroupLeader", registration.retreatGroupLeader() == null
+                            ? "" : registration.retreatGroupLeader()),
                     Map.entry("privacyConsentAgreed", registration.privacyConsentAgreed()),
                     Map.entry("feePaid", registration.feePaid()),
                     Map.entry("status", registration.status()),

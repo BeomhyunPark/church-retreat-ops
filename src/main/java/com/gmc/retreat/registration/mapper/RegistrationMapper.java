@@ -22,11 +22,14 @@ public interface RegistrationMapper {
             SELECT r.id, r.name, r.normalized_name, r.gender, r.birth_year, r.phone_number, r.phone_last_four,
                    r.church_cell_department, r.church_cell_id, cc.name AS church_cell_name,
                    mg.id AS middle_group_id, mg.name AS middle_group_name,
+                   rg.id AS retreat_group_id, rg.name AS retreat_group_name, rgm.leader AS retreat_group_leader,
                    r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
                    r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at
             FROM registrations r
             LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
             LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
+            LEFT JOIN retreat_group_members rgm ON rgm.registration_id = r.id
+            LEFT JOIN retreat_groups rg ON rg.id = rgm.retreat_group_id
             WHERE r.id = #{id}
             """)
     @ConstructorArgs({
@@ -42,6 +45,9 @@ public interface RegistrationMapper {
             @Arg(column = "church_cell_name", javaType = String.class),
             @Arg(column = "middle_group_id", javaType = Long.class),
             @Arg(column = "middle_group_name", javaType = String.class),
+            @Arg(column = "retreat_group_id", javaType = Long.class),
+            @Arg(column = "retreat_group_name", javaType = String.class),
+            @Arg(column = "retreat_group_leader", javaType = Boolean.class),
             @Arg(column = "lookup_key_hash", javaType = String.class),
             @Arg(column = "privacy_consent_agreed", javaType = Boolean.class),
             @Arg(column = "fee_paid", javaType = Boolean.class),
@@ -58,11 +64,14 @@ public interface RegistrationMapper {
             SELECT r.id, r.name, r.normalized_name, r.gender, r.birth_year, r.phone_number, r.phone_last_four,
                    r.church_cell_department, r.church_cell_id, cc.name AS church_cell_name,
                    mg.id AS middle_group_id, mg.name AS middle_group_name,
+                   rg.id AS retreat_group_id, rg.name AS retreat_group_name, rgm.leader AS retreat_group_leader,
                    r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
                    r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at
             FROM registrations r
             LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
             LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
+            LEFT JOIN retreat_group_members rgm ON rgm.registration_id = r.id
+            LEFT JOIN retreat_groups rg ON rg.id = rgm.retreat_group_id
             WHERE r.normalized_name = #{normalizedName}
               AND r.phone_number = #{phoneNumber}
               AND r.status = 'REGISTERED'
@@ -80,6 +89,9 @@ public interface RegistrationMapper {
             @Arg(column = "church_cell_name", javaType = String.class),
             @Arg(column = "middle_group_id", javaType = Long.class),
             @Arg(column = "middle_group_name", javaType = String.class),
+            @Arg(column = "retreat_group_id", javaType = Long.class),
+            @Arg(column = "retreat_group_name", javaType = String.class),
+            @Arg(column = "retreat_group_leader", javaType = Boolean.class),
             @Arg(column = "lookup_key_hash", javaType = String.class),
             @Arg(column = "privacy_consent_agreed", javaType = Boolean.class),
             @Arg(column = "fee_paid", javaType = Boolean.class),
@@ -99,11 +111,14 @@ public interface RegistrationMapper {
             SELECT r.id, r.name, r.normalized_name, r.gender, r.birth_year, r.phone_number, r.phone_last_four,
                    r.church_cell_department, r.church_cell_id, cc.name AS church_cell_name,
                    mg.id AS middle_group_id, mg.name AS middle_group_name,
+                   rg.id AS retreat_group_id, rg.name AS retreat_group_name, rgm.leader AS retreat_group_leader,
                    r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
                    r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at
             FROM registrations r
             LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
             LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
+            LEFT JOIN retreat_group_members rgm ON rgm.registration_id = r.id
+            LEFT JOIN retreat_groups rg ON rg.id = rgm.retreat_group_id
             WHERE r.normalized_name = #{normalizedName}
               AND r.phone_last_four = #{phoneLastFour}
               AND r.status = 'REGISTERED'
@@ -122,6 +137,9 @@ public interface RegistrationMapper {
             @Arg(column = "church_cell_name", javaType = String.class),
             @Arg(column = "middle_group_id", javaType = Long.class),
             @Arg(column = "middle_group_name", javaType = String.class),
+            @Arg(column = "retreat_group_id", javaType = Long.class),
+            @Arg(column = "retreat_group_name", javaType = String.class),
+            @Arg(column = "retreat_group_leader", javaType = Boolean.class),
             @Arg(column = "lookup_key_hash", javaType = String.class),
             @Arg(column = "privacy_consent_agreed", javaType = Boolean.class),
             @Arg(column = "fee_paid", javaType = Boolean.class),
@@ -141,11 +159,14 @@ public interface RegistrationMapper {
             SELECT r.id, r.name, r.normalized_name, r.gender, r.birth_year, r.phone_number, r.phone_last_four,
                    r.church_cell_department, r.church_cell_id, cc.name AS church_cell_name,
                    mg.id AS middle_group_id, mg.name AS middle_group_name,
+                   rg.id AS retreat_group_id, rg.name AS retreat_group_name, rgm.leader AS retreat_group_leader,
                    r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
                    r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at
             FROM registrations r
             LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
             LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
+            LEFT JOIN retreat_group_members rgm ON rgm.registration_id = r.id
+            LEFT JOIN retreat_groups rg ON rg.id = rgm.retreat_group_id
             ORDER BY r.created_at DESC, r.id DESC
             LIMIT #{limit}
             OFFSET #{offset}
@@ -163,6 +184,9 @@ public interface RegistrationMapper {
             @Arg(column = "church_cell_name", javaType = String.class),
             @Arg(column = "middle_group_id", javaType = Long.class),
             @Arg(column = "middle_group_name", javaType = String.class),
+            @Arg(column = "retreat_group_id", javaType = Long.class),
+            @Arg(column = "retreat_group_name", javaType = String.class),
+            @Arg(column = "retreat_group_leader", javaType = Boolean.class),
             @Arg(column = "lookup_key_hash", javaType = String.class),
             @Arg(column = "privacy_consent_agreed", javaType = Boolean.class),
             @Arg(column = "fee_paid", javaType = Boolean.class),

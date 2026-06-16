@@ -1,4 +1,6 @@
 @baseUrl = http://localhost:8080
+@adminToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiJhZG1pbkBnbWMubG9jYWwiLCJuYW1lIjoiU3lzdGVtIEFkbWluIiwicm9sZSI6IlNZU1RFTV9BRE1JTiIsImlhdCI6MTc4MTU2ODY4MSwiZXhwIjoxNzgxNTc1ODgxfQ.P7UVDGTFnD3fq52MFxuca3LWPsTlWNYzw0qUpbGfuP0
+@participantId = 1
 
 ### Create middle group
 POST {{baseUrl}}/api/admin/community/middle-groups
