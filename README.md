@@ -2,7 +2,7 @@
 
 `church-retreat-ops`는 교회 수련회 준비와 현장 운영을 위한 백엔드 프로젝트입니다.
 
-현재는 백엔드 기반, 관리자 인증 기반, 참가자 등록, 관리자 참가자 관리, 공동체 구조, 수련회 조 편성, 공지 도메인, 일정 도메인, 체크인 도메인 Phase 8이 구현되어 있습니다. 프론트엔드는 아직 구현하지 않았습니다.
+현재는 백엔드 기반, 관리자 인증 기반, 참가자 등록, 관리자 참가자 관리, 공동체 구조, 수련회 조 편성, 공지 도메인, 일정 도메인, 체크인 도메인, 참가비 관리 도메인 Phase 9가 구현되어 있습니다. 프론트엔드는 아직 구현하지 않았습니다.
 
 ## 현재 완료된 단계
 
@@ -124,6 +124,18 @@
 - `STAFF` 이상 조회/수동 체크인, `CHAIR` 이상 체크인 취소와 QR 토큰 관리
 
 자세한 내용은 [docs/phase8-check-in-domain.md](docs/phase8-check-in-domain.md)를 참고합니다.
+
+### Phase 9: 참가비 관리 도메인
+
+- 관리자 참가비 roster/query API
+- 개인정보 보호형 참가비 목록/상세 응답
+- 기존 `registrations.fee_paid` 현재 상태 유지
+- 참가비 상태 변경 시 변경 전/후 상태, 수행 관리자, 사유, 시각 이벤트 저장
+- 이미 납부/미납 상태인 경우 중복 변경 방지
+- 납부 취소(미납 전환)는 사유 필수
+- `STAFF` 이상 조회, `CHAIR` 이상 참가비 상태 변경
+
+자세한 내용은 [docs/phase9-fee-management-domain.md](docs/phase9-fee-management-domain.md)를 참고합니다.
 
 ## 기술 스택
 
@@ -453,6 +465,28 @@ curl -s -X POST http://localhost:8080/api/admin/check-ins/tokens/1 \
   -d '{"expiresAt":"2026-07-01T23:59:59Z"}'
 ```
 
+## 참가비 관리 테스트
+
+참가비 관리는 JWT가 필요합니다. `STAFF`는 목록/상세/이력 조회만 가능하고, `CHAIR` 이상은 납부 상태를 변경할 수 있습니다.
+
+```bash
+curl -s 'http://localhost:8080/api/admin/fees?feePaid=false' \
+  -H 'Authorization: Bearer <accessToken>'
+
+curl -s http://localhost:8080/api/admin/fees/1 \
+  -H 'Authorization: Bearer <accessToken>'
+
+curl -s -X PATCH http://localhost:8080/api/admin/fees/1 \
+  -H 'Authorization: Bearer <accessToken>' \
+  -H 'Content-Type: application/json' \
+  -d '{"feePaid":true,"reason":"Confirmed by treasurer"}'
+
+curl -s -X PATCH http://localhost:8080/api/admin/fees/1 \
+  -H 'Authorization: Bearer <accessToken>' \
+  -H 'Content-Type: application/json' \
+  -d '{"feePaid":false,"reason":"Marked paid by mistake"}'
+```
+
 ## 환경 변수
 
 운영 환경에서는 아래 값을 환경 변수로 주입해야 합니다.
@@ -527,6 +561,10 @@ JWT가 필요한 API:
 - `PATCH /api/admin/check-ins/{participantId}/cancel`
 - `POST /api/admin/check-ins/tokens/{participantId}`
 - `PATCH /api/admin/check-ins/tokens/{participantId}/revoke`
+- `GET /api/admin/fees`
+- `GET /api/admin/fees/{participantId}`
+- `PATCH /api/admin/fees/{participantId}`
+- `GET /api/admin/fees/{participantId}/events`
 - 그 외 API는 기본적으로 인증 필요
 
 ## 아직 구현하지 않은 범위
@@ -540,5 +578,6 @@ JWT가 필요한 API:
 - 참가자 공개 공지 화면과 읽음 확인
 - 참가자 공개 일정 화면, 일정 알림, 캘린더 연동, 반복 일정, 출석 추적
 - 참가자 공개 체크인 화면, 공개 QR 스캔 API, QR scanner UI, 체크인 알림, 체크인 통계 dashboard
+- 실 결제 gateway, 영수증 업로드, 환불 workflow, 정산 자동화
 
 참가자는 관리자 계정이 아닙니다. 관리자 로그인 계정은 수련회 운영진과 시스템 관리자를 위한 `admin_users`에만 저장됩니다.

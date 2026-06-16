@@ -90,6 +90,7 @@ class GmcRetreatApplicationTests {
         jdbcTemplate.update("DELETE FROM participant_check_in_tokens");
         jdbcTemplate.update("DELETE FROM retreat_check_in_events");
         jdbcTemplate.update("DELETE FROM retreat_check_ins");
+        jdbcTemplate.update("DELETE FROM registration_fee_events");
         jdbcTemplate.update("DELETE FROM registration_privacy_access_logs");
         jdbcTemplate.update("DELETE FROM registration_histories");
         jdbcTemplate.update("DELETE FROM announcement_targets");
@@ -261,6 +262,43 @@ class GmcRetreatApplicationTests {
         assertThat(currentStateTableCount).isEqualTo(1);
         assertThat(eventTableCount).isEqualTo(1);
         assertThat(tokenTableCount).isEqualTo(1);
+    }
+
+    @Test
+    void flywayMigrationCreatesFeeManagementStructures() {
+        Integer eventTableCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM information_schema.tables
+                        WHERE table_schema = 'public'
+                          AND table_name = 'registration_fee_events'
+                        """,
+                Integer.class
+        );
+        Integer updatedAtColumnCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM information_schema.columns
+                        WHERE table_schema = 'public'
+                          AND table_name = 'registrations'
+                          AND column_name = 'fee_status_updated_at'
+                        """,
+                Integer.class
+        );
+        Integer updatedByColumnCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM information_schema.columns
+                        WHERE table_schema = 'public'
+                          AND table_name = 'registrations'
+                          AND column_name = 'fee_status_updated_by_admin_id'
+                        """,
+                Integer.class
+        );
+
+        assertThat(eventTableCount).isEqualTo(1);
+        assertThat(updatedAtColumnCount).isEqualTo(1);
+        assertThat(updatedByColumnCount).isEqualTo(1);
     }
 
     @Test
@@ -1893,6 +1931,252 @@ class GmcRetreatApplicationTests {
                 .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
     }
 
+    @Test
+    void staffCanViewFeeRosterAndDetailWithoutSensitiveFields() throws Exception {
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+        Long participantId = createParticipant("Fee Roster Person", "010-1111-2468");
+
+        MvcResult rosterResult = mockMvc.perform(get("/api/admin/fees")
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].participantId").value(participantId))
+                .andExpect(jsonPath("$.data.content[0].phoneLast4").value("2468"))
+                .andExpect(jsonPath("$.data.content[0].feePaid").value(false))
+                .andExpect(jsonPath("$.data.content[0].phoneNumber").doesNotExist())
+                .andReturn();
+
+        MvcResult detailResult = mockMvc.perform(get("/api/admin/fees/" + participantId)
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.participant.participantId").value(participantId))
+                .andExpect(jsonPath("$.data.participant.phoneLast4").value("2468"))
+                .andExpect(jsonPath("$.data.participant.phoneNumber").doesNotExist())
+                .andExpect(jsonPath("$.data.events.length()").value(0))
+                .andReturn();
+
+        assertNoSensitiveCheckInFields(rosterResult.getResponse().getContentAsString());
+        assertNoSensitiveCheckInFields(detailResult.getResponse().getContentAsString());
+    }
+
+    @Test
+    void feeRosterSupportsFeePaidFilter() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long paidParticipantId = createParticipant("Paid Filter Person", "010-2222-2468");
+        createParticipant("Unpaid Filter Person", "010-2222-1357");
+
+        mockMvc.perform(patch("/api/admin/fees/" + paidParticipantId)
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(feeStatusRequest(true, "Confirmed by treasurer.")))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/admin/fees")
+                        .param("feePaid", "true")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].participantId").value(paidParticipantId))
+                .andExpect(jsonPath("$.data.content[0].feePaid").value(true));
+    }
+
+    @Test
+    void staffCannotUpdateFeeStatus() throws Exception {
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+        Long participantId = createParticipant("Fee Denied Person", "010-3333-2468");
+
+        mockMvc.perform(patch("/api/admin/fees/" + participantId)
+                        .header("Authorization", "Bearer " + staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(feeStatusRequest(true, "Confirmed by treasurer.")))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    void chairCanMarkUnpaidParticipantAsPaidAndCreatesEvent() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long participantId = createParticipant("Fee Paid Person", "010-4444-2468");
+
+        MvcResult updateResult = mockMvc.perform(patch("/api/admin/fees/" + participantId)
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(feeStatusRequest(true, "Confirmed by treasurer.")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.participant.participantId").value(participantId))
+                .andExpect(jsonPath("$.data.participant.feePaid").value(true))
+                .andExpect(jsonPath("$.data.participant.feeStatusUpdatedAt").exists())
+                .andExpect(jsonPath("$.data.participant.feeStatusUpdatedBy.id").value(1))
+                .andExpect(jsonPath("$.data.events[0].previousFeePaid").value(false))
+                .andExpect(jsonPath("$.data.events[0].newFeePaid").value(true))
+                .andReturn();
+
+        Integer eventCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM registration_fee_events
+                        WHERE registration_id = ?
+                          AND previous_fee_paid = FALSE
+                          AND new_fee_paid = TRUE
+                          AND changed_by_admin_id = 1
+                        """,
+                Integer.class,
+                participantId
+        );
+
+        assertThat(eventCount).isEqualTo(1);
+        assertNoSensitiveCheckInFields(updateResult.getResponse().getContentAsString());
+    }
+
+    @Test
+    void chairCanRevertPaidParticipantToUnpaidWithReason() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long participantId = createParticipant("Fee Revert Person", "010-5555-2468");
+
+        mockMvc.perform(patch("/api/admin/fees/" + participantId)
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(feeStatusRequest(true, "Confirmed by treasurer.")))
+                .andExpect(status().isOk());
+
+        MvcResult revertResult = mockMvc.perform(patch("/api/admin/fees/" + participantId)
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(feeStatusRequest(false, "Marked paid by mistake.")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.participant.feePaid").value(false))
+                .andExpect(jsonPath("$.data.events[0].previousFeePaid").value(true))
+                .andExpect(jsonPath("$.data.events[0].newFeePaid").value(false))
+                .andExpect(jsonPath("$.data.events[0].reason").value("Marked paid by mistake."))
+                .andReturn();
+
+        Integer eventCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM registration_fee_events WHERE registration_id = ?",
+                Integer.class,
+                participantId
+        );
+
+        assertThat(eventCount).isEqualTo(2);
+        assertNoSensitiveCheckInFields(revertResult.getResponse().getContentAsString());
+    }
+
+    @Test
+    void revertingFeeToUnpaidRequiresReason() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long participantId = createParticipant("Fee Reason Person", "010-6666-2468");
+
+        mockMvc.perform(patch("/api/admin/fees/" + participantId)
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(feeStatusRequest(true, "Confirmed by treasurer.")))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/admin/fees/" + participantId)
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(feeStatusRequest(false, " ")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("FEE_REVERT_REASON_REQUIRED"));
+    }
+
+    @Test
+    void duplicatePaidUpdateIsRejectedWithoutDuplicateEvent() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long participantId = createParticipant("Duplicate Paid Person", "010-7777-2468");
+
+        mockMvc.perform(patch("/api/admin/fees/" + participantId)
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(feeStatusRequest(true, "Confirmed by treasurer.")))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/admin/fees/" + participantId)
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(feeStatusRequest(true, "Duplicate confirmation.")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("FEE_ALREADY_PAID"));
+
+        Integer eventCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM registration_fee_events WHERE registration_id = ?",
+                Integer.class,
+                participantId
+        );
+
+        assertThat(eventCount).isEqualTo(1);
+    }
+
+    @Test
+    void duplicateUnpaidUpdateIsRejectedWithoutEvent() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long participantId = createParticipant("Duplicate Unpaid Person", "010-8888-2468");
+
+        mockMvc.perform(patch("/api/admin/fees/" + participantId)
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(feeStatusRequest(false, "Already unpaid.")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("FEE_ALREADY_UNPAID"));
+
+        Integer eventCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM registration_fee_events WHERE registration_id = ?",
+                Integer.class,
+                participantId
+        );
+
+        assertThat(eventCount).isZero();
+    }
+
+    @Test
+    void feeDetailMissingRegistrationReturnsBusinessError() throws Exception {
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+
+        mockMvc.perform(get("/api/admin/fees/999999")
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("REGISTRATION_NOT_FOUND"));
+    }
+
+    @Test
+    void participantSelfLookupExposesOnlyOwnFeePaid() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        JsonNode firstCreated = objectMapper.readTree(
+                createRegistration("Self Fee One", "010-9999-2468", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+        Long firstParticipantId = firstCreated.path("data").path("registration").path("id").asLong();
+        String firstLookupKey = firstCreated.path("data").path("lookupKey").asText();
+        JsonNode secondCreated = objectMapper.readTree(
+                createRegistration("Self Fee Two", "010-9999-1357", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+        Long secondParticipantId = secondCreated.path("data").path("registration").path("id").asLong();
+
+        mockMvc.perform(patch("/api/admin/fees/" + firstParticipantId)
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(feeStatusRequest(true, "Confirmed by treasurer.")))
+                .andExpect(status().isOk());
+
+        MvcResult lookupResult = mockMvc.perform(post("/api/registrations/self/lookup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "Self Fee One",
+                                "phoneLastFour", "2468",
+                                "lookupKey", firstLookupKey
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(firstParticipantId))
+                .andExpect(jsonPath("$.data.feePaid").value(true))
+                .andReturn();
+
+        assertThat(secondParticipantId).isNotEqualTo(firstParticipantId);
+        assertThat(lookupResult.getResponse().getContentAsString())
+                .doesNotContain("Self Fee Two", "1357");
+        assertNoSensitiveCheckInFields(lookupResult.getResponse().getContentAsString());
+    }
+
     @Nested
     class RoleHierarchyTests {
 
@@ -2075,6 +2359,13 @@ class GmcRetreatApplicationTests {
 
     private String checkInTokenIssueRequest(String expiresAt) throws Exception {
         return objectMapper.writeValueAsString(Map.of("expiresAt", expiresAt));
+    }
+
+    private String feeStatusRequest(boolean feePaid, String reason) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "feePaid", feePaid,
+                "reason", reason
+        ));
     }
 
     private List<Map<String, String>> allTarget() {
