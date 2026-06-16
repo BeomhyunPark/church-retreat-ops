@@ -1,0 +1,80 @@
+@baseUrl = http://localhost:8080
+
+### Create schedule item
+POST {{baseUrl}}/api/admin/schedules
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "title": "Opening Worship",
+  "description": "Retreat opening worship in the main chapel.",
+  "scheduleDate": "2026-07-01",
+  "startsAt": "2026-07-01T09:00:00Z",
+  "endsAt": "2026-07-01T10:30:00Z",
+  "location": "Main Chapel",
+  "category": "WORSHIP",
+  "targetAudience": "ALL",
+  "active": true,
+  "displayOrder": 0
+}
+
+> {%
+    client.global.set("scheduleId", response.body.data.id);
+%}
+
+### Create staff-only schedule item
+POST {{baseUrl}}/api/admin/schedules
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "title": "Staff briefing",
+  "description": "Operations team briefing before participant arrival.",
+  "scheduleDate": "2026-07-01",
+  "startsAt": "2026-07-01T08:00:00Z",
+  "endsAt": "2026-07-01T08:30:00Z",
+  "location": "Staff Room",
+  "category": "NOTICE",
+  "targetAudience": "STAFF_ONLY",
+  "active": true,
+  "displayOrder": 0
+}
+
+### List schedule items
+GET {{baseUrl}}/api/admin/schedules
+Authorization: Bearer {{adminToken}}
+
+### List active worship schedules for a date
+GET {{baseUrl}}/api/admin/schedules?date=2026-07-01&category=WORSHIP&active=true
+Authorization: Bearer {{adminToken}}
+
+### Schedule item detail
+GET {{baseUrl}}/api/admin/schedules/{{scheduleId}}
+Authorization: Bearer {{adminToken}}
+
+### Update schedule item
+PATCH {{baseUrl}}/api/admin/schedules/{{scheduleId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "title": "Opening Worship",
+  "description": "Opening worship starts after check-in.",
+  "scheduleDate": "2026-07-01",
+  "startsAt": "2026-07-01T09:30:00Z",
+  "endsAt": "2026-07-01T10:45:00Z",
+  "location": "Main Chapel",
+  "category": "WORSHIP",
+  "targetAudience": "ALL",
+  "active": true,
+  "displayOrder": 1
+}
+
+### Update schedule item active
+PATCH {{baseUrl}}/api/admin/schedules/{{scheduleId}}/active
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "active": false
+}

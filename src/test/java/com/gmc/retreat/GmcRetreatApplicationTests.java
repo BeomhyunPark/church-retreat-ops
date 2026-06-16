@@ -89,6 +89,7 @@ class GmcRetreatApplicationTests {
         jdbcTemplate.update("DELETE FROM registration_histories");
         jdbcTemplate.update("DELETE FROM announcement_targets");
         jdbcTemplate.update("DELETE FROM announcements");
+        jdbcTemplate.update("DELETE FROM retreat_schedule_items");
         jdbcTemplate.update("DELETE FROM retreat_group_members");
         jdbcTemplate.update("DELETE FROM registrations");
         jdbcTemplate.update("DELETE FROM retreat_groups");
@@ -205,6 +206,21 @@ class GmcRetreatApplicationTests {
 
         assertThat(announcementTableCount).isEqualTo(1);
         assertThat(targetTableCount).isEqualTo(1);
+    }
+
+    @Test
+    void flywayMigrationCreatesScheduleTable() {
+        Integer scheduleTableCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM information_schema.tables
+                        WHERE table_schema = 'public'
+                          AND table_name = 'retreat_schedule_items'
+                        """,
+                Integer.class
+        );
+
+        assertThat(scheduleTableCount).isEqualTo(1);
     }
 
     @Test
@@ -1326,6 +1342,204 @@ class GmcRetreatApplicationTests {
         assertNoSensitiveLookupFields(detailResult.getResponse().getContentAsString());
     }
 
+    @Test
+    void chairPastorAndSystemAdminCanCreateScheduleItems() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        String pastorToken = accessTokenForRole(AdminRole.PASTOR);
+        String systemAdminToken = accessTokenForRole(AdminRole.SYSTEM_ADMIN);
+
+        mockMvc.perform(post("/api/admin/schedules")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(scheduleRequest("Chair Opening Worship", "WORSHIP", "ALL", true, 0)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title").value("Chair Opening Worship"))
+                .andExpect(jsonPath("$.data.category").value("WORSHIP"))
+                .andExpect(jsonPath("$.data.targetAudience").value("ALL"));
+
+        mockMvc.perform(post("/api/admin/schedules")
+                        .header("Authorization", "Bearer " + pastorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(scheduleRequest("Pastor Lecture", "LECTURE", "LEADERS_ONLY", true, 1)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title").value("Pastor Lecture"));
+
+        mockMvc.perform(post("/api/admin/schedules")
+                        .header("Authorization", "Bearer " + systemAdminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(scheduleRequest("System Notice Time", "NOTICE", "STAFF_ONLY", true, 2)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title").value("System Notice Time"));
+    }
+
+    @Test
+    void staffCanListAndDetailScheduleItemsButCannotChangeThem() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+        Long scheduleId = createSchedule(chairToken, "Staff Readable Schedule", "MEAL", "ALL", true, 0);
+
+        mockMvc.perform(get("/api/admin/schedules")
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].title").value("Staff Readable Schedule"));
+
+        mockMvc.perform(get("/api/admin/schedules/" + scheduleId)
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(scheduleId));
+
+        mockMvc.perform(post("/api/admin/schedules")
+                        .header("Authorization", "Bearer " + staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(scheduleRequest("Denied Schedule", "NOTICE", "ALL", true, 1)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+
+        mockMvc.perform(patch("/api/admin/schedules/" + scheduleId)
+                        .header("Authorization", "Bearer " + staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(scheduleRequest("Denied Update", "NOTICE", "ALL", true, 1)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+
+        mockMvc.perform(patch("/api/admin/schedules/" + scheduleId + "/active")
+                        .header("Authorization", "Bearer " + staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("active", false))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    void invalidScheduleTimeRangeIsRejected() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+
+        mockMvc.perform(post("/api/admin/schedules")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "title", "Invalid Range",
+                                "description", "Ends before starts.",
+                                "scheduleDate", "2026-07-01",
+                                "startsAt", "2026-07-01T11:00:00Z",
+                                "endsAt", "2026-07-01T10:00:00Z",
+                                "location", "Chapel",
+                                "category", "WORSHIP",
+                                "targetAudience", "ALL",
+                                "active", true,
+                                "displayOrder", 0
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
+    void scheduleDateDifferentFromStartsAtDateIsRejected() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+
+        mockMvc.perform(post("/api/admin/schedules")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "title", "Invalid Start Date",
+                                "description", "Schedule date does not match startsAt.",
+                                "scheduleDate", "2026-07-02",
+                                "startsAt", "2026-07-01T09:00:00Z",
+                                "endsAt", "2026-07-01T10:00:00Z",
+                                "location", "Chapel",
+                                "category", "WORSHIP",
+                                "targetAudience", "ALL",
+                                "active", true,
+                                "displayOrder", 0
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
+    void scheduleEndingOnDifferentDateIsRejected() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+
+        mockMvc.perform(post("/api/admin/schedules")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "title", "Cross Date Schedule",
+                                "description", "Cross-date schedule items are not allowed in MVP.",
+                                "scheduleDate", "2026-07-01",
+                                "startsAt", "2026-07-01T23:30:00Z",
+                                "endsAt", "2026-07-02T00:30:00Z",
+                                "location", "Chapel",
+                                "category", "PRAYER",
+                                "targetAudience", "ALL",
+                                "active", true,
+                                "displayOrder", 0
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
+    void scheduleActiveToggleAndUpdateWork() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long scheduleId = createSchedule(chairToken, "Original Schedule", "BREAK", "ALL", true, 0);
+
+        mockMvc.perform(patch("/api/admin/schedules/" + scheduleId + "/active")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("active", false))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.active").value(false));
+
+        mockMvc.perform(patch("/api/admin/schedules/" + scheduleId)
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(scheduleRequest("Updated Schedule", "GROUP_ACTIVITY", "NEWCOMERS", true, 3)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title").value("Updated Schedule"))
+                .andExpect(jsonPath("$.data.category").value("GROUP_ACTIVITY"))
+                .andExpect(jsonPath("$.data.targetAudience").value("NEWCOMERS"))
+                .andExpect(jsonPath("$.data.displayOrder").value(3));
+    }
+
+    @Test
+    void scheduleListFilteringByDateCategoryAndActiveWorks() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        createSchedule(chairToken, "Visible Meal", "MEAL", "ALL", true, 0);
+        createSchedule(chairToken, "Inactive Meal", "MEAL", "ALL", false, 1);
+        createSchedule(chairToken, "Visible Prayer", "PRAYER", "ALL", true, 2);
+
+        mockMvc.perform(get("/api/admin/schedules")
+                        .param("date", "2026-07-01")
+                        .param("category", "MEAL")
+                        .param("active", "true")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].title").value("Visible Meal"))
+                .andExpect(jsonPath("$.data[0].category").value("MEAL"))
+                .andExpect(jsonPath("$.data[0].active").value(true));
+    }
+
+    @Test
+    void scheduleResponsesDoNotExposeSensitiveLookupFields() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long scheduleId = createSchedule(chairToken, "Privacy Schedule", "NOTICE", "ALL", true, 0);
+
+        MvcResult listResult = mockMvc.perform(get("/api/admin/schedules")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        MvcResult detailResult = mockMvc.perform(get("/api/admin/schedules/" + scheduleId)
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        assertNoSensitiveLookupFields(listResult.getResponse().getContentAsString());
+        assertNoSensitiveLookupFields(detailResult.getResponse().getContentAsString());
+    }
+
     @Nested
     class RoleHierarchyTests {
 
@@ -1417,6 +1631,25 @@ class GmcRetreatApplicationTests {
         return response.path("data").path("id").asLong();
     }
 
+    private Long createSchedule(
+            String accessToken,
+            String title,
+            String category,
+            String targetAudience,
+            boolean active,
+            int displayOrder
+    ) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/admin/schedules")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(scheduleRequest(title, category, targetAudience, active, displayOrder)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
+        return response.path("data").path("id").asLong();
+    }
+
     private String middleGroupRequest(String name, String elderName, int displayOrder) throws Exception {
         return objectMapper.writeValueAsString(Map.of(
                 "name", name,
@@ -1453,6 +1686,27 @@ class GmcRetreatApplicationTests {
                 "visibleFrom", "2026-07-01T00:00:00Z",
                 "visibleUntil", "2026-07-31T23:59:59Z",
                 "targets", targets
+        ));
+    }
+
+    private String scheduleRequest(
+            String title,
+            String category,
+            String targetAudience,
+            boolean active,
+            int displayOrder
+    ) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "title", title,
+                "description", title + " description",
+                "scheduleDate", "2026-07-01",
+                "startsAt", "2026-07-01T09:00:00Z",
+                "endsAt", "2026-07-01T10:00:00Z",
+                "location", "Main Chapel",
+                "category", category,
+                "targetAudience", targetAudience,
+                "active", active,
+                "displayOrder", displayOrder
         ));
     }
 
