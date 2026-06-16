@@ -50,6 +50,8 @@ class GmcRetreatApplicationTests {
 
     private static final String SENSITIVE_LOOKUP_JSON_FIELD = "lookup" + "Key" + "Hash";
     private static final String SENSITIVE_LOOKUP_DB_FIELD = "lookup_key" + "_hash";
+    private static final String SENSITIVE_TOKEN_JSON_FIELD = "token" + "Hash";
+    private static final String SENSITIVE_TOKEN_DB_FIELD = "token_" + "hash";
 
     @Container
     static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
@@ -85,6 +87,9 @@ class GmcRetreatApplicationTests {
 
     @BeforeEach
     void cleanRegistrationData() {
+        jdbcTemplate.update("DELETE FROM participant_check_in_tokens");
+        jdbcTemplate.update("DELETE FROM retreat_check_in_events");
+        jdbcTemplate.update("DELETE FROM retreat_check_ins");
         jdbcTemplate.update("DELETE FROM registration_privacy_access_logs");
         jdbcTemplate.update("DELETE FROM registration_histories");
         jdbcTemplate.update("DELETE FROM announcement_targets");
@@ -221,6 +226,41 @@ class GmcRetreatApplicationTests {
         );
 
         assertThat(scheduleTableCount).isEqualTo(1);
+    }
+
+    @Test
+    void flywayMigrationCreatesCheckInTables() {
+        Integer currentStateTableCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM information_schema.tables
+                        WHERE table_schema = 'public'
+                          AND table_name = 'retreat_check_ins'
+                        """,
+                Integer.class
+        );
+        Integer eventTableCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM information_schema.tables
+                        WHERE table_schema = 'public'
+                          AND table_name = 'retreat_check_in_events'
+                        """,
+                Integer.class
+        );
+        Integer tokenTableCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM information_schema.tables
+                        WHERE table_schema = 'public'
+                          AND table_name = 'participant_check_in_tokens'
+                        """,
+                Integer.class
+        );
+
+        assertThat(currentStateTableCount).isEqualTo(1);
+        assertThat(eventTableCount).isEqualTo(1);
+        assertThat(tokenTableCount).isEqualTo(1);
     }
 
     @Test
@@ -1540,6 +1580,319 @@ class GmcRetreatApplicationTests {
         assertNoSensitiveLookupFields(detailResult.getResponse().getContentAsString());
     }
 
+    @Test
+    void staffCanViewCheckInRosterAndManuallyCheckInParticipant() throws Exception {
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+        Long participantId = createParticipant("Grace Kim", "010-1111-1234");
+
+        MvcResult rosterBeforeCheckIn = mockMvc.perform(get("/api/admin/check-ins")
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].participantId").value(participantId))
+                .andExpect(jsonPath("$.data.content[0].phoneLast4").value("1234"))
+                .andExpect(jsonPath("$.data.content[0].checkedIn").value(false))
+                .andExpect(jsonPath("$.data.content[0].phoneNumber").doesNotExist())
+                .andReturn();
+
+        MvcResult checkInResult = mockMvc.perform(post("/api/admin/check-ins/" + participantId)
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.participantId").value(participantId))
+                .andExpect(jsonPath("$.data.checkedIn").value(true))
+                .andExpect(jsonPath("$.data.checkInMethod").value("MANUAL"))
+                .andExpect(jsonPath("$.data.checkedInBy.id").value(1))
+                .andReturn();
+
+        Integer eventCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM retreat_check_in_events
+                        WHERE participant_id = ?
+                          AND action = 'CHECKED_IN'
+                          AND method = 'MANUAL'
+                        """,
+                Integer.class,
+                participantId
+        );
+
+        assertThat(eventCount).isEqualTo(1);
+        assertNoSensitiveCheckInFields(rosterBeforeCheckIn.getResponse().getContentAsString());
+        assertNoSensitiveCheckInFields(checkInResult.getResponse().getContentAsString());
+    }
+
+    @Test
+    void duplicateManualCheckInIsRejected() throws Exception {
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+        Long participantId = createParticipant("Noah Park", "010-2222-5678");
+
+        mockMvc.perform(post("/api/admin/check-ins/" + participantId)
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/admin/check-ins/" + participantId)
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("CHECK_IN_ALREADY_COMPLETED"));
+
+        Integer checkedInEventCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM retreat_check_in_events
+                        WHERE participant_id = ?
+                          AND action = 'CHECKED_IN'
+                        """,
+                Integer.class,
+                participantId
+        );
+
+        assertThat(checkedInEventCount).isEqualTo(1);
+    }
+
+    @Test
+    void staffCannotCancelCheckInButChairCanCancelWithReason() throws Exception {
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long participantId = createParticipant("Eun Lee", "010-3333-9012");
+
+        mockMvc.perform(post("/api/admin/check-ins/" + participantId)
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/admin/check-ins/" + participantId + "/cancel")
+                        .header("Authorization", "Bearer " + staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(checkInCancellationRequest("Wrong participant.")))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+
+        MvcResult cancelResult = mockMvc.perform(patch("/api/admin/check-ins/" + participantId + "/cancel")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(checkInCancellationRequest("Wrong participant.")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.checkedIn").value(false))
+                .andExpect(jsonPath("$.data.cancelledBy.id").value(1))
+                .andReturn();
+
+        Integer eventCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM retreat_check_in_events
+                        WHERE participant_id = ?
+                          AND action = 'CANCELLED'
+                        """,
+                Integer.class,
+                participantId
+        );
+
+        assertThat(eventCount).isEqualTo(1);
+        assertNoSensitiveCheckInFields(cancelResult.getResponse().getContentAsString());
+    }
+
+    @Test
+    void duplicateCancellationIsRejectedWithoutDuplicateEvent() throws Exception {
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long participantId = createParticipant("Cancel Once Person", "010-3333-1122");
+
+        mockMvc.perform(post("/api/admin/check-ins/" + participantId)
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/admin/check-ins/" + participantId + "/cancel")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(checkInCancellationRequest("Initial cancellation.")))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/admin/check-ins/" + participantId + "/cancel")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(checkInCancellationRequest("Duplicate cancellation.")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("CHECK_IN_NOT_COMPLETED"));
+
+        Integer cancelledEventCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM retreat_check_in_events
+                        WHERE participant_id = ?
+                          AND action = 'CANCELLED'
+                        """,
+                Integer.class,
+                participantId
+        );
+
+        assertThat(cancelledEventCount).isEqualTo(1);
+    }
+
+    @Test
+    void pastorCanCancelCheckInAndCancellationReasonIsRequired() throws Exception {
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+        String pastorToken = accessTokenForRole(AdminRole.PASTOR);
+        Long participantId = createParticipant("Mina Choi", "010-4444-3456");
+
+        mockMvc.perform(post("/api/admin/check-ins/" + participantId)
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/admin/check-ins/" + participantId + "/cancel")
+                        .header("Authorization", "Bearer " + pastorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(checkInCancellationRequest(" ")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("CHECK_IN_CANCELLATION_REASON_REQUIRED"));
+
+        mockMvc.perform(patch("/api/admin/check-ins/" + participantId + "/cancel")
+                        .header("Authorization", "Bearer " + pastorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(checkInCancellationRequest("Duplicate registration resolved.")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.checkedIn").value(false));
+    }
+
+    @Test
+    void checkInRosterSupportsFilters() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long middleGroupId = createMiddleGroup(chairToken, "Check In Alpha", "Elder A");
+        Long cellId = createCell(chairToken, middleGroupId, "Check In A1", "Leader A1");
+        Long groupId = createRetreatGroup(chairToken, "Check In Group 1");
+        Long participantId = createParticipant("Filter Person", "010-5555-7890");
+        mockMvc.perform(patch("/api/admin/participants/" + participantId + "/church-cell")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("churchCellId", cellId))))
+                .andExpect(status().isOk());
+        mockMvc.perform(patch("/api/admin/participants/" + participantId + "/retreat-group")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("retreatGroupId", groupId))))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/admin/check-ins/" + participantId)
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/admin/check-ins")
+                        .param("checkedIn", "true")
+                        .param("retreatGroupId", groupId.toString())
+                        .param("churchCellId", cellId.toString())
+                        .param("keyword", "7890")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].participantId").value(participantId))
+                .andExpect(jsonPath("$.data.content[0].retreatGroupId").value(groupId))
+                .andExpect(jsonPath("$.data.content[0].churchCellId").value(cellId));
+    }
+
+    @Test
+    void chairCanIssueAndRevokeQrTokenWithoutExposingStoredHash() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long participantId = createParticipant("Token Person", "010-6666-1234");
+
+        MvcResult issueResult = mockMvc.perform(post("/api/admin/check-ins/tokens/" + participantId)
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(checkInTokenIssueRequest("2099-07-01T00:00:00Z")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.participantId").value(participantId))
+                .andExpect(jsonPath("$.data.token").isString())
+                .andExpect(jsonPath("$.data." + SENSITIVE_TOKEN_JSON_FIELD).doesNotExist())
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(issueResult.getResponse().getContentAsString());
+        String rawToken = response.path("data").path("token").asText();
+        String storedTokenHash = jdbcTemplate.queryForObject(
+                "SELECT " + SENSITIVE_TOKEN_DB_FIELD + " FROM participant_check_in_tokens WHERE participant_id = ?",
+                String.class,
+                participantId
+        );
+
+        assertThat(rawToken).isNotBlank();
+        assertThat(storedTokenHash).isNotBlank();
+        assertThat(storedTokenHash).isNotEqualTo(rawToken);
+
+        MvcResult revokeResult = mockMvc.perform(patch("/api/admin/check-ins/tokens/" + participantId + "/revoke")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.participantId").value(participantId))
+                .andExpect(jsonPath("$.data.revokedAt").exists())
+                .andExpect(jsonPath("$.data." + SENSITIVE_TOKEN_JSON_FIELD).doesNotExist())
+                .andReturn();
+
+        assertNoSensitiveCheckInFields(issueResult.getResponse().getContentAsString());
+        assertNoSensitiveCheckInFields(revokeResult.getResponse().getContentAsString());
+    }
+
+    @Test
+    void issuingQrTokenRevokesPreviousActiveParticipantTokens() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long participantId = createParticipant("Rotating Token Person", "010-6666-5678");
+
+        MvcResult firstIssueResult = mockMvc.perform(post("/api/admin/check-ins/tokens/" + participantId)
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(checkInTokenIssueRequest("2099-07-01T00:00:00Z")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.token").isString())
+                .andExpect(jsonPath("$.data." + SENSITIVE_TOKEN_JSON_FIELD).doesNotExist())
+                .andReturn();
+
+        MvcResult secondIssueResult = mockMvc.perform(post("/api/admin/check-ins/tokens/" + participantId)
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(checkInTokenIssueRequest("2099-07-02T00:00:00Z")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.token").isString())
+                .andExpect(jsonPath("$.data." + SENSITIVE_TOKEN_JSON_FIELD).doesNotExist())
+                .andReturn();
+
+        Integer activeTokenCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM participant_check_in_tokens
+                        WHERE participant_id = ?
+                          AND revoked_at IS NULL
+                          AND expires_at > now()
+                        """,
+                Integer.class,
+                participantId
+        );
+        Integer revokedTokenCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM participant_check_in_tokens
+                        WHERE participant_id = ?
+                          AND revoked_at IS NOT NULL
+                        """,
+                Integer.class,
+                participantId
+        );
+
+        assertThat(activeTokenCount).isEqualTo(1);
+        assertThat(revokedTokenCount).isEqualTo(1);
+        assertNoSensitiveCheckInFields(firstIssueResult.getResponse().getContentAsString());
+        assertNoSensitiveCheckInFields(secondIssueResult.getResponse().getContentAsString());
+    }
+
+    @Test
+    void staffCannotIssueOrRevokeQrToken() throws Exception {
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+        Long participantId = createParticipant("Denied Token Person", "010-7777-1234");
+
+        mockMvc.perform(post("/api/admin/check-ins/tokens/" + participantId)
+                        .header("Authorization", "Bearer " + staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(checkInTokenIssueRequest("2099-07-01T00:00:00Z")))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+
+        mockMvc.perform(patch("/api/admin/check-ins/tokens/" + participantId + "/revoke")
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+    }
+
     @Nested
     class RoleHierarchyTests {
 
@@ -1650,6 +2003,12 @@ class GmcRetreatApplicationTests {
         return response.path("data").path("id").asLong();
     }
 
+    private Long createParticipant(String name, String phoneNumber) throws Exception {
+        MvcResult result = createRegistration(name, phoneNumber, "Young Adults", true);
+        JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
+        return response.path("data").path("registration").path("id").asLong();
+    }
+
     private String middleGroupRequest(String name, String elderName, int displayOrder) throws Exception {
         return objectMapper.writeValueAsString(Map.of(
                 "name", name,
@@ -1708,6 +2067,14 @@ class GmcRetreatApplicationTests {
                 "active", active,
                 "displayOrder", displayOrder
         ));
+    }
+
+    private String checkInCancellationRequest(String reason) throws Exception {
+        return objectMapper.writeValueAsString(Map.of("reason", reason));
+    }
+
+    private String checkInTokenIssueRequest(String expiresAt) throws Exception {
+        return objectMapper.writeValueAsString(Map.of("expiresAt", expiresAt));
     }
 
     private List<Map<String, String>> allTarget() {
@@ -1776,6 +2143,15 @@ class GmcRetreatApplicationTests {
 
     private void assertNoSensitiveLookupFields(String value) {
         assertThat(value).doesNotContain(SENSITIVE_LOOKUP_JSON_FIELD, SENSITIVE_LOOKUP_DB_FIELD);
+    }
+
+    private void assertNoSensitiveCheckInFields(String value) {
+        assertThat(value).doesNotContain(
+                SENSITIVE_LOOKUP_JSON_FIELD,
+                SENSITIVE_LOOKUP_DB_FIELD,
+                SENSITIVE_TOKEN_JSON_FIELD,
+                SENSITIVE_TOKEN_DB_FIELD
+        );
     }
 
     private String signedToken(Map<String, Object> payload) throws Exception {

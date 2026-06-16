@@ -1,0 +1,43 @@
+@baseUrl = http://localhost:8080
+
+### Check-in roster
+GET {{baseUrl}}/api/admin/check-ins
+Authorization: Bearer {{adminToken}}
+
+### Check-in roster filters
+GET {{baseUrl}}/api/admin/check-ins?checkedIn=true&retreatGroupId={{retreatGroupId}}&churchCellId={{churchCellId}}&keyword=Grace
+Authorization: Bearer {{adminToken}}
+
+### Check-in detail
+GET {{baseUrl}}/api/admin/check-ins/{{participantId}}
+Authorization: Bearer {{adminToken}}
+
+### Manual check-in
+POST {{baseUrl}}/api/admin/check-ins/{{participantId}}
+Authorization: Bearer {{adminToken}}
+
+### Cancel check-in
+PATCH {{baseUrl}}/api/admin/check-ins/{{participantId}}/cancel
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "reason": "Checked in under a duplicate registration."
+}
+
+### Issue QR check-in token
+POST {{baseUrl}}/api/admin/check-ins/tokens/{{participantId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "expiresAt": "2026-07-01T23:59:59Z"
+}
+
+> {%
+    client.global.set("checkInToken", response.body.data.token);
+%}
+
+### Revoke QR check-in token
+PATCH {{baseUrl}}/api/admin/check-ins/tokens/{{participantId}}/revoke
+Authorization: Bearer {{adminToken}}
