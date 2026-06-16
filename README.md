@@ -2,7 +2,7 @@
 
 `church-retreat-ops`는 교회 수련회 준비와 현장 운영을 위한 백엔드 프로젝트입니다.
 
-현재는 백엔드 기반, 관리자 인증 기반, 참가자 등록, 관리자 참가자 관리, 공동체 구조, 수련회 조 편성, 공지 도메인, 일정 도메인 Phase 7이 구현되어 있습니다. 체크인과 프론트엔드는 아직 구현하지 않았습니다.
+현재는 백엔드 기반, 관리자 인증 기반, 참가자 등록, 관리자 참가자 관리, 공동체 구조, 수련회 조 편성, 공지 도메인, 일정 도메인, 체크인 도메인 Phase 8이 구현되어 있습니다. 프론트엔드는 아직 구현하지 않았습니다.
 
 ## 현재 완료된 단계
 
@@ -111,6 +111,19 @@
 - `STAFF` 이상 조회, `CHAIR` 이상 변경
 
 자세한 내용은 [docs/phase7-schedule-domain.md](docs/phase7-schedule-domain.md)를 참고합니다.
+
+### Phase 8: 체크인 도메인
+
+- 관리자 체크인 roster/query API
+- 개인정보 보호형 체크인 목록/상세 응답
+- 수동 체크인과 중복 체크인 방지
+- 체크인 취소/되돌리기와 취소 사유 필수 입력
+- 체크인/취소 이벤트 이력 저장
+- 체크인/취소 수행 관리자와 시각 기록
+- 향후 QR 체크인을 위한 관리자 토큰 발급/폐기 API
+- `STAFF` 이상 조회/수동 체크인, `CHAIR` 이상 체크인 취소와 QR 토큰 관리
+
+자세한 내용은 [docs/phase8-check-in-domain.md](docs/phase8-check-in-domain.md)를 참고합니다.
 
 ## 기술 스택
 
@@ -418,6 +431,28 @@ curl -s -X PATCH http://localhost:8080/api/admin/schedules/1/active \
   -d '{"active":false}'
 ```
 
+## 체크인 도메인 테스트
+
+체크인 관리는 JWT가 필요합니다. `STAFF`는 roster 조회와 수동 체크인을 수행할 수 있고, `CHAIR` 이상은 체크인 취소와 QR 토큰 발급/폐기를 수행할 수 있습니다.
+
+```bash
+curl -s http://localhost:8080/api/admin/check-ins \
+  -H 'Authorization: Bearer <accessToken>'
+
+curl -s -X POST http://localhost:8080/api/admin/check-ins/1 \
+  -H 'Authorization: Bearer <accessToken>'
+
+curl -s -X PATCH http://localhost:8080/api/admin/check-ins/1/cancel \
+  -H 'Authorization: Bearer <accessToken>' \
+  -H 'Content-Type: application/json' \
+  -d '{"reason":"Checked in under a duplicate registration."}'
+
+curl -s -X POST http://localhost:8080/api/admin/check-ins/tokens/1 \
+  -H 'Authorization: Bearer <accessToken>' \
+  -H 'Content-Type: application/json' \
+  -d '{"expiresAt":"2026-07-01T23:59:59Z"}'
+```
+
 ## 환경 변수
 
 운영 환경에서는 아래 값을 환경 변수로 주입해야 합니다.
@@ -486,6 +521,12 @@ JWT가 필요한 API:
 - `POST /api/admin/schedules`
 - `PATCH /api/admin/schedules/{id}`
 - `PATCH /api/admin/schedules/{id}/active`
+- `GET /api/admin/check-ins`
+- `GET /api/admin/check-ins/{participantId}`
+- `POST /api/admin/check-ins/{participantId}`
+- `PATCH /api/admin/check-ins/{participantId}/cancel`
+- `POST /api/admin/check-ins/tokens/{participantId}`
+- `PATCH /api/admin/check-ins/tokens/{participantId}/revoke`
 - 그 외 API는 기본적으로 인증 필요
 
 ## 아직 구현하지 않은 범위
@@ -493,11 +534,11 @@ JWT가 필요한 API:
 아래 기능은 현재 단계에서 의도적으로 제외되어 있습니다.
 
 - 참가자 로그인 계정
-- 체크인
 - 프론트엔드
 - 장로/셀 리더 로그인 또는 `admin_users` 연결
 - 카카오톡, SMS, 푸시, 이메일 공지 발송
 - 참가자 공개 공지 화면과 읽음 확인
 - 참가자 공개 일정 화면, 일정 알림, 캘린더 연동, 반복 일정, 출석 추적
+- 참가자 공개 체크인 화면, 공개 QR 스캔 API, QR scanner UI, 체크인 알림, 체크인 통계 dashboard
 
 참가자는 관리자 계정이 아닙니다. 관리자 로그인 계정은 수련회 운영진과 시스템 관리자를 위한 `admin_users`에만 저장됩니다.

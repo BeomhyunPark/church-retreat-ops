@@ -1,0 +1,11 @@
+package com.gmc.retreat.checkin.dto;
+
+import java.time.OffsetDateTime;
+
+public record CheckInTokenIssueResponse(
+        Long participantId,
+        String token,
+        OffsetDateTime expiresAt,
+        String notice
+) {
+}
