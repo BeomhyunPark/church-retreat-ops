@@ -1,0 +1,94 @@
+@baseUrl = http://localhost:8080
+
+### Create announcement for all participants
+POST {{baseUrl}}/api/admin/announcements
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "title": "Retreat check-in starts at 3 PM",
+  "content": "Please arrive at the main lobby and check in with your group.",
+  "pinned": true,
+  "active": true,
+  "visibleFrom": "2026-07-01T00:00:00Z",
+  "visibleUntil": "2026-07-31T23:59:59Z",
+  "targets": [
+    {
+      "targetType": "ALL"
+    }
+  ]
+}
+
+> {%
+    client.global.set("announcementId", response.body.data.id);
+%}
+
+### Create announcement for a retreat group
+POST {{baseUrl}}/api/admin/announcements
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "title": "Group 1 meeting location",
+  "content": "Group 1 will meet near the chapel entrance after dinner.",
+  "pinned": false,
+  "active": true,
+  "visibleFrom": "2026-07-01T00:00:00Z",
+  "visibleUntil": "2026-07-31T23:59:59Z",
+  "targets": [
+    {
+      "targetType": "RETREAT_GROUP",
+      "targetValue": "{{retreatGroupId}}"
+    }
+  ]
+}
+
+### List announcements
+GET {{baseUrl}}/api/admin/announcements
+Authorization: Bearer {{adminToken}}
+
+### Announcement detail
+GET {{baseUrl}}/api/admin/announcements/{{announcementId}}
+Authorization: Bearer {{adminToken}}
+
+### Update announcement and replace targets
+PATCH {{baseUrl}}/api/admin/announcements/{{announcementId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "title": "Retreat check-in starts at 2:30 PM",
+  "content": "Please arrive at the main lobby and check in before opening worship.",
+  "pinned": true,
+  "active": true,
+  "visibleFrom": "2026-07-01T00:00:00Z",
+  "visibleUntil": "2026-07-31T23:59:59Z",
+  "targets": [
+    {
+      "targetType": "REGISTRATION_STATUS",
+      "targetValue": "REGISTERED"
+    },
+    {
+      "targetType": "PAYMENT_STATUS",
+      "targetValue": "UNPAID"
+    }
+  ]
+}
+
+### Update announcement active
+PATCH {{baseUrl}}/api/admin/announcements/{{announcementId}}/active
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "active": false
+}
+
+### Update announcement pinned
+PATCH {{baseUrl}}/api/admin/announcements/{{announcementId}}/pinned
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "pinned": true
+}
