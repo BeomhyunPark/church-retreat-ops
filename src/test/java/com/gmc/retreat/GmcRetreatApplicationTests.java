@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -82,7 +83,9 @@ class GmcRetreatApplicationTests {
     void cleanRegistrationData() {
         jdbcTemplate.update("DELETE FROM registration_privacy_access_logs");
         jdbcTemplate.update("DELETE FROM registration_histories");
+        jdbcTemplate.update("DELETE FROM retreat_group_members");
         jdbcTemplate.update("DELETE FROM registrations");
+        jdbcTemplate.update("DELETE FROM retreat_groups");
         jdbcTemplate.update("DELETE FROM church_cells");
         jdbcTemplate.update("DELETE FROM church_middle_groups");
     }
@@ -146,6 +149,31 @@ class GmcRetreatApplicationTests {
         assertThat(middleGroupTableCount).isEqualTo(1);
         assertThat(cellTableCount).isEqualTo(1);
         assertThat(registrationChurchCellColumnCount).isEqualTo(1);
+    }
+
+    @Test
+    void flywayMigrationCreatesRetreatGroupTables() {
+        Integer groupTableCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM information_schema.tables
+                        WHERE table_schema = 'public'
+                          AND table_name = 'retreat_groups'
+                        """,
+                Integer.class
+        );
+        Integer memberTableCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM information_schema.tables
+                        WHERE table_schema = 'public'
+                          AND table_name = 'retreat_group_members'
+                        """,
+                Integer.class
+        );
+
+        assertThat(groupTableCount).isEqualTo(1);
+        assertThat(memberTableCount).isEqualTo(1);
     }
 
     @Test
@@ -874,6 +902,200 @@ class GmcRetreatApplicationTests {
                 .andExpect(jsonPath("$.error.code").value("COMMUNITY_NOT_FOUND"));
     }
 
+    @Test
+    void staffCanReadRetreatGroupsButCannotCreateOrAssign() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long groupId = createRetreatGroup(chairToken, "Group 1");
+        JsonNode created = objectMapper.readTree(
+                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+        Long participantId = created.path("data").path("registration").path("id").asLong();
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+
+        mockMvc.perform(get("/api/admin/retreat-groups")
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].name").value("Group 1"));
+
+        mockMvc.perform(get("/api/admin/retreat-groups/" + groupId + "/members")
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isArray());
+
+        mockMvc.perform(post("/api/admin/retreat-groups")
+                        .header("Authorization", "Bearer " + staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(retreatGroupRequest("Group 2", 1)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+
+        mockMvc.perform(patch("/api/admin/participants/" + participantId + "/retreat-group")
+                        .header("Authorization", "Bearer " + staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("retreatGroupId", groupId))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    void chairCanCreateUpdateAndDeactivateRetreatGroup() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        String pastorToken = accessTokenForRole(AdminRole.PASTOR);
+        Long groupId = createRetreatGroup(chairToken, "Group 1");
+
+        mockMvc.perform(patch("/api/admin/retreat-groups/" + groupId)
+                        .header("Authorization", "Bearer " + pastorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(retreatGroupRequest("Group 1 Updated", 2)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.name").value("Group 1 Updated"))
+                .andExpect(jsonPath("$.data.displayOrder").value(2));
+
+        mockMvc.perform(patch("/api/admin/retreat-groups/" + groupId + "/active")
+                        .header("Authorization", "Bearer " + pastorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("active", false))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.active").value(false));
+
+        mockMvc.perform(post("/api/admin/retreat-groups")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(retreatGroupRequest("Group 1 Updated", 3)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("DUPLICATE_RETREAT_GROUP_NAME"));
+    }
+
+    @Test
+    void chairCanAssignAndRemoveParticipantRetreatGroup() throws Exception {
+        JsonNode created = objectMapper.readTree(
+                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+        Long participantId = created.path("data").path("registration").path("id").asLong();
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long groupId = createRetreatGroup(chairToken, "Group 1");
+
+        mockMvc.perform(patch("/api/admin/participants/" + participantId + "/retreat-group")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("retreatGroupId", groupId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.churchCellDepartment").value("Young Adults"))
+                .andExpect(jsonPath("$.data.retreatGroupId").value(groupId))
+                .andExpect(jsonPath("$.data.retreatGroupName").value("Group 1"))
+                .andExpect(jsonPath("$.data.retreatGroupLeader").value(false));
+
+        mockMvc.perform(get("/api/admin/registrations")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].retreatGroupId").value(groupId))
+                .andExpect(jsonPath("$.data.content[0].retreatGroupName").value("Group 1"))
+                .andExpect(jsonPath("$.data.content[0].churchCellDepartment").value("Young Adults"));
+
+        mockMvc.perform(get("/api/admin/retreat-groups/" + groupId + "/members")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].participantId").value(participantId))
+                .andExpect(jsonPath("$.data[0].participantName").value("Grace Kim"))
+                .andExpect(jsonPath("$.data[0].leader").value(false));
+
+        mockMvc.perform(delete("/api/admin/participants/" + participantId + "/retreat-group")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.retreatGroupId").doesNotExist())
+                .andExpect(jsonPath("$.data.retreatGroupName").doesNotExist());
+    }
+
+    @Test
+    void duplicateRetreatGroupAssignmentIsRejected() throws Exception {
+        JsonNode created = objectMapper.readTree(
+                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+        Long participantId = created.path("data").path("registration").path("id").asLong();
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long groupOneId = createRetreatGroup(chairToken, "Group 1");
+        Long groupTwoId = createRetreatGroup(chairToken, "Group 2");
+
+        mockMvc.perform(patch("/api/admin/participants/" + participantId + "/retreat-group")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("retreatGroupId", groupOneId))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/admin/participants/" + participantId + "/retreat-group")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("retreatGroupId", groupTwoId))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("DUPLICATE_RETREAT_GROUP_ASSIGNMENT"));
+    }
+
+    @Test
+    void chairCanAssignAndRemoveRetreatGroupLeader() throws Exception {
+        JsonNode created = objectMapper.readTree(
+                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+        Long participantId = created.path("data").path("registration").path("id").asLong();
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long groupId = createRetreatGroup(chairToken, "Group 1");
+
+        mockMvc.perform(patch("/api/admin/retreat-groups/" + groupId + "/leader")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("participantId", participantId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.retreatGroupId").value(groupId))
+                .andExpect(jsonPath("$.data.retreatGroupLeader").value(true));
+
+        mockMvc.perform(get("/api/admin/retreat-groups/tree")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.groups[0].name").value("Group 1"))
+                .andExpect(jsonPath("$.data.groups[0].members[0].participantName").value("Grace Kim"))
+                .andExpect(jsonPath("$.data.groups[0].members[0].leader").value(true));
+
+        mockMvc.perform(delete("/api/admin/retreat-groups/" + groupId + "/leader")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].participantId").value(participantId))
+                .andExpect(jsonPath("$.data[0].leader").value(false));
+    }
+
+    @Test
+    void retreatGroupResponsesDoNotExposeLookupKeyHash() throws Exception {
+        JsonNode created = objectMapper.readTree(
+                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+        Long participantId = created.path("data").path("registration").path("id").asLong();
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long groupId = createRetreatGroup(chairToken, "Group 1");
+
+        MvcResult assignResult = mockMvc.perform(patch("/api/admin/participants/" + participantId + "/retreat-group")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("retreatGroupId", groupId))))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        MvcResult membersResult = mockMvc.perform(get("/api/admin/retreat-groups/" + groupId + "/members")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        assertThat(assignResult.getResponse().getContentAsString()).doesNotContain("lookupKeyHash", "lookup_key_hash");
+        assertThat(membersResult.getResponse().getContentAsString()).doesNotContain("lookupKeyHash", "lookup_key_hash");
+    }
+
     @Nested
     class RoleHierarchyTests {
 
@@ -937,6 +1159,18 @@ class GmcRetreatApplicationTests {
         return response.path("data").path("id").asLong();
     }
 
+    private Long createRetreatGroup(String accessToken, String name) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/admin/retreat-groups")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(retreatGroupRequest(name, 0)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
+        return response.path("data").path("id").asLong();
+    }
+
     private String middleGroupRequest(String name, String elderName, int displayOrder) throws Exception {
         return objectMapper.writeValueAsString(Map.of(
                 "name", name,
@@ -951,6 +1185,14 @@ class GmcRetreatApplicationTests {
                 "middleGroupId", middleGroupId,
                 "name", name,
                 "cellLeaderName", cellLeaderName,
+                "description", name + " description",
+                "displayOrder", displayOrder
+        ));
+    }
+
+    private String retreatGroupRequest(String name, int displayOrder) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "name", name,
                 "description", name + " description",
                 "displayOrder", displayOrder
         ));

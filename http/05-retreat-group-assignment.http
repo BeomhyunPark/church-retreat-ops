@@ -1,0 +1,79 @@
+@baseUrl = http://localhost:8080
+@adminToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiJhZG1pbkBnbWMubG9jYWwiLCJuYW1lIjoiU3lzdGVtIEFkbWluIiwicm9sZSI6IlNZU1RFTV9BRE1JTiIsImlhdCI6MTc4MTU2ODY4MSwiZXhwIjoxNzgxNTc1ODgxfQ.P7UVDGTFnD3fq52MFxuca3LWPsTlWNYzw0qUpbGfuP0
+
+### Create retreat group
+POST {{baseUrl}}/api/admin/retreat-groups
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Group 1",
+  "description": "First retreat group",
+  "displayOrder": 0
+}
+
+> {%
+    client.global.set("retreatGroupId", response.body.data.id);
+%}
+
+### List retreat groups
+GET {{baseUrl}}/api/admin/retreat-groups
+Authorization: Bearer {{adminToken}}
+
+### Retreat group detail
+GET {{baseUrl}}/api/admin/retreat-groups/{{retreatGroupId}}
+Authorization: Bearer {{adminToken}}
+
+### Update retreat group
+PATCH {{baseUrl}}/api/admin/retreat-groups/{{retreatGroupId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Group 1 Updated",
+  "description": "Updated first retreat group",
+  "displayOrder": 1
+}
+
+### Update retreat group active
+PATCH {{baseUrl}}/api/admin/retreat-groups/{{retreatGroupId}}/active
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "active": true
+}
+
+### Assign participant to retreat group
+PATCH {{baseUrl}}/api/admin/participants/{{participantId}}/retreat-group
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "retreatGroupId": {{retreatGroupId}}
+}
+
+### List retreat group members
+GET {{baseUrl}}/api/admin/retreat-groups/{{retreatGroupId}}/members
+Authorization: Bearer {{adminToken}}
+
+### Retreat group tree
+GET {{baseUrl}}/api/admin/retreat-groups/tree
+Authorization: Bearer {{adminToken}}
+
+### Assign retreat group leader
+PATCH {{baseUrl}}/api/admin/retreat-groups/{{retreatGroupId}}/leader
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "participantId": {{participantId}}
+}
+
+### Remove retreat group leader
+DELETE {{baseUrl}}/api/admin/retreat-groups/{{retreatGroupId}}/leader
+Authorization: Bearer {{adminToken}}
+
+### Remove participant from retreat group
+DELETE {{baseUrl}}/api/admin/participants/{{participantId}}/retreat-group
+Authorization: Bearer {{adminToken}}

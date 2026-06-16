@@ -1,0 +1,43 @@
+package com.gmc.retreat.retreat.dto;
+
+import com.gmc.retreat.registration.domain.Gender;
+import com.gmc.retreat.retreat.domain.RetreatGroupMember;
+import java.time.OffsetDateTime;
+
+public record RetreatGroupMemberResponse(
+        Long id,
+        Long retreatGroupId,
+        String retreatGroupName,
+        Long participantId,
+        String participantName,
+        Gender gender,
+        Integer birthYear,
+        String churchCellDepartment,
+        Long churchCellId,
+        String churchCellName,
+        Long middleGroupId,
+        String middleGroupName,
+        Boolean leader,
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
+) {
+    public static RetreatGroupMemberResponse from(RetreatGroupMember member) {
+        return new RetreatGroupMemberResponse(
+                member.id(),
+                member.retreatGroupId(),
+                member.retreatGroupName(),
+                member.participantId(),
+                member.participantName(),
+                member.gender(),
+                member.birthYear(),
+                member.churchCellDepartment(),
+                member.churchCellId(),
+                member.churchCellName(),
+                member.middleGroupId(),
+                member.middleGroupName(),
+                member.leader(),
+                member.createdAt(),
+                member.updatedAt()
+        );
+    }
+}
