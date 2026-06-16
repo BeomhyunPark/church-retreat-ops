@@ -82,3 +82,45 @@ Use this command before reporting completion:
 ```
 
 If Docker, Testcontainers, or local PostgreSQL is required, mention that clearly when tests cannot run.
+
+## Token Efficiency and Work Quality Rules
+
+Please use tokens efficiently, but do not sacrifice important implementation details.
+
+Guidelines:
+
+* Use Serena and targeted code search first before opening large files.
+* Avoid reading or printing entire files unless necessary.
+* Inspect only the files directly related to the current task.
+* Before coding, summarize the minimal implementation plan.
+* Reuse existing project patterns instead of inventing new structures.
+* Keep changes scoped to the requested phase or task.
+* Do not implement future-phase features unless explicitly requested.
+* Prefer small, focused changes over broad rewrites.
+* Avoid unnecessary explanations, long diffs, or repeated summaries.
+* When reporting results, summarize changed files and important decisions instead of dumping full code.
+
+However, do not over-optimize for token savings in a way that reduces correctness.
+
+Do not skip:
+
+* domain modeling decisions
+* authorization checks
+* privacy/security rules
+* Flyway migration consistency
+* DTO/API response safety
+* validation and business rules
+* tests
+* README/docs/http updates for phase-level features
+* checking that `lookupKeyHash` or `lookup_key_hash` is not externally exposed
+
+If a file or flow is important for correctness, inspect it even if it costs more tokens.
+
+The priority order is:
+
+1. Correctness
+2. Security and privacy
+3. Consistency with existing project style
+4. Test coverage
+5. Documentation accuracy
+6. Token efficiency
