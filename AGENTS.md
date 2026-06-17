@@ -132,3 +132,31 @@ MCP usage rules:
 - Do not create, close, merge, or modify GitHub PRs/issues without explicit user approval.
 - Do not push commits or modify remote branches.
 - Never expose or log secrets, PATs, database URLs, lookup keys, lookupKeyHash, lookup_key_hash, tokenHash, token_hash, or QR token hashes.
+
+# Codex Work Guidelines
+
+> Prioritize caution over speed. Judge minor tasks according to context.
+
+## 1. Think before implementing — Do not assume. Do not hide ambiguity.
+
+- Ask questions when something is uncertain. If multiple interpretations are possible, present the alternatives.
+- Suggest a simpler approach if one exists.
+- If any part is unclear, stop the task and ask a specific question.
+
+## 2. Prefer simplicity — Write only the minimum necessary code.
+
+- Do not add unrequested features, abstractions, or flexibility.
+- Do not add exception handling for scenarios that cannot realistically occur.
+- Ask: "Would this look overly complex to a senior engineer?" If yes, simplify it.
+
+## 3. Make precise changes — Modify only what is necessary.
+
+- Do not arbitrarily improve adjacent code, comments, or formatting.
+- Do not refactor code that is not broken.
+- If dead code is found, report it, but do not delete it directly.
+- Every changed line must be directly connected to the user's request.
+
+## 4. Execute with the goal in mind — Define the success criteria.
+
+- "Bug fix" → "Write a test that reproduces the bug, then confirm it passes."
+- For multi-step tasks, first create a plan in the form of `[step → verification]`.
