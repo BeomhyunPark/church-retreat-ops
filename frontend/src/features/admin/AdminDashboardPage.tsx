@@ -5,7 +5,7 @@ import { getAdminRegistrations, getFeeRoster } from "./adminApi";
 export function AdminDashboardPage() {
   const registrationsQuery = useQuery({
     queryKey: ["admin", "registrations", "summary"],
-    queryFn: getAdminRegistrations
+    queryFn: () => getAdminRegistrations()
   });
   const feesQuery = useQuery({
     queryKey: ["admin", "fees", "summary"],

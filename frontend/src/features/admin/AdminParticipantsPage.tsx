@@ -12,7 +12,7 @@ export function AdminParticipantsPage() {
   const [tagFilter, setTagFilter] = useState("ALL");
   const query = useQuery({
     queryKey: ["admin", "registrations"],
-    queryFn: getAdminRegistrations
+    queryFn: () => getAdminRegistrations()
   });
   const participants = useMemo(() => query.data?.content ?? [], [query.data?.content]);
   const filteredParticipants = useMemo(() => {

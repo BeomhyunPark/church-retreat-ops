@@ -54,6 +54,7 @@ export type AdminRegistration = {
   churchCellDepartment?: string | null;
   middleGroupName?: string | null;
   churchCellName?: string | null;
+  retreatGroupId?: number | null;
   retreatGroupName?: string | null;
   retreatGroupLeader: boolean;
   feePaid: boolean;
@@ -207,6 +208,40 @@ export type ChurchCellPayload = {
   displayOrder: number;
 };
 
+export type RetreatGroup = {
+  id: number;
+  name: string;
+  description?: string | null;
+  displayOrder: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RetreatGroupPayload = {
+  name: string;
+  description?: string;
+  displayOrder: number;
+};
+
+export type RetreatGroupMember = {
+  id: number;
+  retreatGroupId: number;
+  retreatGroupName: string;
+  participantId: number;
+  participantName: string;
+  gender: "MALE" | "FEMALE";
+  birthYear: number;
+  churchCellDepartment?: string | null;
+  churchCellId?: number | null;
+  churchCellName?: string | null;
+  middleGroupId?: number | null;
+  middleGroupName?: string | null;
+  leader: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export function loginAdmin(email: string, password: string) {
   return apiRequest<AdminLoginResponse>("/admin/auth/login", {
     method: "POST",
@@ -218,8 +253,8 @@ export function getAdminProfile() {
   return apiRequest<AdminProfile>("/admin/auth/me", { auth: true });
 }
 
-export function getAdminRegistrations() {
-  return apiRequest<PageResponse<AdminRegistration>>("/admin/registrations?page=0&size=20", { auth: true });
+export function getAdminRegistrations(size = 20) {
+  return apiRequest<PageResponse<AdminRegistration>>(`/admin/registrations?page=0&size=${size}`, { auth: true });
 }
 
 export function getAdminRegistration(id: number) {
@@ -441,5 +476,67 @@ export function changeOwnPassword(currentPassword: string, newPassword: string) 
     auth: true,
     method: "PATCH",
     body: { currentPassword, newPassword }
+  });
+}
+
+export function getRetreatGroups() {
+  return apiRequest<RetreatGroup[]>("/admin/retreat-groups", { auth: true });
+}
+
+export function createRetreatGroup(payload: RetreatGroupPayload) {
+  return apiRequest<RetreatGroup>("/admin/retreat-groups", {
+    auth: true,
+    method: "POST",
+    body: payload
+  });
+}
+
+export function updateRetreatGroup(id: number, payload: RetreatGroupPayload) {
+  return apiRequest<RetreatGroup>(`/admin/retreat-groups/${id}`, {
+    auth: true,
+    method: "PATCH",
+    body: payload
+  });
+}
+
+export function updateRetreatGroupActive(id: number, active: boolean) {
+  return apiRequest<RetreatGroup>(`/admin/retreat-groups/${id}/active`, {
+    auth: true,
+    method: "PATCH",
+    body: { active }
+  });
+}
+
+export function getRetreatGroupMembers(groupId: number) {
+  return apiRequest<RetreatGroupMember[]>(`/admin/retreat-groups/${groupId}/members`, { auth: true });
+}
+
+export function assignRetreatGroupLeader(groupId: number, participantId: number) {
+  return apiRequest<void>(`/admin/retreat-groups/${groupId}/leader`, {
+    auth: true,
+    method: "PATCH",
+    body: { participantId }
+  });
+}
+
+export function removeRetreatGroupLeader(groupId: number) {
+  return apiRequest<void>(`/admin/retreat-groups/${groupId}/leader`, {
+    auth: true,
+    method: "DELETE"
+  });
+}
+
+export function assignParticipantToRetreatGroup(participantId: number, retreatGroupId: number) {
+  return apiRequest<void>(`/admin/participants/${participantId}/retreat-group`, {
+    auth: true,
+    method: "PATCH",
+    body: { retreatGroupId }
+  });
+}
+
+export function removeParticipantFromRetreatGroup(participantId: number) {
+  return apiRequest<void>(`/admin/participants/${participantId}/retreat-group`, {
+    auth: true,
+    method: "DELETE"
   });
 }
