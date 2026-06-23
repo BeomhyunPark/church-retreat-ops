@@ -33,14 +33,14 @@ export function PublicRegisterPage() {
 
   return (
     <section className="panel">
-      <p className="eyebrow">Public</p>
+      <p className="eyebrow">Registration</p>
       <h1>참가 등록</h1>
-      <p className="muted">등록 후 표시되는 조회 키는 다시 보여주지 않으니 따로 보관해야 합니다.</p>
+      <p className="muted">연락 가능한 정보로 입력해 주세요. 등록 완료 후 표시되는 조회 키는 다시 확인할 수 없습니다.</p>
 
       <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
         <label>
           이름
-          <input {...register("name", { required: true })} autoComplete="name" />
+          <input {...register("name", { required: true })} autoComplete="name" placeholder="홍길동" />
         </label>
         <label>
           성별
@@ -59,7 +59,7 @@ export function PublicRegisterPage() {
         </label>
         <label>
           교구/셀
-          <input {...register("churchCellDepartment")} placeholder="청년부 A셀" />
+          <input {...register("churchCellDepartment")} placeholder="드림공동체 1셀" />
         </label>
         <label className="check-row">
           <input {...register("privacyConsentAgreed", { required: true })} type="checkbox" />
@@ -72,9 +72,7 @@ export function PublicRegisterPage() {
       </form>
 
       {mutation.isError ? <StatusMessage message={mutation.error.message} tone="error" /> : null}
-      {lookupKey ? (
-        <StatusMessage message={`등록 완료. 내 조회 키: ${lookupKey}`} tone="success" />
-      ) : null}
+      {lookupKey ? <StatusMessage message={`등록 완료. 내 조회 키: ${lookupKey}`} tone="success" /> : null}
     </section>
   );
 }

@@ -12,11 +12,7 @@ type LoginForm = {
 
 export function AdminLoginPage() {
   const navigate = useNavigate();
-  const { register, handleSubmit } = useForm<LoginForm>({
-    defaultValues: {
-      email: "admin@gmc.local"
-    }
-  });
+  const { register, handleSubmit } = useForm<LoginForm>();
 
   const mutation = useMutation({
     mutationFn: (values: LoginForm) => loginAdmin(values.email, values.password),
@@ -30,12 +26,13 @@ export function AdminLoginPage() {
     <main className="login-shell">
       <section className="login-card">
         <span className="brand-mark">GMC</span>
-        <p className="eyebrow">Admin</p>
+        <p className="eyebrow">Retreat Ops</p>
         <h1>관리자 로그인</h1>
+        <p className="muted">등록, 참가비, 현장 운영 정보를 확인하려면 관리자 계정으로 로그인하세요.</p>
         <form className="form-grid" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
           <label>
             이메일
-            <input {...register("email", { required: true })} autoComplete="username" />
+            <input {...register("email", { required: true })} autoComplete="username" placeholder="name@example.com" />
           </label>
           <label>
             비밀번호

@@ -19,7 +19,7 @@ export function AdminDashboardPage() {
     <section className="page-stack">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Overview</p>
+          <p className="eyebrow">Operations</p>
           <h1>운영 대시보드</h1>
         </div>
       </div>
@@ -29,10 +29,9 @@ export function AdminDashboardPage() {
         <MetricCard label="체크인" value="준비 중" to="/admin/check-ins" />
       </div>
       <section className="panel">
-        <h2>다음 화면 확장 위치</h2>
+        <h2>오늘 확인할 항목</h2>
         <p className="muted">
-          공지, 일정, 체크인, 조 편성 API는 라우트가 준비되어 있습니다. 새 기능은 API 함수와 페이지 컴포넌트를 추가해
-          붙이면 됩니다.
+          등록 인원과 참가비 확인 현황을 먼저 점검하고, 현장 운영 전에는 체크인 화면에서 도착자 처리를 진행합니다.
         </p>
       </section>
     </section>
