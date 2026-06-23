@@ -109,6 +109,41 @@ export type Announcement = {
   updatedAt: string;
 };
 
+export type ScheduleItem = {
+  id: number;
+  title: string;
+  description?: string | null;
+  scheduleDate: string;
+  startsAt: string;
+  endsAt: string;
+  location?: string | null;
+  category:
+    | "WORSHIP"
+    | "PRAYER"
+    | "MEAL"
+    | "GROUP_ACTIVITY"
+    | "LECTURE"
+    | "BREAK"
+    | "MOVE"
+    | "CHECK_IN"
+    | "CHECK_OUT"
+    | "NOTICE"
+    | "ETC";
+  targetAudience: "ALL" | "STAFF_ONLY" | "LEADERS_ONLY" | "NEWCOMERS" | "CARE_TARGETS";
+  active: boolean;
+  displayOrder: number;
+  createdBy?: { id: number; email: string; name: string; role: string } | null;
+  updatedBy?: { id: number; email: string; name: string; role: string } | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ScheduleFilters = {
+  active?: boolean;
+  category?: string;
+  date?: string;
+};
+
 export function loginAdmin(email: string, password: string) {
   return apiRequest<AdminLoginResponse>("/admin/auth/login", {
     method: "POST",
@@ -205,5 +240,32 @@ export function updateAnnouncementPinned(id: number, pinned: boolean) {
     auth: true,
     method: "PATCH",
     body: { pinned }
+  });
+}
+
+export function getSchedules(filters: ScheduleFilters = {}) {
+  const params = new URLSearchParams();
+
+  if (filters.date) {
+    params.set("date", filters.date);
+  }
+
+  if (filters.category) {
+    params.set("category", filters.category);
+  }
+
+  if (filters.active !== undefined) {
+    params.set("active", String(filters.active));
+  }
+
+  const query = params.toString();
+  return apiRequest<ScheduleItem[]>(`/admin/schedules${query ? `?${query}` : ""}`, { auth: true });
+}
+
+export function updateScheduleActive(id: number, active: boolean) {
+  return apiRequest<ScheduleItem>(`/admin/schedules/${id}/active`, {
+    auth: true,
+    method: "PATCH",
+    body: { active }
   });
 }

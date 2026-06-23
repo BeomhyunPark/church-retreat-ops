@@ -6,6 +6,7 @@ import { AdminFeesPage } from "../features/admin/AdminFeesPage";
 import { AdminLoginPage } from "../features/admin/AdminLoginPage";
 import { AdminParticipantDetailPage } from "../features/admin/AdminParticipantDetailPage";
 import { AdminParticipantsPage } from "../features/admin/AdminParticipantsPage";
+import { AdminSchedulesPage } from "../features/admin/AdminSchedulesPage";
 import { PublicCheckInPage } from "../features/public/PublicCheckInPage";
 import { PublicHomePage } from "../features/public/PublicHomePage";
 import { PublicRegisterPage } from "../features/public/PublicRegisterPage";
@@ -45,7 +46,7 @@ export const router = createBrowserRouter([
       { path: "community", element: <PlaceholderPage title="공동체 구조" /> },
       { path: "retreat-groups", element: <PlaceholderPage title="수련회 조 편성" /> },
       { path: "announcements", element: <AdminAnnouncementsPage /> },
-      { path: "schedules", element: <PlaceholderPage title="일정 관리" /> },
+      { path: "schedules", element: <AdminSchedulesPage /> },
       { path: "check-ins", element: <AdminCheckInsPage /> }
     ]
   }
