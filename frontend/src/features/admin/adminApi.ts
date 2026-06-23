@@ -522,7 +522,8 @@ export function assignRetreatGroupLeader(groupId: number, participantId: number)
 export function removeRetreatGroupLeader(groupId: number) {
   return apiRequest<void>(`/admin/retreat-groups/${groupId}/leader`, {
     auth: true,
-    method: "DELETE"
+    method: "DELETE",
+    body: { confirmText: "DELETE" }
   });
 }
 
@@ -537,6 +538,7 @@ export function assignParticipantToRetreatGroup(participantId: number, retreatGr
 export function removeParticipantFromRetreatGroup(participantId: number) {
   return apiRequest<void>(`/admin/participants/${participantId}/retreat-group`, {
     auth: true,
-    method: "DELETE"
+    method: "DELETE",
+    body: { confirmText: "DELETE" }
   });
 }
