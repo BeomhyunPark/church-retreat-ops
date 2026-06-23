@@ -1,11 +1,35 @@
 import { apiRequest } from "../../shared/api/client";
 
+export type AdminRoleValue = "STAFF" | "CHAIR" | "PASTOR" | "SYSTEM_ADMIN";
+export type AdminStatusValue = "ACTIVE" | "INACTIVE" | "LOCKED";
+
 export type AdminProfile = {
   id: number;
   email: string;
   name: string;
-  role: "STAFF" | "CHAIR" | "PASTOR" | "SYSTEM_ADMIN";
-  status: "ACTIVE" | "INACTIVE" | "LOCKED";
+  role: AdminRoleValue;
+  status: AdminStatusValue;
+};
+
+export type AdminAccount = {
+  id: number;
+  email: string;
+  name: string;
+  role: AdminRoleValue;
+  status: AdminStatusValue;
+  lastLoginAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminAccountPayload = {
+  name: string;
+  role: AdminRoleValue;
+};
+
+export type AdminCreatePayload = AdminAccountPayload & {
+  email: string;
+  password: string;
 };
 
 export type AdminLoginResponse = {
@@ -373,5 +397,49 @@ export function updateCellActive(id: number, active: boolean) {
     auth: true,
     method: "PATCH",
     body: { active }
+  });
+}
+
+export function getAdminAccounts() {
+  return apiRequest<AdminAccount[]>("/admin/users", { auth: true });
+}
+
+export function createAdminAccount(payload: AdminCreatePayload) {
+  return apiRequest<AdminAccount>("/admin/users", {
+    auth: true,
+    method: "POST",
+    body: payload
+  });
+}
+
+export function updateAdminAccount(id: number, payload: AdminAccountPayload) {
+  return apiRequest<AdminAccount>(`/admin/users/${id}`, {
+    auth: true,
+    method: "PATCH",
+    body: payload
+  });
+}
+
+export function updateAdminAccountStatus(id: number, status: AdminStatusValue) {
+  return apiRequest<AdminAccount>(`/admin/users/${id}/status`, {
+    auth: true,
+    method: "PATCH",
+    body: { status }
+  });
+}
+
+export function resetAdminAccountPassword(id: number, newPassword: string) {
+  return apiRequest<void>(`/admin/users/${id}/password`, {
+    auth: true,
+    method: "PATCH",
+    body: { newPassword }
+  });
+}
+
+export function changeOwnPassword(currentPassword: string, newPassword: string) {
+  return apiRequest<void>("/admin/auth/password", {
+    auth: true,
+    method: "PATCH",
+    body: { currentPassword, newPassword }
   });
 }

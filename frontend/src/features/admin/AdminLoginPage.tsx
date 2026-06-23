@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
@@ -12,15 +13,23 @@ type LoginForm = {
 
 export function AdminLoginPage() {
   const navigate = useNavigate();
-  const { register, handleSubmit } = useForm<LoginForm>();
+  const { register, handleSubmit, resetField, setFocus } = useForm<LoginForm>();
 
   const mutation = useMutation({
     mutationFn: (values: LoginForm) => loginAdmin(values.email, values.password),
     onSuccess: (data) => {
       setAccessToken(data.accessToken);
       navigate("/admin/dashboard");
+    },
+    onError: () => {
+      resetField("password");
+      setFocus("password");
     }
   });
+
+  useEffect(() => {
+    setFocus("email");
+  }, [setFocus]);
 
   return (
     <main className="login-shell">
