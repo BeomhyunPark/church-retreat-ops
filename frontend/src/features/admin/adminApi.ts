@@ -63,6 +63,32 @@ export type FeeDetailResponse = {
   events: unknown[];
 };
 
+export type CheckInRosterItem = {
+  participantId: number;
+  name: string;
+  gender: "MALE" | "FEMALE";
+  birthYear: number;
+  phoneLast4: string;
+  churchCellId?: number | null;
+  churchCellName?: string | null;
+  middleGroupId?: number | null;
+  middleGroupName?: string | null;
+  retreatGroupId?: number | null;
+  retreatGroupName?: string | null;
+  retreatGroupLeader: boolean;
+  checkedIn: boolean;
+  checkedInAt?: string | null;
+  checkInMethod?: "MANUAL" | "QR" | null;
+  checkedInBy?: { id: number; name: string } | null;
+  cancelledAt?: string | null;
+  cancelledBy?: { id: number; name: string } | null;
+};
+
+export type CheckInRosterFilters = {
+  checkedIn?: boolean;
+  keyword?: string;
+};
+
 export function loginAdmin(email: string, password: string) {
   return apiRequest<AdminLoginResponse>("/admin/auth/login", {
     method: "POST",
@@ -107,5 +133,37 @@ export function updateFeeStatus(participantId: number, feePaid: boolean, reason?
       feePaid,
       reason
     }
+  });
+}
+
+export function getCheckInRoster(filters: CheckInRosterFilters = {}) {
+  const params = new URLSearchParams({
+    page: "0",
+    size: "20"
+  });
+
+  if (filters.checkedIn !== undefined) {
+    params.set("checkedIn", String(filters.checkedIn));
+  }
+
+  if (filters.keyword?.trim()) {
+    params.set("keyword", filters.keyword.trim());
+  }
+
+  return apiRequest<PageResponse<CheckInRosterItem>>(`/admin/check-ins?${params.toString()}`, { auth: true });
+}
+
+export function manuallyCheckIn(participantId: number) {
+  return apiRequest<CheckInRosterItem>(`/admin/check-ins/${participantId}`, {
+    auth: true,
+    method: "POST"
+  });
+}
+
+export function cancelCheckIn(participantId: number, reason: string) {
+  return apiRequest<CheckInRosterItem>(`/admin/check-ins/${participantId}/cancel`, {
+    auth: true,
+    method: "PATCH",
+    body: { reason }
   });
 }
