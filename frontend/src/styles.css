@@ -640,6 +640,25 @@ th {
   padding: 1.25rem;
 }
 
+.empty-state {
+  background: #fbfbf8;
+  border-top: 1px solid var(--color-border);
+  display: grid;
+  gap: 0.3rem;
+  padding: 1.25rem;
+}
+
+.empty-state strong {
+  color: var(--color-text);
+  font-size: 0.95rem;
+}
+
+.empty-state p {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 .status-pill {
   border-radius: 999px;
   display: inline-flex;

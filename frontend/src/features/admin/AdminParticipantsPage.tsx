@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { getAdminRegistrations } from "./adminApi";
+import { EmptyState } from "../../shared/ui/EmptyState";
 import { StatusMessage } from "../../shared/ui/StatusMessage";
 
 export function AdminParticipantsPage() {
@@ -135,10 +136,12 @@ export function AdminParticipantsPage() {
             ))}
           </tbody>
         </table>
-        {query.isLoading ? <p className="table-empty">불러오는 중...</p> : null}
-        {!query.isLoading && !participants.length ? <p className="table-empty">참가자가 없습니다.</p> : null}
+        {query.isLoading ? <EmptyState title="참가자 목록을 불러오는 중입니다" message="잠시만 기다려 주세요." /> : null}
+        {!query.isLoading && !participants.length ? (
+          <EmptyState title="등록된 참가자가 없습니다" message="공개 등록 화면에서 참가자가 등록되면 이곳에 표시됩니다." />
+        ) : null}
         {!query.isLoading && participants.length > 0 && !filteredParticipants.length ? (
-          <p className="table-empty">조건에 맞는 참가자가 없습니다.</p>
+          <EmptyState title="조건에 맞는 참가자가 없습니다" message="검색어나 필터 조건을 조금 넓혀 보세요." />
         ) : null}
       </div>
     </section>

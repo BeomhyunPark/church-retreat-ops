@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getFeeRoster, updateFeeStatus } from "./adminApi";
+import { EmptyState } from "../../shared/ui/EmptyState";
 import { StatusMessage } from "../../shared/ui/StatusMessage";
 
 export function AdminFeesPage() {
@@ -107,8 +108,10 @@ export function AdminFeesPage() {
             ))}
           </tbody>
         </table>
-        {query.isLoading ? <p className="table-empty">불러오는 중...</p> : null}
-        {!query.isLoading && !roster.length ? <p className="table-empty">조건에 맞는 참가비 항목이 없습니다.</p> : null}
+        {query.isLoading ? <EmptyState title="참가비 목록을 불러오는 중입니다" message="잠시만 기다려 주세요." /> : null}
+        {!query.isLoading && !roster.length ? (
+          <EmptyState title="조건에 맞는 참가비 항목이 없습니다" message="검색어나 납부 상태 필터를 다시 확인해 주세요." />
+        ) : null}
       </div>
     </section>
   );
