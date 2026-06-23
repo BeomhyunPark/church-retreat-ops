@@ -306,8 +306,16 @@ function AssignmentPanel({ groups }: { groups: RetreatGroup[] }) {
                     key={member.id}
                     member={member}
                     onAssignLeader={() => leaderMutation.mutate({ participantId: member.participantId })}
-                    onRemove={() => removeMemberMutation.mutate(member.participantId)}
-                    onRemoveLeader={() => removeLeaderMutation.mutate()}
+                    onRemove={() => {
+                      if (window.confirm(`${member.participantName}님을 이 조에서 배정 해제하시겠습니까?`)) {
+                        removeMemberMutation.mutate(member.participantId);
+                      }
+                    }}
+                    onRemoveLeader={() => {
+                      if (window.confirm(`${member.participantName}님의 조장을 해제하시겠습니까?`)) {
+                        removeLeaderMutation.mutate();
+                      }
+                    }}
                   />
                 ))}
               </tbody>
