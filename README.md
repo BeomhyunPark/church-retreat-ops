@@ -2,7 +2,7 @@
 
 `church-retreat-ops`는 교회 수련회 준비와 현장 운영을 위한 백엔드 프로젝트입니다.
 
-현재는 백엔드 기반, 관리자 인증 기반, 참가자 등록, 관리자 참가자 관리, 공동체 구조, 수련회 조 편성, 공지 도메인, 일정 도메인, 체크인 도메인, 참가비 관리 도메인 Phase 9가 구현되어 있습니다. 프론트엔드는 아직 구현하지 않았습니다.
+현재는 백엔드 기반, 관리자 인증 기반, 참가자 등록, 관리자 참가자 관리, 공동체 구조, 수련회 조 편성, 공지 도메인, 일정 도메인, 체크인 도메인, 참가비 관리 도메인 Phase 9가 구현되어 있습니다. 프론트엔드는 `frontend/`에 Vite React 앱 셸이 구성되어 있습니다.
 
 ## 현재 완료된 단계
 
@@ -191,6 +191,31 @@ docker compose down -v
 ```
 
 기본 포트는 `8080`입니다.
+
+## 프론트엔드 실행
+
+프론트엔드는 `frontend/` 디렉터리의 Vite React 앱입니다. 공개 참가자 화면은 스마트폰 우선, 관리자 화면은 데스크톱/태블릿 우선으로 구성합니다.
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+기본 포트는 `5173`입니다. 개발 서버는 `/api` 요청을 `http://localhost:8080` 백엔드로 프록시합니다.
+
+주요 라우트:
+
+- 공개 화면: `/public`, `/public/register`, `/public/self-lookup`, `/public/check-in`
+- 관리자 화면: `/admin/login`, `/admin/dashboard`, `/admin/participants`, `/admin/fees`
+- 다음 확장 라우트: `/admin/community`, `/admin/retreat-groups`, `/admin/announcements`, `/admin/schedules`, `/admin/check-ins`
+
+프론트엔드 빌드 확인:
+
+```bash
+cd frontend
+npm run build
+```
 
 ## 테스트
 

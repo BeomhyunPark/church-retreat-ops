@@ -16,6 +16,13 @@ out/
 logs/
 *.log
 
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/coverage/
+frontend/.eslintcache
+frontend/*.tsbuildinfo
+
 docker-data/
 http/admin-auth.http
 http/*.local.http
