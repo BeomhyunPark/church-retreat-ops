@@ -2,6 +2,7 @@ package com.gmc.retreat.admin.controller;
 
 import com.gmc.retreat.admin.dto.AdminLoginRequest;
 import com.gmc.retreat.admin.dto.AdminLoginResponse;
+import com.gmc.retreat.admin.dto.AdminPasswordChangeRequest;
 import com.gmc.retreat.admin.dto.AdminProfileResponse;
 import com.gmc.retreat.admin.service.AdminAuthService;
 import com.gmc.retreat.api.ApiResponse;
@@ -9,6 +10,7 @@ import com.gmc.retreat.security.auth.AdminPrincipal;
 import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,5 +35,15 @@ public class AdminAuthController {
     public ApiResponse<AdminProfileResponse> me(Authentication authentication) {
         AdminPrincipal principal = (AdminPrincipal) authentication.getPrincipal();
         return ApiResponse.success(adminAuthService.getProfile(principal.id()));
+    }
+
+    @PatchMapping("/password")
+    public ApiResponse<Void> changePassword(
+            Authentication authentication,
+            @Valid @RequestBody AdminPasswordChangeRequest request
+    ) {
+        AdminPrincipal principal = (AdminPrincipal) authentication.getPrincipal();
+        adminAuthService.changePassword(principal.id(), request);
+        return ApiResponse.success(null);
     }
 }
