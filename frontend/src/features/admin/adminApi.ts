@@ -34,6 +34,7 @@ export type AdminRegistration = {
   retreatGroupLeader: boolean;
   feePaid: boolean;
   status: "REGISTERED" | "CANCELLED";
+  adminMemo?: string | null;
   newcomer: boolean;
   careTarget: boolean;
   createdAt: string;
@@ -65,6 +66,10 @@ export function getAdminProfile() {
 
 export function getAdminRegistrations() {
   return apiRequest<PageResponse<AdminRegistration>>("/admin/registrations?page=0&size=20", { auth: true });
+}
+
+export function getAdminRegistration(id: number) {
+  return apiRequest<AdminRegistration>(`/admin/registrations/${id}`, { auth: true });
 }
 
 export function getFeeRoster() {

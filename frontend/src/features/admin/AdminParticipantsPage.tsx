@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { getAdminRegistrations } from "./adminApi";
 import { StatusMessage } from "../../shared/ui/StatusMessage";
 
@@ -36,7 +37,9 @@ export function AdminParticipantsPage() {
             {(query.data?.content ?? []).map((item) => (
               <tr key={item.id}>
                 <td>
-                  <strong>{item.name}</strong>
+                  <Link className="table-link" to={`/admin/participants/${item.id}`}>
+                    {item.name}
+                  </Link>
                   {item.newcomer ? <span className="table-note">새가족</span> : null}
                   {item.careTarget ? <span className="table-note">돌봄</span> : null}
                 </td>
