@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
+import { Link } from "react-router-dom";
 import { createRegistration, type RegistrationCreatePayload } from "./publicApi";
 import { StatusMessage } from "../../shared/ui/StatusMessage";
 
@@ -72,7 +73,25 @@ export function PublicRegisterPage() {
       </form>
 
       {mutation.isError ? <StatusMessage message={mutation.error.message} tone="error" /> : null}
-      {lookupKey ? <StatusMessage message={`등록 완료. 내 조회 키: ${lookupKey}`} tone="success" /> : null}
+      {lookupKey ? (
+        <div className="completion-card" role="status">
+          <p className="eyebrow">Registered</p>
+          <h2>등록이 완료되었습니다</h2>
+          <p className="muted">아래 조회 키는 다시 표시되지 않습니다. 등록 조회와 현장 확인에 사용할 수 있습니다.</p>
+          <div className="lookup-key-box">
+            <span>내 조회 키</span>
+            <strong>{lookupKey}</strong>
+          </div>
+          <div className="completion-actions">
+            <Link className="button button--primary" to="/public/self-lookup">
+              내 등록 조회하기
+            </Link>
+            <Link className="button button--secondary" to="/public">
+              홈으로 돌아가기
+            </Link>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
