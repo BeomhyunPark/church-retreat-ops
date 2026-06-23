@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
+import { AdminAnnouncementsPage } from "../features/admin/AdminAnnouncementsPage";
 import { AdminCheckInsPage } from "../features/admin/AdminCheckInsPage";
 import { AdminDashboardPage } from "../features/admin/AdminDashboardPage";
 import { AdminFeesPage } from "../features/admin/AdminFeesPage";
@@ -43,7 +44,7 @@ export const router = createBrowserRouter([
       { path: "fees", element: <AdminFeesPage /> },
       { path: "community", element: <PlaceholderPage title="공동체 구조" /> },
       { path: "retreat-groups", element: <PlaceholderPage title="수련회 조 편성" /> },
-      { path: "announcements", element: <PlaceholderPage title="공지 관리" /> },
+      { path: "announcements", element: <AdminAnnouncementsPage /> },
       { path: "schedules", element: <PlaceholderPage title="일정 관리" /> },
       { path: "check-ins", element: <AdminCheckInsPage /> }
     ]

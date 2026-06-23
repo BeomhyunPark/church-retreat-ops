@@ -89,6 +89,26 @@ export type CheckInRosterFilters = {
   keyword?: string;
 };
 
+export type Announcement = {
+  id: number;
+  title: string;
+  content: string;
+  pinned: boolean;
+  active: boolean;
+  visibleFrom?: string | null;
+  visibleUntil?: string | null;
+  targets: Array<{
+    id: number;
+    targetType: string;
+    targetValue?: string | null;
+    createdAt: string;
+  }>;
+  createdBy?: { id: number; email: string; name: string; role: string } | null;
+  updatedBy?: { id: number; email: string; name: string; role: string } | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export function loginAdmin(email: string, password: string) {
   return apiRequest<AdminLoginResponse>("/admin/auth/login", {
     method: "POST",
@@ -165,5 +185,25 @@ export function cancelCheckIn(participantId: number, reason: string) {
     auth: true,
     method: "PATCH",
     body: { reason }
+  });
+}
+
+export function getAnnouncements() {
+  return apiRequest<Announcement[]>("/admin/announcements", { auth: true });
+}
+
+export function updateAnnouncementActive(id: number, active: boolean) {
+  return apiRequest<Announcement>(`/admin/announcements/${id}/active`, {
+    auth: true,
+    method: "PATCH",
+    body: { active }
+  });
+}
+
+export function updateAnnouncementPinned(id: number, pinned: boolean) {
+  return apiRequest<Announcement>(`/admin/announcements/${id}/pinned`, {
+    auth: true,
+    method: "PATCH",
+    body: { pinned }
   });
 }

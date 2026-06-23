@@ -634,6 +634,12 @@ th {
   background: #fae8bf;
 }
 
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .table-empty {
   color: var(--color-muted);
   margin: 0;
