@@ -473,6 +473,67 @@ h2 {
   padding: 0.45rem 0.75rem;
 }
 
+.filter-panel {
+  align-items: end;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-subtle);
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(140px, 0.7fr)) auto;
+  padding: 1rem;
+}
+
+.filter-panel label {
+  color: #344054;
+  display: grid;
+  font-size: 0.86rem;
+  font-weight: 600;
+  gap: 0.45rem;
+}
+
+.filter-panel input,
+.filter-panel select {
+  background: #fff;
+  border: 1px solid #cfd7cd;
+  border-radius: 8px;
+  color: var(--color-text);
+  display: block;
+  font-size: 0.94rem;
+  height: 44px;
+  padding: 0 0.8rem;
+  width: 100%;
+}
+
+.filter-panel input:focus,
+.filter-panel select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgb(47 111 78 / 0.14);
+  outline: none;
+}
+
+.filter-summary {
+  background: var(--color-surface-soft);
+  border-radius: 8px;
+  display: grid;
+  gap: 0.2rem;
+  min-height: 44px;
+  min-width: 112px;
+  padding: 0.45rem 0.75rem;
+}
+
+.filter-summary span {
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.filter-summary strong {
+  color: var(--color-primary-dark);
+  font-size: 0.95rem;
+}
+
 .metric-grid {
   display: grid;
   gap: 1rem;
@@ -644,6 +705,10 @@ th {
     grid-template-columns: 1fr;
   }
 
+  .filter-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .detail-grid {
     grid-template-columns: 1fr;
   }
@@ -663,5 +728,9 @@ th {
   .page-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .filter-panel {
+    grid-template-columns: 1fr;
   }
 }

@@ -1,13 +1,46 @@
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { getAdminRegistrations } from "./adminApi";
 import { StatusMessage } from "../../shared/ui/StatusMessage";
 
 export function AdminParticipantsPage() {
+  const [searchText, setSearchText] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [feeFilter, setFeeFilter] = useState("ALL");
+  const [tagFilter, setTagFilter] = useState("ALL");
   const query = useQuery({
     queryKey: ["admin", "registrations"],
     queryFn: getAdminRegistrations
   });
+  const participants = useMemo(() => query.data?.content ?? [], [query.data?.content]);
+  const filteredParticipants = useMemo(() => {
+    const keyword = searchText.trim().toLowerCase();
+
+    return participants.filter((item) => {
+      const searchableText = [
+        item.name,
+        item.phoneNumber,
+        item.churchCellName,
+        item.churchCellDepartment,
+        item.middleGroupName,
+        item.retreatGroupName
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      const matchesKeyword = keyword.length === 0 || searchableText.includes(keyword);
+      const matchesStatus = statusFilter === "ALL" || item.status === statusFilter;
+      const matchesFee =
+        feeFilter === "ALL" || (feeFilter === "PAID" && item.feePaid) || (feeFilter === "UNPAID" && !item.feePaid);
+      const matchesTag =
+        tagFilter === "ALL" ||
+        (tagFilter === "NEWCOMER" && item.newcomer) ||
+        (tagFilter === "CARE_TARGET" && item.careTarget);
+
+      return matchesKeyword && matchesStatus && matchesFee && matchesTag;
+    });
+  }, [feeFilter, participants, searchText, statusFilter, tagFilter]);
 
   return (
     <section className="page-stack">
@@ -20,6 +53,48 @@ export function AdminParticipantsPage() {
       </div>
 
       {query.isError ? <StatusMessage message={query.error.message} tone="error" /> : null}
+
+      <section className="filter-panel" aria-label="참가자 목록 필터">
+        <label>
+          검색
+          <input
+            onChange={(event) => setSearchText(event.target.value)}
+            placeholder="이름, 연락처, 공동체, 조"
+            type="search"
+            value={searchText}
+          />
+        </label>
+        <label>
+          등록 상태
+          <select onChange={(event) => setStatusFilter(event.target.value)} value={statusFilter}>
+            <option value="ALL">전체</option>
+            <option value="REGISTERED">등록 완료</option>
+            <option value="CANCELLED">취소</option>
+          </select>
+        </label>
+        <label>
+          참가비
+          <select onChange={(event) => setFeeFilter(event.target.value)} value={feeFilter}>
+            <option value="ALL">전체</option>
+            <option value="PAID">납부</option>
+            <option value="UNPAID">미납</option>
+          </select>
+        </label>
+        <label>
+          관리 태그
+          <select onChange={(event) => setTagFilter(event.target.value)} value={tagFilter}>
+            <option value="ALL">전체</option>
+            <option value="NEWCOMER">새가족</option>
+            <option value="CARE_TARGET">돌봄</option>
+          </select>
+        </label>
+        <div className="filter-summary">
+          <span>현재 페이지</span>
+          <strong>
+            {filteredParticipants.length} / {participants.length}
+          </strong>
+        </div>
+      </section>
 
       <div className="table-card">
         <table>
@@ -34,7 +109,7 @@ export function AdminParticipantsPage() {
             </tr>
           </thead>
           <tbody>
-            {(query.data?.content ?? []).map((item) => (
+            {filteredParticipants.map((item) => (
               <tr key={item.id}>
                 <td>
                   <Link className="table-link" to={`/admin/participants/${item.id}`}>
@@ -61,7 +136,10 @@ export function AdminParticipantsPage() {
           </tbody>
         </table>
         {query.isLoading ? <p className="table-empty">불러오는 중...</p> : null}
-        {!query.isLoading && !query.data?.content.length ? <p className="table-empty">참가자가 없습니다.</p> : null}
+        {!query.isLoading && !participants.length ? <p className="table-empty">참가자가 없습니다.</p> : null}
+        {!query.isLoading && participants.length > 0 && !filteredParticipants.length ? (
+          <p className="table-empty">조건에 맞는 참가자가 없습니다.</p>
+        ) : null}
       </div>
     </section>
   );
