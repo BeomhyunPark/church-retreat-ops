@@ -144,6 +144,45 @@ export type ScheduleFilters = {
   date?: string;
 };
 
+export type ChurchMiddleGroup = {
+  id: number;
+  name: string;
+  elderName?: string | null;
+  description?: string | null;
+  displayOrder: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ChurchCell = {
+  id: number;
+  middleGroupId: number;
+  middleGroupName: string;
+  name: string;
+  cellLeaderName?: string | null;
+  description?: string | null;
+  displayOrder: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ChurchMiddleGroupPayload = {
+  name: string;
+  elderName?: string;
+  description?: string;
+  displayOrder: number;
+};
+
+export type ChurchCellPayload = {
+  middleGroupId: number;
+  name: string;
+  cellLeaderName?: string;
+  description?: string;
+  displayOrder: number;
+};
+
 export function loginAdmin(email: string, password: string) {
   return apiRequest<AdminLoginResponse>("/admin/auth/login", {
     method: "POST",
@@ -264,6 +303,73 @@ export function getSchedules(filters: ScheduleFilters = {}) {
 
 export function updateScheduleActive(id: number, active: boolean) {
   return apiRequest<ScheduleItem>(`/admin/schedules/${id}/active`, {
+    auth: true,
+    method: "PATCH",
+    body: { active }
+  });
+}
+
+export function getMiddleGroups() {
+  return apiRequest<ChurchMiddleGroup[]>("/admin/community/middle-groups", { auth: true });
+}
+
+export function createMiddleGroup(payload: ChurchMiddleGroupPayload) {
+  return apiRequest<ChurchMiddleGroup>("/admin/community/middle-groups", {
+    auth: true,
+    method: "POST",
+    body: payload
+  });
+}
+
+export function updateMiddleGroup(id: number, payload: ChurchMiddleGroupPayload) {
+  return apiRequest<ChurchMiddleGroup>(`/admin/community/middle-groups/${id}`, {
+    auth: true,
+    method: "PATCH",
+    body: payload
+  });
+}
+
+export function updateMiddleGroupActive(id: number, active: boolean) {
+  return apiRequest<ChurchMiddleGroup>(`/admin/community/middle-groups/${id}/active`, {
+    auth: true,
+    method: "PATCH",
+    body: { active }
+  });
+}
+
+export function getCells(filters: { middleGroupId?: number; active?: boolean } = {}) {
+  const params = new URLSearchParams();
+
+  if (filters.middleGroupId !== undefined) {
+    params.set("middleGroupId", String(filters.middleGroupId));
+  }
+
+  if (filters.active !== undefined) {
+    params.set("active", String(filters.active));
+  }
+
+  const query = params.toString();
+  return apiRequest<ChurchCell[]>(`/admin/community/cells${query ? `?${query}` : ""}`, { auth: true });
+}
+
+export function createCell(payload: ChurchCellPayload) {
+  return apiRequest<ChurchCell>("/admin/community/cells", {
+    auth: true,
+    method: "POST",
+    body: payload
+  });
+}
+
+export function updateCell(id: number, payload: ChurchCellPayload) {
+  return apiRequest<ChurchCell>(`/admin/community/cells/${id}`, {
+    auth: true,
+    method: "PATCH",
+    body: payload
+  });
+}
+
+export function updateCellActive(id: number, active: boolean) {
+  return apiRequest<ChurchCell>(`/admin/community/cells/${id}/active`, {
     auth: true,
     method: "PATCH",
     body: { active }

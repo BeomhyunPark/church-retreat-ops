@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AdminAnnouncementsPage } from "../features/admin/AdminAnnouncementsPage";
 import { AdminCheckInsPage } from "../features/admin/AdminCheckInsPage";
+import { AdminCommunityPage } from "../features/admin/AdminCommunityPage";
 import { AdminDashboardPage } from "../features/admin/AdminDashboardPage";
 import { AdminFeesPage } from "../features/admin/AdminFeesPage";
 import { AdminLoginPage } from "../features/admin/AdminLoginPage";
@@ -43,7 +44,7 @@ export const router = createBrowserRouter([
       { path: "participants", element: <AdminParticipantsPage /> },
       { path: "participants/:participantId", element: <AdminParticipantDetailPage /> },
       { path: "fees", element: <AdminFeesPage /> },
-      { path: "community", element: <PlaceholderPage title="공동체 구조" /> },
+      { path: "community", element: <AdminCommunityPage /> },
       { path: "retreat-groups", element: <PlaceholderPage title="수련회 조 편성" /> },
       { path: "announcements", element: <AdminAnnouncementsPage /> },
       { path: "schedules", element: <AdminSchedulesPage /> },
