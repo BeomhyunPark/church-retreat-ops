@@ -12,7 +12,7 @@ export function AdminFeesPage() {
     <section className="page-stack">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Admin</p>
+          <p className="eyebrow">Fees</p>
           <h1>참가비 관리</h1>
         </div>
         <span className="pill">CHAIR 이상 변경 가능</span>
@@ -42,7 +42,11 @@ export function AdminFeesPage() {
                   </span>
                 </td>
                 <td>{item.phoneLast4}</td>
-                <td>{item.feePaid ? "납부" : "미납"}</td>
+                <td>
+                  <span className={item.feePaid ? "status-pill status-pill--success" : "status-pill status-pill--warning"}>
+                    {item.feePaid ? "납부" : "미납"}
+                  </span>
+                </td>
                 <td>{item.churchCellName ?? "-"}</td>
                 <td>{item.retreatGroupName ?? "-"}</td>
                 <td>{item.feeStatusUpdatedAt ? new Date(item.feeStatusUpdatedAt).toLocaleString() : "-"}</td>

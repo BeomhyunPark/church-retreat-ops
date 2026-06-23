@@ -12,7 +12,7 @@ export function AdminParticipantsPage() {
     <section className="page-stack">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Admin</p>
+          <p className="eyebrow">Participants</p>
           <h1>참가자 관리</h1>
         </div>
         <span className="pill">상세 조회 시 개인정보 접근 로그가 남습니다</span>
@@ -41,8 +41,16 @@ export function AdminParticipantsPage() {
                   {item.careTarget ? <span className="table-note">돌봄</span> : null}
                 </td>
                 <td>{item.phoneNumber}</td>
-                <td>{item.status}</td>
-                <td>{item.feePaid ? "납부" : "미납"}</td>
+                <td>
+                  <span className={item.status === "REGISTERED" ? "status-pill status-pill--success" : "status-pill status-pill--danger"}>
+                    {item.status === "REGISTERED" ? "등록 완료" : "취소"}
+                  </span>
+                </td>
+                <td>
+                  <span className={item.feePaid ? "status-pill status-pill--success" : "status-pill status-pill--warning"}>
+                    {item.feePaid ? "납부" : "미납"}
+                  </span>
+                </td>
                 <td>{item.churchCellName ?? item.churchCellDepartment ?? "-"}</td>
                 <td>{item.retreatGroupName ?? "-"}</td>
               </tr>

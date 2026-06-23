@@ -1,16 +1,13 @@
 export function PublicCheckInPage() {
   return (
     <section className="panel">
-      <p className="eyebrow">Public</p>
-      <h1>체크인</h1>
-      <p className="muted">
-        QR 체크인 공개 API가 추가되면 이 화면에 카메라/토큰 입력 플로우를 붙입니다. 지금은 관리자 체크인 API만
-        연결되어 있습니다.
-      </p>
+      <p className="eyebrow">Arrival</p>
+      <h1>현장 체크인</h1>
+      <p className="muted">도착 후 안내 데스크에서 등록 정보를 확인하고 체크인을 진행합니다.</p>
       <div className="info-list">
-        <span>현장 도착</span>
-        <span>안내 데스크에서 이름 확인</span>
-        <span>조 배정 및 숙소 안내 확인</span>
+        <span>1. 안내 데스크에서 이름을 알려 주세요.</span>
+        <span>2. 참가비와 등록 상태를 확인합니다.</span>
+        <span>3. 조 배정과 숙소 안내를 받습니다.</span>
       </div>
     </section>
   );
