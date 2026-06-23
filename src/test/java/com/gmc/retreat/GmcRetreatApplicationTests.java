@@ -471,6 +471,34 @@ class GmcRetreatApplicationTests {
     }
 
     @Test
+    void registrationCreationStoresStructuredAttendanceAndTransportation() throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/registrations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(partialAttendanceRegistrationRequest()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.registration.attendanceType").value("PARTIAL"))
+                .andExpect(jsonPath("$.data.registration.attendanceSlots[0]").value("DAY1_GATHERING"))
+                .andExpect(jsonPath("$.data.registration.attendanceSlots[1]").value("DAY2_MORNING"))
+                .andExpect(jsonPath("$.data.registration.transportationType").value("PUBLIC_TRANSPORT"))
+                .andExpect(jsonPath("$.data.registration.carpoolNeeded").value(true))
+                .andReturn();
+        Long registrationId = objectMapper.readTree(result.getResponse().getContentAsString())
+                .path("data")
+                .path("registration")
+                .path("id")
+                .asLong();
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+
+        mockMvc.perform(get("/api/admin/registrations/" + registrationId)
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.attendanceType").value("PARTIAL"))
+                .andExpect(jsonPath("$.data.attendanceSlots[0]").value("DAY1_GATHERING"))
+                .andExpect(jsonPath("$.data.attendanceSlots[1]").value("DAY2_MORNING"))
+                .andExpect(jsonPath("$.data.transportationNote").value("교회 앞"));
+    }
+
+    @Test
     void databaseStoresBcryptLookupHashInsteadOfPlaintextLookupKey() throws Exception {
         JsonNode response = objectMapper.readTree(
                 createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
@@ -2452,14 +2480,39 @@ class GmcRetreatApplicationTests {
             String churchCellDepartment,
             boolean privacyConsentAgreed
     ) throws Exception {
-        return objectMapper.writeValueAsString(Map.of(
-                "name", name,
-                "gender", "FEMALE",
-                "birthYear", 1991,
-                "phoneNumber", phoneNumber,
-                "churchCellDepartment", churchCellDepartment,
-                "privacyConsentAgreed", privacyConsentAgreed
-        ));
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("name", name);
+        payload.put("gender", "FEMALE");
+        payload.put("birthYear", 1991);
+        payload.put("phoneNumber", phoneNumber);
+        payload.put("churchCellDepartment", churchCellDepartment);
+        payload.put("attendanceType", "FULL");
+        payload.put("attendanceSlots", List.of());
+        payload.put("transportationType", "UNDECIDED");
+        payload.put("carpoolNeeded", false);
+        payload.put("carpoolOffer", false);
+        payload.put("carpoolSeats", null);
+        payload.put("transportationNote", "");
+        payload.put("privacyConsentAgreed", privacyConsentAgreed);
+        return objectMapper.writeValueAsString(payload);
+    }
+
+    private String partialAttendanceRegistrationRequest() throws Exception {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("name", "Grace Kim");
+        payload.put("gender", "FEMALE");
+        payload.put("birthYear", 1991);
+        payload.put("phoneNumber", "010-1234-5678");
+        payload.put("churchCellDepartment", "Young Adults");
+        payload.put("attendanceType", "PARTIAL");
+        payload.put("attendanceSlots", List.of("DAY2_MORNING", "DAY1_GATHERING"));
+        payload.put("transportationType", "PUBLIC_TRANSPORT");
+        payload.put("carpoolNeeded", true);
+        payload.put("carpoolOffer", false);
+        payload.put("carpoolSeats", null);
+        payload.put("transportationNote", "교회 앞");
+        payload.put("privacyConsentAgreed", true);
+        return objectMapper.writeValueAsString(payload);
     }
 
     private String selfUpdateRequest(String lookupKey, String phoneNumber) throws Exception {

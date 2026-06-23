@@ -7,6 +7,8 @@ import com.gmc.retreat.error.BusinessException;
 import com.gmc.retreat.error.ErrorCode;
 import com.gmc.retreat.fee.mapper.FeeMapper;
 import com.gmc.retreat.fee.mapper.FeeMapper.FeeEventInsert;
+import com.gmc.retreat.registration.domain.AttendanceSlot;
+import com.gmc.retreat.registration.domain.AttendanceType;
 import com.gmc.retreat.registration.domain.Registration;
 import com.gmc.retreat.registration.domain.RegistrationActorType;
 import com.gmc.retreat.registration.domain.RegistrationHistoryChangeType;
@@ -103,12 +105,19 @@ public class RegistrationService {
                     phoneNumber,
                     phoneLastFour,
                     churchCellDepartment,
+                    request.attendanceType(),
+                    request.transportationType(),
+                    request.carpoolNeeded(),
+                    normalizedCarpoolOffer(request),
+                    normalizedCarpoolSeats(request),
+                    normalizeOptional(request.transportationNote()),
                     lookupKeyHash,
                     true,
                     false,
                     RegistrationStatus.REGISTERED
             );
             registrationMapper.insert(insert);
+            replaceAttendanceSlots(insert.getId(), request);
             Registration created = registrationMapper.findById(insert.getId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
             insertHistory(created.id(), RegistrationHistoryChangeType.CREATED, null, snapshot(created));
@@ -130,9 +139,16 @@ public class RegistrationService {
                 phoneNumber,
                 phoneLastFour,
                 churchCellDepartment,
+                request.attendanceType(),
+                request.transportationType(),
+                request.carpoolNeeded(),
+                normalizedCarpoolOffer(request),
+                normalizedCarpoolSeats(request),
+                normalizeOptional(request.transportationNote()),
                 lookupKeyHash,
                 true
         ));
+        replaceAttendanceSlots(existing.id(), request);
         Registration updated = registrationMapper.findById(existing.id())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
         insertHistory(updated.id(), RegistrationHistoryChangeType.OVERWRITTEN, previousSnapshot, snapshot(updated));
@@ -393,6 +409,14 @@ public class RegistrationService {
                     Map.entry("phoneLastFour", registration.phoneLastFour()),
                     Map.entry("churchCellDepartment", registration.churchCellDepartment() == null
                             ? "" : registration.churchCellDepartment()),
+                    Map.entry("attendanceType", registration.attendanceType()),
+                    Map.entry("attendanceSlots", registration.attendanceSlots() == null ? "" : registration.attendanceSlots()),
+                    Map.entry("transportationType", registration.transportationType()),
+                    Map.entry("carpoolNeeded", registration.carpoolNeeded()),
+                    Map.entry("carpoolOffer", registration.carpoolOffer()),
+                    Map.entry("carpoolSeats", registration.carpoolSeats() == null ? "" : registration.carpoolSeats()),
+                    Map.entry("transportationNote", registration.transportationNote() == null
+                            ? "" : registration.transportationNote()),
                     Map.entry("churchCellId", registration.churchCellId() == null ? "" : registration.churchCellId()),
                     Map.entry("churchCellName", registration.churchCellName() == null ? "" : registration.churchCellName()),
                     Map.entry("middleGroupId", registration.middleGroupId() == null ? "" : registration.middleGroupId()),
@@ -430,6 +454,33 @@ public class RegistrationService {
             return null;
         }
         return value.trim();
+    }
+
+    private void replaceAttendanceSlots(Long registrationId, RegistrationCreateRequest request) {
+        registrationMapper.deleteAttendanceSlots(registrationId);
+        if (request.attendanceType() != AttendanceType.PARTIAL || request.attendanceSlots() == null) {
+            return;
+        }
+
+        request.attendanceSlots()
+                .stream()
+                .distinct()
+                .map(AttendanceSlot::name)
+                .forEach(slot -> registrationMapper.insertAttendanceSlot(registrationId, slot));
+    }
+
+    private Boolean normalizedCarpoolOffer(RegistrationCreateRequest request) {
+        if (!Boolean.TRUE.equals(request.carpoolOffer())) {
+            return false;
+        }
+        return request.transportationType().name().equals("OWN_CAR");
+    }
+
+    private Integer normalizedCarpoolSeats(RegistrationCreateRequest request) {
+        if (!Boolean.TRUE.equals(normalizedCarpoolOffer(request))) {
+            return null;
+        }
+        return request.carpoolSeats();
     }
 
     private String normalizeFeeReason(Boolean feePaid, String value) {
