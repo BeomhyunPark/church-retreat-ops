@@ -9,6 +9,7 @@ import { AdminLoginPage } from "../features/admin/AdminLoginPage";
 import { AdminParticipantDetailPage } from "../features/admin/AdminParticipantDetailPage";
 import { AdminParticipantsPage } from "../features/admin/AdminParticipantsPage";
 import { AdminProfilePage } from "../features/admin/AdminProfilePage";
+import { AdminRetreatGroupsPage } from "../features/admin/AdminRetreatGroupsPage";
 import { AdminSchedulesPage } from "../features/admin/AdminSchedulesPage";
 import { PublicCheckInPage } from "../features/public/PublicCheckInPage";
 import { PublicHomePage } from "../features/public/PublicHomePage";
@@ -16,7 +17,6 @@ import { PublicRegisterPage } from "../features/public/PublicRegisterPage";
 import { PublicSelfLookupPage } from "../features/public/PublicSelfLookupPage";
 import { AdminLayout } from "../shared/layout/AdminLayout";
 import { PublicLayout } from "../shared/layout/PublicLayout";
-import { PlaceholderPage } from "../shared/ui/PlaceholderPage";
 
 export const router = createBrowserRouter([
   {
@@ -47,7 +47,7 @@ export const router = createBrowserRouter([
       { path: "participants/:participantId", element: <AdminParticipantDetailPage /> },
       { path: "fees", element: <AdminFeesPage /> },
       { path: "community", element: <AdminCommunityPage /> },
-      { path: "retreat-groups", element: <PlaceholderPage title="수련회 조 편성" /> },
+      { path: "retreat-groups", element: <AdminRetreatGroupsPage /> },
       { path: "announcements", element: <AdminAnnouncementsPage /> },
       { path: "schedules", element: <AdminSchedulesPage /> },
       { path: "check-ins", element: <AdminCheckInsPage /> },
