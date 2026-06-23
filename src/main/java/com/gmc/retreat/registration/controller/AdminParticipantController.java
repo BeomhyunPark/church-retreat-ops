@@ -1,6 +1,7 @@
 package com.gmc.retreat.registration.controller;
 
 import com.gmc.retreat.api.ApiResponse;
+import com.gmc.retreat.common.dto.DeleteConfirmationRequest;
 import com.gmc.retreat.registration.dto.AdminParticipantChurchCellUpdateRequest;
 import com.gmc.retreat.registration.dto.AdminRegistrationResponse;
 import com.gmc.retreat.registration.service.RegistrationService;
@@ -52,8 +53,10 @@ public class AdminParticipantController {
     @DeleteMapping("/{participantId}/retreat-group")
     public ApiResponse<AdminRegistrationResponse> removeRetreatGroup(
             @AuthenticationPrincipal AdminPrincipal admin,
-            @PathVariable Long participantId
+            @PathVariable Long participantId,
+            @Valid @RequestBody DeleteConfirmationRequest request
     ) {
+        request.requireConfirmed();
         return ApiResponse.success(retreatGroupService.removeParticipant(admin, participantId));
     }
 }

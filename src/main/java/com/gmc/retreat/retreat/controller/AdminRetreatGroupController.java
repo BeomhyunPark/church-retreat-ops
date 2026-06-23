@@ -1,6 +1,7 @@
 package com.gmc.retreat.retreat.controller;
 
 import com.gmc.retreat.api.ApiResponse;
+import com.gmc.retreat.common.dto.DeleteConfirmationRequest;
 import com.gmc.retreat.community.dto.ActiveUpdateRequest;
 import com.gmc.retreat.registration.dto.AdminRegistrationResponse;
 import com.gmc.retreat.retreat.dto.RetreatGroupLeaderRequest;
@@ -100,8 +101,10 @@ public class AdminRetreatGroupController {
     @DeleteMapping("/{groupId}/leader")
     public ApiResponse<List<RetreatGroupMemberResponse>> removeLeader(
             @AuthenticationPrincipal AdminPrincipal admin,
-            @PathVariable Long groupId
+            @PathVariable Long groupId,
+            @Valid @RequestBody DeleteConfirmationRequest request
     ) {
+        request.requireConfirmed();
         return ApiResponse.success(retreatGroupService.removeLeader(admin, groupId));
     }
 }
