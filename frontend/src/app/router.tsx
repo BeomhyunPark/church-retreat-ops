@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
+import { AdminAccountsPage } from "../features/admin/AdminAccountsPage";
 import { AdminAnnouncementsPage } from "../features/admin/AdminAnnouncementsPage";
 import { AdminCheckInsPage } from "../features/admin/AdminCheckInsPage";
 import { AdminCommunityPage } from "../features/admin/AdminCommunityPage";
@@ -7,6 +8,7 @@ import { AdminFeesPage } from "../features/admin/AdminFeesPage";
 import { AdminLoginPage } from "../features/admin/AdminLoginPage";
 import { AdminParticipantDetailPage } from "../features/admin/AdminParticipantDetailPage";
 import { AdminParticipantsPage } from "../features/admin/AdminParticipantsPage";
+import { AdminProfilePage } from "../features/admin/AdminProfilePage";
 import { AdminSchedulesPage } from "../features/admin/AdminSchedulesPage";
 import { PublicCheckInPage } from "../features/public/PublicCheckInPage";
 import { PublicHomePage } from "../features/public/PublicHomePage";
@@ -48,7 +50,9 @@ export const router = createBrowserRouter([
       { path: "retreat-groups", element: <PlaceholderPage title="수련회 조 편성" /> },
       { path: "announcements", element: <AdminAnnouncementsPage /> },
       { path: "schedules", element: <AdminSchedulesPage /> },
-      { path: "check-ins", element: <AdminCheckInsPage /> }
+      { path: "check-ins", element: <AdminCheckInsPage /> },
+      { path: "accounts", element: <AdminAccountsPage /> },
+      { path: "profile", element: <AdminProfilePage /> }
     ]
   }
 ]);

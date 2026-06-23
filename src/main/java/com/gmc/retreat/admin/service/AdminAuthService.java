@@ -3,6 +3,7 @@ package com.gmc.retreat.admin.service;
 import com.gmc.retreat.admin.domain.AdminStatus;
 import com.gmc.retreat.admin.domain.AdminUser;
 import com.gmc.retreat.admin.dto.AdminLoginResponse;
+import com.gmc.retreat.admin.dto.AdminPasswordChangeRequest;
 import com.gmc.retreat.admin.dto.AdminProfileResponse;
 import com.gmc.retreat.admin.dto.AdminSummaryResponse;
 import com.gmc.retreat.admin.mapper.AdminUserMapper;
@@ -54,5 +55,17 @@ public class AdminAuthService {
         }
 
         return AdminProfileResponse.from(adminUser);
+    }
+
+    @Transactional
+    public void changePassword(Long adminUserId, AdminPasswordChangeRequest request) {
+        AdminUser adminUser = adminUserMapper.findById(adminUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+
+        if (!passwordEncoder.matches(request.currentPassword(), adminUser.passwordHash())) {
+            throw new BusinessException(ErrorCode.INVALID_CURRENT_PASSWORD);
+        }
+
+        adminUserMapper.updatePasswordHash(adminUserId, passwordEncoder.encode(request.newPassword()));
     }
 }
