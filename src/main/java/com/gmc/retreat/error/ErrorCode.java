@@ -28,6 +28,7 @@ public enum ErrorCode {
     FEE_ALREADY_PAID(HttpStatus.CONFLICT, "Participant fee is already marked as paid."),
     FEE_ALREADY_UNPAID(HttpStatus.CONFLICT, "Participant fee is already marked as unpaid."),
     FEE_REVERT_REASON_REQUIRED(HttpStatus.BAD_REQUEST, "Fee revert reason is required."),
+    DELETE_CONFIRMATION_MISMATCH(HttpStatus.BAD_REQUEST, "Delete confirmation text does not match."),
     ADMIN_USER_NOT_FOUND(HttpStatus.NOT_FOUND, "Admin user was not found."),
     DUPLICATE_ADMIN_EMAIL(HttpStatus.CONFLICT, "Admin email already exists."),
     INVALID_CURRENT_PASSWORD(HttpStatus.BAD_REQUEST, "Current password is incorrect."),

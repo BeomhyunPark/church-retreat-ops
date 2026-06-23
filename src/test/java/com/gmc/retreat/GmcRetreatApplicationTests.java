@@ -1129,10 +1129,37 @@ class GmcRetreatApplicationTests {
                 .andExpect(jsonPath("$.data[0].leader").value(false));
 
         mockMvc.perform(delete("/api/admin/participants/" + participantId + "/retreat-group")
-                        .header("Authorization", "Bearer " + chairToken))
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("confirmText", "DELETE"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.retreatGroupId").doesNotExist())
                 .andExpect(jsonPath("$.data.retreatGroupName").doesNotExist());
+    }
+
+    @Test
+    void removingRetreatGroupAssignmentRequiresMatchingConfirmText() throws Exception {
+        JsonNode created = objectMapper.readTree(
+                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+        Long participantId = created.path("data").path("registration").path("id").asLong();
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long groupId = createRetreatGroup(chairToken, "Group 1");
+
+        mockMvc.perform(patch("/api/admin/participants/" + participantId + "/retreat-group")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("retreatGroupId", groupId))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(delete("/api/admin/participants/" + participantId + "/retreat-group")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("confirmText", "delete"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("DELETE_CONFIRMATION_MISMATCH"));
     }
 
     @Test
@@ -1188,10 +1215,37 @@ class GmcRetreatApplicationTests {
                 .andExpect(jsonPath("$.data.groups[0].members[0].leader").value(true));
 
         mockMvc.perform(delete("/api/admin/retreat-groups/" + groupId + "/leader")
-                        .header("Authorization", "Bearer " + chairToken))
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("confirmText", "DELETE"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].participantId").value(participantId))
                 .andExpect(jsonPath("$.data[0].leader").value(false));
+    }
+
+    @Test
+    void removingRetreatGroupLeaderRequiresMatchingConfirmText() throws Exception {
+        JsonNode created = objectMapper.readTree(
+                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+        Long participantId = created.path("data").path("registration").path("id").asLong();
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long groupId = createRetreatGroup(chairToken, "Group 1");
+
+        mockMvc.perform(patch("/api/admin/retreat-groups/" + groupId + "/leader")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("participantId", participantId))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(delete("/api/admin/retreat-groups/" + groupId + "/leader")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("confirmText", "delete"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("DELETE_CONFIRMATION_MISMATCH"));
     }
 
     @Test
