@@ -9,7 +9,7 @@ export function AdminDashboardPage() {
   });
   const feesQuery = useQuery({
     queryKey: ["admin", "fees", "summary"],
-    queryFn: getFeeRoster
+    queryFn: () => getFeeRoster()
   });
 
   const participants = registrationsQuery.data?.totalElements ?? 0;

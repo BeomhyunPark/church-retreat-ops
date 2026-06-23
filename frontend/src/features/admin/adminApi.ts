@@ -53,6 +53,16 @@ export type FeeRosterItem = {
   feeStatusUpdatedAt?: string | null;
 };
 
+export type FeeRosterFilters = {
+  feePaid?: boolean;
+  keyword?: string;
+};
+
+export type FeeDetailResponse = {
+  participant: FeeRosterItem;
+  events: unknown[];
+};
+
 export function loginAdmin(email: string, password: string) {
   return apiRequest<AdminLoginResponse>("/admin/auth/login", {
     method: "POST",
@@ -72,6 +82,30 @@ export function getAdminRegistration(id: number) {
   return apiRequest<AdminRegistration>(`/admin/registrations/${id}`, { auth: true });
 }
 
-export function getFeeRoster() {
-  return apiRequest<PageResponse<FeeRosterItem>>("/admin/fees?page=0&size=20", { auth: true });
+export function getFeeRoster(filters: FeeRosterFilters = {}) {
+  const params = new URLSearchParams({
+    page: "0",
+    size: "20"
+  });
+
+  if (filters.feePaid !== undefined) {
+    params.set("feePaid", String(filters.feePaid));
+  }
+
+  if (filters.keyword?.trim()) {
+    params.set("keyword", filters.keyword.trim());
+  }
+
+  return apiRequest<PageResponse<FeeRosterItem>>(`/admin/fees?${params.toString()}`, { auth: true });
+}
+
+export function updateFeeStatus(participantId: number, feePaid: boolean, reason?: string) {
+  return apiRequest<FeeDetailResponse>(`/admin/fees/${participantId}`, {
+    auth: true,
+    method: "PATCH",
+    body: {
+      feePaid,
+      reason
+    }
+  });
 }

@@ -604,6 +604,36 @@ th {
   text-decoration: underline;
 }
 
+.table-action {
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-primary-dark);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 700;
+  min-height: 36px;
+  padding: 0 0.75rem;
+}
+
+.table-action:hover {
+  background: #e2ecdf;
+}
+
+.table-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.table-action--warning {
+  background: #fff4df;
+  color: var(--color-warning);
+}
+
+.table-action--warning:hover {
+  background: #fae8bf;
+}
+
 .table-empty {
   color: var(--color-muted);
   margin: 0;

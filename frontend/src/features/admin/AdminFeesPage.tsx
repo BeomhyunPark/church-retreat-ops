@@ -1,12 +1,29 @@
-import { useQuery } from "@tanstack/react-query";
-import { getFeeRoster } from "./adminApi";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getFeeRoster, updateFeeStatus } from "./adminApi";
 import { StatusMessage } from "../../shared/ui/StatusMessage";
 
 export function AdminFeesPage() {
+  const queryClient = useQueryClient();
+  const [keyword, setKeyword] = useState("");
+  const [feeFilter, setFeeFilter] = useState("ALL");
+  const feePaid = feeFilter === "ALL" ? undefined : feeFilter === "PAID";
   const query = useQuery({
-    queryKey: ["admin", "fees"],
-    queryFn: getFeeRoster
+    queryKey: ["admin", "fees", { feePaid, keyword }],
+    queryFn: () => getFeeRoster({ feePaid, keyword })
   });
+  const mutation = useMutation({
+    mutationFn: ({ participantId, nextFeePaid }: { participantId: number; nextFeePaid: boolean }) =>
+      updateFeeStatus(
+        participantId,
+        nextFeePaid,
+        nextFeePaid ? "관리자 화면에서 납부 확인" : "관리자 화면에서 미납 처리"
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "fees"] });
+    }
+  });
+  const roster = query.data?.content ?? [];
 
   return (
     <section className="page-stack">
@@ -19,6 +36,31 @@ export function AdminFeesPage() {
       </div>
 
       {query.isError ? <StatusMessage message={query.error.message} tone="error" /> : null}
+      {mutation.isError ? <StatusMessage message={mutation.error.message} tone="error" /> : null}
+
+      <section className="filter-panel" aria-label="참가비 목록 필터">
+        <label>
+          검색
+          <input
+            onChange={(event) => setKeyword(event.target.value)}
+            placeholder="이름, 전화 끝자리, 공동체, 조"
+            type="search"
+            value={keyword}
+          />
+        </label>
+        <label>
+          참가비
+          <select onChange={(event) => setFeeFilter(event.target.value)} value={feeFilter}>
+            <option value="ALL">전체</option>
+            <option value="PAID">납부</option>
+            <option value="UNPAID">미납</option>
+          </select>
+        </label>
+        <div className="filter-summary">
+          <span>검색 결과</span>
+          <strong>{query.data?.totalElements ?? 0}</strong>
+        </div>
+      </section>
 
       <div className="table-card">
         <table>
@@ -30,10 +72,11 @@ export function AdminFeesPage() {
               <th>공동체</th>
               <th>수련회 조</th>
               <th>변경 시각</th>
+              <th>처리</th>
             </tr>
           </thead>
           <tbody>
-            {(query.data?.content ?? []).map((item) => (
+            {roster.map((item) => (
               <tr key={item.participantId}>
                 <td>
                   <strong>{item.name}</strong>
@@ -50,12 +93,22 @@ export function AdminFeesPage() {
                 <td>{item.churchCellName ?? "-"}</td>
                 <td>{item.retreatGroupName ?? "-"}</td>
                 <td>{item.feeStatusUpdatedAt ? new Date(item.feeStatusUpdatedAt).toLocaleString() : "-"}</td>
+                <td>
+                  <button
+                    className={item.feePaid ? "table-action table-action--warning" : "table-action"}
+                    disabled={mutation.isPending}
+                    onClick={() => mutation.mutate({ participantId: item.participantId, nextFeePaid: !item.feePaid })}
+                    type="button"
+                  >
+                    {item.feePaid ? "미납 처리" : "납부 처리"}
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
         {query.isLoading ? <p className="table-empty">불러오는 중...</p> : null}
-        {!query.isLoading && !query.data?.content.length ? <p className="table-empty">참가비 항목이 없습니다.</p> : null}
+        {!query.isLoading && !roster.length ? <p className="table-empty">조건에 맞는 참가비 항목이 없습니다.</p> : null}
       </div>
     </section>
   );
