@@ -32,12 +32,14 @@ export function AppHomePage() {
           <p className="eyebrow">Retreat is loading</p>
           <h1>{identity.eventName}</h1>
           <p>등록은 빠르게, 확인은 간단하게. 시작부터 현장까지 한 번에 이어집니다.</p>
-          <Link className="button button--primary" to="/public/register">
-            참가자 시작
-          </Link>
-          <Link className="text-link text-link--quiet" to="/public/self-lookup">
-            이미 등록했다면 확인하기
-          </Link>
+          <div className="app-home__actions">
+            <Link className="button button--primary" to="/public/register">
+              수련회 등록
+            </Link>
+            <Link className="button button--secondary" to="/public/self-lookup">
+              내 정보 조회
+            </Link>
+          </div>
         </div>
 
         <aside className="home-pass" aria-label={`${identity.eventName} 앱 입장 카드`}>
