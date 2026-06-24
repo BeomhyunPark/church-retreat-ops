@@ -56,6 +56,17 @@ export type PageResponse<T> = {
   totalPages: number;
 };
 
+export type AttendanceSlot =
+  | "DAY1_MORNING"
+  | "DAY1_AFTERNOON"
+  | "DAY1_GATHERING"
+  | "DAY2_MORNING"
+  | "DAY2_AFTERNOON"
+  | "DAY2_GATHERING"
+  | "DAY3_MORNING"
+  | "DAY3_AFTERNOON"
+  | "DAY3_GATHERING";
+
 export type AdminRegistration = {
   id: number;
   name: string;
@@ -63,6 +74,13 @@ export type AdminRegistration = {
   birthYear: number;
   phoneNumber: string;
   churchCellDepartment?: string | null;
+  attendanceType: "FULL" | "PARTIAL";
+  attendanceSlots: AttendanceSlot[];
+  transportationType: "OWN_CAR" | "PUBLIC_TRANSPORT" | "UNDECIDED";
+  carpoolNeeded: boolean;
+  carpoolOffer: boolean;
+  carpoolSeats?: number | null;
+  transportationNote?: string | null;
   middleGroupName?: string | null;
   churchCellName?: string | null;
   retreatGroupId?: number | null;

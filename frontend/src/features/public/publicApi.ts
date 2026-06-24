@@ -1,11 +1,31 @@
 import { apiRequest } from "../../shared/api/client";
 
+export type AttendanceType = "FULL" | "PARTIAL";
+export type AttendanceSlot =
+  | "DAY1_MORNING"
+  | "DAY1_AFTERNOON"
+  | "DAY1_GATHERING"
+  | "DAY2_MORNING"
+  | "DAY2_AFTERNOON"
+  | "DAY2_GATHERING"
+  | "DAY3_MORNING"
+  | "DAY3_AFTERNOON"
+  | "DAY3_GATHERING";
+export type TransportationType = "OWN_CAR" | "PUBLIC_TRANSPORT" | "UNDECIDED";
+
 export type RegistrationCreatePayload = {
   name: string;
   gender: "MALE" | "FEMALE";
   birthYear: number;
   phoneNumber: string;
   churchCellDepartment?: string;
+  attendanceType: AttendanceType;
+  attendanceSlots: AttendanceSlot[];
+  transportationType: TransportationType;
+  carpoolNeeded: boolean;
+  carpoolOffer: boolean;
+  carpoolSeats?: number | null;
+  transportationNote?: string;
   privacyConsentAgreed: boolean;
   lookupKey: string;
 };
@@ -17,6 +37,13 @@ export type RegistrationResponse = {
   birthYear: number;
   phoneNumber: string;
   churchCellDepartment?: string | null;
+  attendanceType: AttendanceType;
+  attendanceSlots: AttendanceSlot[];
+  transportationType: TransportationType;
+  carpoolNeeded: boolean;
+  carpoolOffer: boolean;
+  carpoolSeats?: number | null;
+  transportationNote?: string | null;
   feePaid: boolean;
   status: string;
 };

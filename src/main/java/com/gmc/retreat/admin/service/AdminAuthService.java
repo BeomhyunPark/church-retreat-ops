@@ -25,8 +25,7 @@ public class AdminAuthService {
     public AdminAuthService(
             AdminUserMapper adminUserMapper,
             PasswordEncoder passwordEncoder,
-            JwtTokenProvider jwtTokenProvider
-    ) {
+            JwtTokenProvider jwtTokenProvider) {
         this.adminUserMapper = adminUserMapper;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;

@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(run)",
+      "Bash(docker-compose up *)",
+      "Bash(docker-compose ps *)",
+      "Bash(npm install *)",
+      "Bash(curl -s http://localhost:5173/)",
+      "Bash(curl -s http://localhost:8080/api/admin/retreat-groups)",
+      "Skill(claude-api)",
+      "Bash(chromium-cli *)",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(git restore *)",
+      "Bash(git checkout *)",
+      "Bash(gh pr *)",
+      "Bash(git fetch *)",
+      "Bash(git merge *)",
+      "Bash(rm frontend/src/features/public/PublicHomePage.tsx)",
+      "Bash(git add *)"
+    ]
+  }
+}
