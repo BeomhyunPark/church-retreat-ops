@@ -1,23 +1,31 @@
 import { Link } from "react-router-dom";
+import { StatusMessage } from "../../shared/ui/StatusMessage";
 import { brandInitials, useAppIdentity } from "../../shared/identity/appIdentity";
 
 export function AppHomePage() {
-  const { identity } = useAppIdentity();
+  const { identity, isLoading, isError, error } = useAppIdentity();
 
   return (
     <main className="app-home">
       <header className="app-home__top">
         <div className="app-home__brand">
-          <span className="brand-mark">{brandInitials(identity.organizationName)}</span>
+          <span className="brand-mark">{isLoading ? "" : brandInitials(identity.organizationName)}</span>
           <div>
-            <p className="eyebrow">{identity.organizationName}</p>
-            <strong>{identity.appName}</strong>
+            <p className="eyebrow">{isLoading ? "불러오는 중..." : identity.organizationName}</p>
+            <strong>{isLoading ? "" : identity.appName}</strong>
           </div>
         </div>
         <Link className="text-link" to="/admin/login">
           관리자
         </Link>
       </header>
+
+      {isError ? (
+        <StatusMessage
+          message={`${error.message} 기본 정보로 표시합니다.`}
+          tone="error"
+        />
+      ) : null}
 
       <section className="app-home__stage">
         <div className="app-home__copy">
