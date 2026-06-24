@@ -70,9 +70,9 @@ h2 {
   display: inline-flex;
   font-size: 0.9rem;
   font-weight: 700;
-  height: 44px;
+  height: 40px;
   justify-content: center;
-  width: 44px;
+  width: 40px;
 }
 
 .eyebrow {
@@ -1046,11 +1046,6 @@ th {
     padding: 1rem;
   }
 
-  .app-home__top .brand-mark {
-    height: 40px;
-    width: 40px;
-  }
-
   .app-home__stage {
     gap: 1.4rem;
     padding-top: 1rem;
@@ -1074,11 +1069,6 @@ th {
 
   .admin-sidebar__brand {
     min-height: 44px;
-  }
-
-  .admin-sidebar .brand-mark {
-    height: 40px;
-    width: 40px;
   }
 
   .admin-main,
