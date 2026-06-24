@@ -14,6 +14,7 @@ import { AdminSchedulesPage } from "../features/admin/AdminSchedulesPage";
 import { AppHomePage } from "../features/home/AppHomePage";
 import { PublicCheckInPage } from "../features/public/PublicCheckInPage";
 import { PublicRegisterPage } from "../features/public/PublicRegisterPage";
+import { PublicSelfEditPage } from "../features/public/PublicSelfEditPage";
 import { PublicSelfLookupPage } from "../features/public/PublicSelfLookupPage";
 import { AdminLayout } from "../shared/layout/AdminLayout";
 import { PublicLayout } from "../shared/layout/PublicLayout";
@@ -30,6 +31,7 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/public/register" replace /> },
       { path: "register", element: <PublicRegisterPage /> },
       { path: "self-lookup", element: <PublicSelfLookupPage /> },
+      { path: "self-edit", element: <PublicSelfEditPage /> },
       { path: "check-in", element: <PublicCheckInPage /> }
     ]
   },

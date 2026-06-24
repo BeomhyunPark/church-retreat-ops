@@ -1323,3 +1323,34 @@ th {
     transform: translateX(-24rem) rotate(24deg);
   }
 }
+
+.option-card {
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 16px;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.option-card--active {
+  background-color: #f0f9f7;
+  border-color: #176b5b;
+  font-weight: 600;
+}
+
+.check-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+  padding: 16px 0;
+}
+
+.checklist-day-label {
+  color: #666;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
