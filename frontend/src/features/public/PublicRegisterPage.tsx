@@ -33,12 +33,6 @@ type FormValues = {
   privacyConsentAgreed: boolean;
   lookupKey: string;
   attendanceType: AttendanceType;
-  inboundTransportationMethod: TransportationMethod;
-  outboundTransportationMethod: TransportationMethod;
-  inboundCarpoolAvailable?: boolean;
-  inboundCarpoolSeats?: number;
-  outboundCarpoolAvailable?: boolean;
-  outboundCarpoolSeats?: number;
   lodgingNight1?: boolean;
   lodgingNight2?: boolean;
   attendDay1Morning?: boolean;
@@ -49,6 +43,16 @@ type FormValues = {
   attendDay2Worship?: boolean;
   attendDay3Morning?: boolean;
   attendDay3Afternoon?: boolean;
+  inboundTransportationMethod: TransportationMethod;
+  outboundTransportationMethod: TransportationMethod;
+  inboundCarpoolAvailable?: boolean;
+  inboundCarpoolSeats?: number;
+  inboundCarpoolArea?: string;
+  outboundCarpoolAvailable?: boolean;
+  outboundCarpoolSeats?: number;
+  outboundCarpoolArea?: string;
+  inboundCarpoolPreferredArea?: string;
+  outboundCarpoolPreferredArea?: string;
 };
 
 function formatPhoneNumber(value: string) {
@@ -64,18 +68,18 @@ function formatPhoneNumber(value: string) {
 
 function getTransportationOptions(attendanceType: AttendanceType): TransportationMethod[] {
   if (attendanceType === "FULL") {
-    return ["OWN_CAR", "GROUP_BUS", "WORSHIP_SHUTTLE"];
+    return ["GROUP_BUS", "OWN_CAR"];
   }
-  return ["OWN_CAR", "GROUP_BUS", "WORSHIP_SHUTTLE", "PUBLIC_TRANSIT", "CARPOOL_NEEDED", "NOT_DECIDED"];
+  return ["GROUP_BUS", "WORSHIP_SHUTTLE", "OWN_CAR", "PUBLIC_TRANSIT", "CARPOOL_NEEDED", "NOT_DECIDED"];
 }
 
 function getTransportationLabel(method: TransportationMethod): string {
   const labels: Record<TransportationMethod, string> = {
     OWN_CAR: "자차",
-    GROUP_BUS: "단체버스",
-    WORSHIP_SHUTTLE: "예배셔틀",
+    GROUP_BUS: "함께 이동해요",
+    WORSHIP_SHUTTLE: "집회 차량",
     PUBLIC_TRANSIT: "대중교통",
-    CARPOOL_NEEDED: "차량 필요",
+    CARPOOL_NEEDED: "카풀 희망",
     NOT_DECIDED: "미정"
   };
   return labels[method];
@@ -85,12 +89,18 @@ function getAttendanceLabel(type: AttendanceType): string {
   const labels: Record<AttendanceType, string> = {
     FULL: "전체 참석",
     PARTIAL: "부분 참석",
-    WORSHIP_ONLY: "예배만"
+    WORSHIP_ONLY: "집회만"
   };
   return labels[type];
 }
 
-function buildSteps(attendanceType?: AttendanceType): Array<keyof FormValues> {
+function buildSteps(
+  attendanceType?: AttendanceType,
+  inboundTransportation?: TransportationMethod,
+  inboundCarpoolAvailable?: boolean,
+  outboundTransportation?: TransportationMethod,
+  outboundCarpoolAvailable?: boolean
+): Array<keyof FormValues> {
   const baseSteps: Array<keyof FormValues> = [
     "name",
     "gender",
@@ -104,34 +114,70 @@ function buildSteps(attendanceType?: AttendanceType): Array<keyof FormValues> {
     return baseSteps;
   }
 
-  // All attendance types have both inbound and outbound transportation
-  const steps: Array<keyof FormValues> = [
-    ...baseSteps,
-    "inboundTransportationMethod",
-    "inboundCarpoolAvailable",
-    "inboundCarpoolSeats",
-    "outboundTransportationMethod",
-    "outboundCarpoolAvailable",
-    "outboundCarpoolSeats"
-  ];
+  const steps: Array<keyof FormValues> = [...baseSteps];
 
+  // 참석방식 선택 후 일정 확인
   if (attendanceType === "FULL") {
-    // FULL: inbound and outbound transportation only
-    steps.push("lookupKey");
-    steps.push("privacyConsentAgreed");
+    // 전체참석: 자차 또는 함께 이동
+    steps.push("inboundTransportationMethod");
+    if (inboundTransportation === "OWN_CAR") {
+      steps.push("inboundCarpoolAvailable");
+      if (inboundCarpoolAvailable === true) {
+        steps.push("inboundCarpoolSeats", "inboundCarpoolArea");
+      }
+    }
+    steps.push("outboundTransportationMethod");
+    if (outboundTransportation === "OWN_CAR") {
+      steps.push("outboundCarpoolAvailable");
+      if (outboundCarpoolAvailable === true) {
+        steps.push("outboundCarpoolSeats", "outboundCarpoolArea");
+      }
+    }
   } else if (attendanceType === "PARTIAL") {
-    // PARTIAL: inbound/outbound, lodging, checklist
-    steps.push("lodgingNight1");
-    steps.push("attendDay1Morning");
-    steps.push("lookupKey");
-    steps.push("privacyConsentAgreed");
+    // 부분참석: 숙박 + 일정 선택
+    steps.push("lodgingNight1", "attendDay1Morning");
+    steps.push("inboundTransportationMethod");
+    if (inboundTransportation === "OWN_CAR") {
+      steps.push("inboundCarpoolAvailable");
+      if (inboundCarpoolAvailable === true) {
+        steps.push("inboundCarpoolSeats", "inboundCarpoolArea");
+      }
+    } else if (inboundTransportation === "CARPOOL_NEEDED") {
+      steps.push("inboundCarpoolPreferredArea");
+    }
+    steps.push("outboundTransportationMethod");
+    if (outboundTransportation === "OWN_CAR") {
+      steps.push("outboundCarpoolAvailable");
+      if (outboundCarpoolAvailable === true) {
+        steps.push("outboundCarpoolSeats", "outboundCarpoolArea");
+      }
+    } else if (outboundTransportation === "CARPOOL_NEEDED") {
+      steps.push("outboundCarpoolPreferredArea");
+    }
   } else {
-    // WORSHIP_ONLY: inbound/outbound, checklist (no lodging)
-    steps.push("attendDay1Morning");
-    steps.push("lookupKey");
-    steps.push("privacyConsentAgreed");
+    // 집회만: 집회 차량 또는 자차
+    steps.push("inboundTransportationMethod");
+    if (inboundTransportation === "OWN_CAR") {
+      steps.push("inboundCarpoolAvailable");
+      if (inboundCarpoolAvailable === true) {
+        steps.push("inboundCarpoolSeats", "inboundCarpoolArea");
+      }
+    } else if (inboundTransportation === "CARPOOL_NEEDED") {
+      steps.push("inboundCarpoolPreferredArea");
+    }
+    steps.push("outboundTransportationMethod");
+    if (outboundTransportation === "OWN_CAR") {
+      steps.push("outboundCarpoolAvailable");
+      if (outboundCarpoolAvailable === true) {
+        steps.push("outboundCarpoolSeats", "outboundCarpoolArea");
+      }
+    } else if (outboundTransportation === "CARPOOL_NEEDED") {
+      steps.push("outboundCarpoolPreferredArea");
+    }
   }
 
+  // 마지막 단계
+  steps.push("lookupKey", "privacyConsentAgreed");
   return steps;
 }
 
@@ -178,8 +224,15 @@ export function PublicRegisterPage() {
   const outboundCarpoolAvailable = watch("outboundCarpoolAvailable");
   const gender = watch("gender");
 
-  const currentSteps = buildSteps(attendanceType);
+  const currentSteps = buildSteps(
+    attendanceType,
+    inboundTransportation,
+    inboundCarpoolAvailable,
+    outboundTransportation,
+    outboundCarpoolAvailable
+  );
   const isLastStep = step === currentSteps.length - 1;
+
 
   function onSubmit(values: FormValues) {
     const payload: any = {
@@ -234,6 +287,13 @@ export function PublicRegisterPage() {
     pattern: /^[0-9]{3}-[0-9]{3,4}-[0-9]{4}$/
   });
 
+  function handleInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" && !isLastStep) {
+      e.preventDefault();
+      goNext();
+    }
+  }
+
   return (
     <section className="register-flow">
       <div className="register-flow__header">
@@ -244,7 +304,15 @@ export function PublicRegisterPage() {
       {!registered ? (
         <form
           className="form-grid wizard"
-          onSubmit={handleSubmit(onSubmit, () => setShake(true))}
+          onSubmit={(e) => {
+            // Allow form submission only on last step
+            if (!isLastStep) {
+              e.preventDefault();
+              goNext();
+            } else {
+              handleSubmit(onSubmit, () => setShake(true))(e);
+            }
+          }}
         >
           <div className="wizard__progress">
             {currentSteps.map((field, index) => (
@@ -416,6 +484,26 @@ export function PublicRegisterPage() {
                         setValue("outboundCarpoolSeats", undefined);
                         setValue("lodgingNight1", false);
                         setValue("lodgingNight2", false);
+                        // 집회만 선택시 다른 일정은 자동으로 false
+                        if (type === "WORSHIP_ONLY") {
+                          setValue("attendDay1Morning", false);
+                          setValue("attendDay1Afternoon", false);
+                          setValue("attendDay1Worship", true);
+                          setValue("attendDay2Morning", false);
+                          setValue("attendDay2Afternoon", false);
+                          setValue("attendDay2Worship", true);
+                          setValue("attendDay3Morning", false);
+                          setValue("attendDay3Afternoon", false);
+                        } else {
+                          setValue("attendDay1Morning", false);
+                          setValue("attendDay1Afternoon", false);
+                          setValue("attendDay1Worship", false);
+                          setValue("attendDay2Morning", false);
+                          setValue("attendDay2Afternoon", false);
+                          setValue("attendDay2Worship", false);
+                          setValue("attendDay3Morning", false);
+                          setValue("attendDay3Afternoon", false);
+                        }
                       }}
                     >
                       {getAttendanceLabel(type)}
@@ -429,8 +517,7 @@ export function PublicRegisterPage() {
             {/* Step: inboundTransportationMethod */}
             {currentSteps[step] === "inboundTransportationMethod" && attendanceType ? (
               <div className="flow-field flow-field--lg">
-                <span>어떻게 가세요? (인바운드)</span>
-                <span className="direction-label">올 때</span>
+                <span>어떻게 가세요?</span>
                 <div className="option-cards" role="radiogroup" aria-label="인바운드 이동 방식">
                   {getTransportationOptions(attendanceType).map((method) => (
                     <button
@@ -460,8 +547,7 @@ export function PublicRegisterPage() {
             {/* Step: inboundCarpoolAvailable */}
             {currentSteps[step] === "inboundCarpoolAvailable" && inboundTransportation === "OWN_CAR" ? (
               <div className="flow-field flow-field--lg">
-                <span>동승자 탈 수 있어요? (인바운드)</span>
-                <span className="direction-label">올 때</span>
+                <span>동승자 태울 수 있어요?</span>
                 <div className="segmented" role="radiogroup" aria-label="인바운드 동승자 여부">
                   <span
                     className={inboundCarpoolAvailable !== undefined ? "segmented__pill segmented__pill--active" : "segmented__pill"}
@@ -499,8 +585,7 @@ export function PublicRegisterPage() {
             {currentSteps[step] === "inboundCarpoolSeats" ? (
               inboundTransportation === "OWN_CAR" && inboundCarpoolAvailable ? (
                 <label className="flow-field flow-field--lg">
-                  <span>몇 명까지 가능해요? (인바운드)</span>
-                  <span className="direction-label">올 때</span>
+                  <span>몇 명까지 가능해요?</span>
                   <input
                     {...register("inboundCarpoolSeats", {
                       required: "동승자 수를 입력해주세요.",
@@ -525,11 +610,46 @@ export function PublicRegisterPage() {
               ) : null
             ) : null}
 
+            {/* Step: inboundCarpoolArea */}
+            {currentSteps[step] === "inboundCarpoolArea" ? (
+              inboundTransportation === "OWN_CAR" && inboundCarpoolAvailable ? (
+                <label className="flow-field flow-field--lg">
+                  <span>어느 동네에서 태울 수 있어요?</span>
+                  <input
+                    {...register("inboundCarpoolArea", {
+                      required: "지역을 입력해주세요.",
+                      maxLength: { value: 100, message: "100자 이하로 입력해주세요." }
+                    })}
+                    placeholder="예: 강남역, 삼성역 근처"
+                    autoFocus
+                  />
+                  {formState.errors.inboundCarpoolArea && <span className="field-error">{formState.errors.inboundCarpoolArea.message}</span>}
+                </label>
+              ) : null
+            ) : null}
+
+            {/* Step: inboundCarpoolPreferredArea */}
+            {currentSteps[step] === "inboundCarpoolPreferredArea" ? (
+              inboundTransportation === "CARPOOL_NEEDED" ? (
+                <label className="flow-field flow-field--lg">
+                  <span>어느 동네에서 탈 수 있어요?</span>
+                  <input
+                    {...register("inboundCarpoolPreferredArea", {
+                      required: "지역을 입력해주세요.",
+                      maxLength: { value: 100, message: "100자 이하로 입력해주세요." }
+                    })}
+                    placeholder="예: 강남역, 삼성역 근처"
+                    autoFocus
+                  />
+                  {formState.errors.inboundCarpoolPreferredArea && <span className="field-error">{formState.errors.inboundCarpoolPreferredArea.message}</span>}
+                </label>
+              ) : null
+            ) : null}
+
             {/* Step: outboundTransportationMethod */}
             {currentSteps[step] === "outboundTransportationMethod" && attendanceType ? (
               <div className="flow-field flow-field--lg">
-                <span>어떻게 돌아가세요? (아웃바운드)</span>
-                <span className="direction-label">돌아갈 때</span>
+                <span>어떻게 돌아가세요?</span>
                 <div className="option-cards" role="radiogroup" aria-label="아웃바운드 이동 방식">
                   {getTransportationOptions(attendanceType).map((method) => (
                     <button
@@ -559,8 +679,7 @@ export function PublicRegisterPage() {
             {/* Step: outboundCarpoolAvailable */}
             {currentSteps[step] === "outboundCarpoolAvailable" && outboundTransportation === "OWN_CAR" ? (
               <div className="flow-field flow-field--lg">
-                <span>동승자 탈 수 있어요? (아웃바운드)</span>
-                <span className="direction-label">돌아갈 때</span>
+                <span>동승자 태울 수 있어요?</span>
                 <div className="segmented" role="radiogroup" aria-label="아웃바운드 동승자 여부">
                   <span
                     className={outboundCarpoolAvailable !== undefined ? "segmented__pill segmented__pill--active" : "segmented__pill"}
@@ -598,8 +717,7 @@ export function PublicRegisterPage() {
             {currentSteps[step] === "outboundCarpoolSeats" ? (
               outboundTransportation === "OWN_CAR" && outboundCarpoolAvailable ? (
                 <label className="flow-field flow-field--lg">
-                  <span>몇 명까지 가능해요? (아웃바운드)</span>
-                  <span className="direction-label">돌아갈 때</span>
+                  <span>몇 명까지 가능해요?</span>
                   <input
                     {...register("outboundCarpoolSeats", {
                       required: "동승자 수를 입력해주세요.",
@@ -620,6 +738,42 @@ export function PublicRegisterPage() {
                     autoFocus
                   />
                   {formState.errors.outboundCarpoolSeats && <span className="field-error">{formState.errors.outboundCarpoolSeats.message}</span>}
+                </label>
+              ) : null
+            ) : null}
+
+            {/* Step: outboundCarpoolArea */}
+            {currentSteps[step] === "outboundCarpoolArea" ? (
+              outboundTransportation === "OWN_CAR" && outboundCarpoolAvailable ? (
+                <label className="flow-field flow-field--lg">
+                  <span>어느 동네에서 태울 수 있어요?</span>
+                  <input
+                    {...register("outboundCarpoolArea", {
+                      required: "지역을 입력해주세요.",
+                      maxLength: { value: 100, message: "100자 이하로 입력해주세요." }
+                    })}
+                    placeholder="예: 강남역, 삼성역 근처"
+                    autoFocus
+                  />
+                  {formState.errors.outboundCarpoolArea && <span className="field-error">{formState.errors.outboundCarpoolArea.message}</span>}
+                </label>
+              ) : null
+            ) : null}
+
+            {/* Step: outboundCarpoolPreferredArea */}
+            {currentSteps[step] === "outboundCarpoolPreferredArea" ? (
+              outboundTransportation === "CARPOOL_NEEDED" ? (
+                <label className="flow-field flow-field--lg">
+                  <span>어느 동네에서 탈 수 있어요?</span>
+                  <input
+                    {...register("outboundCarpoolPreferredArea", {
+                      required: "지역을 입력해주세요.",
+                      maxLength: { value: 100, message: "100자 이하로 입력해주세요." }
+                    })}
+                    placeholder="예: 강남역, 삼성역 근처"
+                    autoFocus
+                  />
+                  {formState.errors.outboundCarpoolPreferredArea && <span className="field-error">{formState.errors.outboundCarpoolPreferredArea.message}</span>}
                 </label>
               ) : null
             ) : null}
@@ -645,49 +799,71 @@ export function PublicRegisterPage() {
             {currentSteps[step] === "attendDay1Morning" && (attendanceType === "PARTIAL" || attendanceType === "WORSHIP_ONLY") ? (
               <div className="flow-field flow-field--lg">
                 <span>참석 시간</span>
-                <div className="check-grid">
-                  <div>
-                    <h3 className="checklist-day-label">금요일 (Day 1)</h3>
-                    <label className="check-row">
-                      <input {...register("attendDay1Morning")} type="checkbox" />
-                      <span>아침</span>
-                    </label>
-                    <label className="check-row">
-                      <input {...register("attendDay1Afternoon")} type="checkbox" />
-                      <span>오후</span>
-                    </label>
-                    <label className="check-row">
-                      <input {...register("attendDay1Worship")} type="checkbox" />
-                      <span>예배</span>
-                    </label>
+                {attendanceType === "WORSHIP_ONLY" ? (
+                  <div className="checklist-worship-only">
+                    <p className="checklist-note">집회 시간만 참석합니다</p>
+                    <div className="check-grid">
+                      <div>
+                        <h3 className="checklist-day-label">금요일 (Day 1)</h3>
+                        <label className="check-row">
+                          <input {...register("attendDay1Worship")} type="checkbox" disabled={true} checked={true} readOnly={true} />
+                          <span className="disabled-text">집회</span>
+                        </label>
+                      </div>
+                      <div>
+                        <h3 className="checklist-day-label">토요일 (Day 2)</h3>
+                        <label className="check-row">
+                          <input {...register("attendDay2Worship")} type="checkbox" disabled={true} checked={true} readOnly={true} />
+                          <span className="disabled-text">집회</span>
+                        </label>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="checklist-day-label">토요일 (Day 2)</h3>
-                    <label className="check-row">
-                      <input {...register("attendDay2Morning")} type="checkbox" />
-                      <span>아침</span>
-                    </label>
-                    <label className="check-row">
-                      <input {...register("attendDay2Afternoon")} type="checkbox" />
-                      <span>오후</span>
-                    </label>
-                    <label className="check-row">
-                      <input {...register("attendDay2Worship")} type="checkbox" />
-                      <span>예배</span>
-                    </label>
+                ) : (
+                  <div className="check-grid">
+                    <div>
+                      <h3 className="checklist-day-label">금요일 (Day 1)</h3>
+                      <label className="check-row">
+                        <input {...register("attendDay1Morning")} type="checkbox" />
+                        <span>아침</span>
+                      </label>
+                      <label className="check-row">
+                        <input {...register("attendDay1Afternoon")} type="checkbox" />
+                        <span>오후</span>
+                      </label>
+                      <label className="check-row">
+                        <input {...register("attendDay1Worship")} type="checkbox" />
+                        <span>집회</span>
+                      </label>
+                    </div>
+                    <div>
+                      <h3 className="checklist-day-label">토요일 (Day 2)</h3>
+                      <label className="check-row">
+                        <input {...register("attendDay2Morning")} type="checkbox" />
+                        <span>아침</span>
+                      </label>
+                      <label className="check-row">
+                        <input {...register("attendDay2Afternoon")} type="checkbox" />
+                        <span>오후</span>
+                      </label>
+                      <label className="check-row">
+                        <input {...register("attendDay2Worship")} type="checkbox" />
+                        <span>예배</span>
+                      </label>
+                    </div>
+                    <div>
+                      <h3 className="checklist-day-label">일요일 (Day 3)</h3>
+                      <label className="check-row">
+                        <input {...register("attendDay3Morning")} type="checkbox" />
+                        <span>아침</span>
+                      </label>
+                      <label className="check-row">
+                        <input {...register("attendDay3Afternoon")} type="checkbox" />
+                        <span>오후</span>
+                      </label>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="checklist-day-label">일요일 (Day 3)</h3>
-                    <label className="check-row">
-                      <input {...register("attendDay3Morning")} type="checkbox" />
-                      <span>아침</span>
-                    </label>
-                    <label className="check-row">
-                      <input {...register("attendDay3Afternoon")} type="checkbox" />
-                      <span>오후</span>
-                    </label>
-                  </div>
-                </div>
+                )}
               </div>
             ) : null}
 
