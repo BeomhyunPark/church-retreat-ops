@@ -1,6 +1,8 @@
 package com.gmc.retreat.registration.dto;
 
+import com.gmc.retreat.registration.domain.AttendanceType;
 import com.gmc.retreat.registration.domain.Gender;
+import com.gmc.retreat.registration.domain.TransportationMethod;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -16,6 +18,20 @@ public record RegistrationCreateRequest(
         @NotBlank String phoneNumber,
         @Size(max = 100) String churchCellDepartment,
         @NotNull @AssertTrue Boolean privacyConsentAgreed,
-        @NotBlank @Pattern(regexp = "^[0-9]{6}$") String lookupKey
+        @NotBlank @Pattern(regexp = "^[0-9]{6}$") String lookupKey,
+        @NotNull AttendanceType attendanceType,
+        @NotNull TransportationMethod transportation,
+        Boolean carpoolAvailable,
+        @Min(1) @Max(10) Integer carpoolSeats,
+        Boolean lodgingNight1,
+        Boolean lodgingNight2,
+        Boolean attendDay1Morning,
+        Boolean attendDay1Afternoon,
+        Boolean attendDay1Worship,
+        Boolean attendDay2Morning,
+        Boolean attendDay2Afternoon,
+        Boolean attendDay2Worship,
+        Boolean attendDay3Morning,
+        Boolean attendDay3Afternoon
 ) {
 }
