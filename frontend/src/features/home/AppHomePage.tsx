@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { StatusMessage } from "../../shared/ui/StatusMessage";
 import { useAppIdentity } from "../../shared/identity/appIdentity";
 import { BrandHeader } from "../../shared/layout/BrandHeader";
+import { AdminIcon } from "../../shared/ui/icons";
 
 export function AppHomePage() {
   const { identity, isError, error } = useAppIdentity();
@@ -10,8 +11,8 @@ export function AppHomePage() {
     <main className="app-home">
       <header className="app-home__top">
         <BrandHeader />
-        <Link className="text-link" to="/admin/login">
-          관리자
+        <Link className="icon-link" to="/admin/login" aria-label="관리자">
+          <AdminIcon />
         </Link>
       </header>
 
