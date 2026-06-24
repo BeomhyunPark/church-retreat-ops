@@ -51,13 +51,13 @@ export function AdminLayout() {
   return (
     <div className="admin-shell">
       <aside className="admin-sidebar">
-        <div className="admin-sidebar__brand">
+        <NavLink className="admin-sidebar__brand" to="/">
           <span className="brand-mark">{brandInitials(identity.appName)}</span>
           <div>
             <p className="eyebrow">{identity.organizationName}</p>
             <strong>{identity.appName}</strong>
           </div>
-        </div>
+        </NavLink>
         <nav className="admin-nav" aria-label="관리자 메뉴">
           {links.map((link) => (
             <NavLink key={link.to} to={link.to}>
@@ -80,6 +80,9 @@ export function AdminLayout() {
             <strong>{profileQuery.data?.name ?? "로그인이 필요합니다"}</strong>
           </div>
           <div className="table-actions">
+            <NavLink className="button button--ghost" to="/">
+              앱 홈
+            </NavLink>
             <NavLink className="button button--ghost" to="/admin/profile">
               비밀번호 변경
             </NavLink>

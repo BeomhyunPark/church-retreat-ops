@@ -33,42 +33,44 @@ export function PublicRegisterPage() {
   }
 
   return (
-    <section className="panel">
-      <p className="eyebrow">Registration</p>
-      <h1>참가 등록</h1>
-      <p className="muted">연락 가능한 정보로 입력해 주세요. 등록 완료 후 표시되는 조회 키는 다시 확인할 수 없습니다.</p>
+    <section className="register-flow">
+      <div className="register-flow__header">
+        <p className="eyebrow">Registration</p>
+        <h1>하나씩 적으면 끝</h1>
+        <p className="muted">필요한 것만 물어볼게요. 마지막에 조회 키가 나옵니다.</p>
+      </div>
 
       <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
-        <label>
-          이름
+        <label className="flow-field">
+          <span>이름</span>
           <input {...register("name", { required: true })} autoComplete="name" placeholder="홍길동" />
         </label>
-        <label>
-          성별
+        <label className="flow-field">
+          <span>전화번호</span>
+          <input {...register("phoneNumber", { required: true })} inputMode="tel" placeholder="010-1234-5678" />
+        </label>
+        <label className="flow-field">
+          <span>성별</span>
           <select {...register("gender", { required: true })}>
             <option value="FEMALE">여성</option>
             <option value="MALE">남성</option>
           </select>
         </label>
-        <label>
-          출생연도
+        <label className="flow-field">
+          <span>출생연도</span>
           <input {...register("birthYear", { required: true })} inputMode="numeric" placeholder="1991" />
         </label>
-        <label>
-          전화번호
-          <input {...register("phoneNumber", { required: true })} inputMode="tel" placeholder="010-1234-5678" />
-        </label>
-        <label>
-          교구/셀
+        <label className="flow-field">
+          <span>또래 / 셀</span>
           <input {...register("churchCellDepartment")} placeholder="예: 청년부 1셀" />
         </label>
         <label className="check-row">
           <input {...register("privacyConsentAgreed", { required: true })} type="checkbox" />
-          개인정보 수집 및 이용에 동의합니다.
+          <span>등록 확인을 위해 개인정보 수집 및 이용에 동의합니다.</span>
         </label>
 
         <button className="button button--primary" disabled={mutation.isPending || formState.isSubmitting} type="submit">
-          {mutation.isPending ? "등록 중..." : "등록하기"}
+          {mutation.isPending ? "등록 중..." : "이대로 등록"}
         </button>
       </form>
 
@@ -76,18 +78,18 @@ export function PublicRegisterPage() {
       {lookupKey ? (
         <div className="completion-card" role="status">
           <p className="eyebrow">Registered</p>
-          <h2>등록이 완료되었습니다</h2>
-          <p className="muted">아래 조회 키는 다시 표시되지 않습니다. 등록 조회와 현장 확인에 사용할 수 있습니다.</p>
+          <h2>등록 끝났어요</h2>
+          <p className="muted">이 키는 지금만 보여요. 내 등록 확인할 때 필요합니다.</p>
           <div className="lookup-key-box">
             <span>내 조회 키</span>
             <strong>{lookupKey}</strong>
           </div>
           <div className="completion-actions">
             <Link className="button button--primary" to="/public/self-lookup">
-              내 등록 조회하기
+              내 등록 확인
             </Link>
-            <Link className="button button--secondary" to="/public">
-              홈으로 돌아가기
+            <Link className="button button--secondary" to="/">
+              처음으로
             </Link>
           </div>
         </div>
