@@ -248,14 +248,18 @@ h2 {
 
 .home-pass {
   background:
-    linear-gradient(135deg, rgb(255 255 255 / 0.3) 0 1px, transparent 1px 18px),
-    linear-gradient(150deg, #12352f 0%, #176b5b 58%, #f4a340 155%);
-  border: 1px solid rgb(255 255 255 / 0.28);
-  border-radius: 8px;
+    repeating-linear-gradient(90deg, transparent, transparent 1px, rgba(212, 175, 55, 0.05) 1px, rgba(212, 175, 55, 0.05) 3px),
+    repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(212, 175, 55, 0.05) 1px, rgba(212, 175, 55, 0.05) 3px),
+    linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #0d0d0d 100%);
+  border: 2px solid;
+  border-image: linear-gradient(135deg, #d4af37 0%, #f4e4c1 50%, #d4af37 100%) 1;
+  border-radius: 12px;
   box-shadow:
-    0 28px 54px rgb(15 73 62 / 0.24),
-    inset 0 1px 0 rgb(255 255 255 / 0.35);
-  color: #fff;
+    0 20px 60px rgba(0, 0, 0, 0.8),
+    0 0 40px rgba(212, 175, 55, 0.25),
+    inset 0 1px 0 rgba(212, 175, 55, 0.3),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.5);
+  color: #f4e4c1;
   display: grid;
   gap: 1.1rem;
   min-height: 310px;
@@ -267,19 +271,21 @@ h2 {
 }
 
 .home-pass::before {
-  background: rgb(255 255 255 / 0.13);
+  background:
+    radial-gradient(circle at 30% 30%, rgba(212, 175, 55, 0.2), transparent 50%),
+    linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0) 60%);
   content: "";
-  height: 5.5rem;
+  height: 100%;
+  left: -50%;
   position: absolute;
-  right: -2rem;
-  top: 2rem;
-  transform: rotate(18deg);
-  width: 9rem;
+  top: -50%;
+  width: 200%;
+  pointer-events: none;
 }
 
 .home-pass::after {
   animation: pass-shine 3.8s ease-in-out infinite;
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.32), transparent);
+  background: linear-gradient(90deg, transparent, rgba(244, 228, 193, 0.25), transparent);
   content: "";
   height: 380px;
   position: absolute;
@@ -313,7 +319,7 @@ h2 {
 }
 
 .home-pass__code span {
-  background: rgb(255 255 255 / 0.82);
+  background: linear-gradient(180deg, #f4e4c1 0%, #d4af37 50%, #f4e4c1 100%);
   border-radius: 999px;
   display: block;
   height: 3.2rem;
@@ -329,7 +335,7 @@ h2 {
 
 .home-pass__meta {
   align-items: center;
-  border-top: 1px dashed rgb(255 255 255 / 0.5);
+  border-top: 1px dashed rgba(212, 175, 55, 0.4);
   display: flex;
   font-size: 0.78rem;
   font-weight: 900;
@@ -428,18 +434,18 @@ h2 {
 .register-pass {
   animation: page-rise 480ms ease both;
   background:
-    repeating-linear-gradient(90deg, transparent, transparent 2px, rgb(255 255 255 / 0.08) 2px, rgb(255 255 255 / 0.08) 4px),
-    repeating-linear-gradient(0deg, transparent, transparent 2px, rgb(255 255 255 / 0.08) 2px, rgb(255 255 255 / 0.08) 4px),
-    linear-gradient(135deg, #0a1f1b 0%, #12352f 35%, #1a5a4f 70%, #f4a340 155%);
+    repeating-linear-gradient(90deg, transparent, transparent 1px, rgba(212, 175, 55, 0.05) 1px, rgba(212, 175, 55, 0.05) 3px),
+    repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(212, 175, 55, 0.05) 1px, rgba(212, 175, 55, 0.05) 3px),
+    linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #0d0d0d 100%);
   border: 2px solid;
-  border-image: linear-gradient(135deg, rgb(255 255 255 / 0.4), rgb(255 255 255 / 0.1)) 1;
+  border-image: linear-gradient(135deg, #d4af37 0%, #f4e4c1 50%, #d4af37 100%) 1;
   border-radius: 12px;
   box-shadow:
-    0 40px 60px rgb(15 73 62 / 0.3),
-    0 0 30px rgb(244 163 64 / 0.15),
-    inset 0 1px 0 rgb(255 255 255 / 0.2),
-    inset 0 -1px 2px rgb(0 0 0 / 0.2);
-  color: #fff;
+    0 20px 60px rgba(0, 0, 0, 0.8),
+    0 0 40px rgba(212, 175, 55, 0.25),
+    inset 0 1px 0 rgba(212, 175, 55, 0.3),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.5);
+  color: #f4e4c1;
   display: grid;
   gap: 1.5rem;
   max-width: 500px;
@@ -453,8 +459,8 @@ h2 {
 
 .register-pass::before {
   background:
-    radial-gradient(circle at 30% 30%, rgb(255 255 255 / 0.15), transparent 50%),
-    linear-gradient(135deg, rgb(244 163 64 / 0.1), rgb(244 163 64 / 0) 60%);
+    radial-gradient(circle at 30% 30%, rgba(212, 175, 55, 0.2), transparent 50%),
+    linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0) 60%);
   content: "";
   height: 100%;
   left: -50%;
@@ -507,7 +513,7 @@ h2 {
 
 .register-pass__bar--filled {
   animation: pass-bar-fill 700ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-  background: rgb(255 255 255 / 0.9);
+  background: linear-gradient(180deg, #f4e4c1 0%, #d4af37 50%, #f4e4c1 100%);
 }
 
 .register-pass__meta {
@@ -531,8 +537,9 @@ h2 {
 
 .status-badge--complete {
   animation: pass-bar-pulse 1.5s ease-in-out infinite;
-  background: rgba(244, 163, 64, 0.3);
-  color: #ffd699;
+  background: rgba(212, 175, 55, 0.2);
+  color: #f4e4c1;
+  border-color: rgba(212, 175, 55, 0.5);
 }
 
 .flow-field {
@@ -950,18 +957,18 @@ h2 {
 .result-pass {
   animation: page-rise 480ms ease both;
   background:
-    repeating-linear-gradient(90deg, transparent, transparent 2px, rgb(255 255 255 / 0.08) 2px, rgb(255 255 255 / 0.08) 4px),
-    repeating-linear-gradient(0deg, transparent, transparent 2px, rgb(255 255 255 / 0.08) 2px, rgb(255 255 255 / 0.08) 4px),
-    linear-gradient(135deg, #0a1f1b 0%, #12352f 35%, #1a5a4f 70%, #f4a340 155%);
+    repeating-linear-gradient(90deg, transparent, transparent 1px, rgba(212, 175, 55, 0.05) 1px, rgba(212, 175, 55, 0.05) 3px),
+    repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(212, 175, 55, 0.05) 1px, rgba(212, 175, 55, 0.05) 3px),
+    linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #0d0d0d 100%);
   border: 2px solid;
-  border-image: linear-gradient(135deg, rgb(255 255 255 / 0.4), rgb(255 255 255 / 0.1)) 1;
+  border-image: linear-gradient(135deg, #d4af37 0%, #f4e4c1 50%, #d4af37 100%) 1;
   border-radius: 12px;
   box-shadow:
-    0 40px 60px rgb(15 73 62 / 0.3),
-    0 0 30px rgb(244 163 64 / 0.15),
-    inset 0 1px 0 rgb(255 255 255 / 0.2),
-    inset 0 -1px 2px rgb(0 0 0 / 0.2);
-  color: #fff;
+    0 20px 60px rgba(0, 0, 0, 0.8),
+    0 0 40px rgba(212, 175, 55, 0.25),
+    inset 0 1px 0 rgba(212, 175, 55, 0.3),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.5);
+  color: #f4e4c1;
   display: grid;
   gap: 1.2rem;
   margin-top: 1rem;
@@ -975,8 +982,8 @@ h2 {
 
 .result-pass::before {
   background:
-    radial-gradient(circle at 30% 30%, rgb(255 255 255 / 0.15), transparent 50%),
-    linear-gradient(135deg, rgb(244 163 64 / 0.1), rgb(244 163 64 / 0) 60%);
+    radial-gradient(circle at 30% 30%, rgba(212, 175, 55, 0.2), transparent 50%),
+    linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0) 60%);
   content: "";
   height: 100%;
   left: -50%;
@@ -1048,7 +1055,7 @@ h2 {
 
 .result-pass__bar--filled {
   animation: pass-bar-fill 600ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-  background: rgb(255 255 255 / 0.82);
+  background: linear-gradient(180deg, #f4e4c1 0%, #d4af37 50%, #f4e4c1 100%);
 }
 
 .result-pass__meta {
