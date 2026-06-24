@@ -5,6 +5,23 @@ import { Link } from "react-router-dom";
 import { createRegistration } from "./publicApi";
 import { StatusMessage } from "../../shared/ui/StatusMessage";
 
+// Validation helper functions
+const ValidationHelpers = {
+  // Filter non-digits from input
+  filterNumeric: (value: string): string => value.replace(/\D/g, ""),
+
+  // Filter to Korean and English only - remove digits, spaces, hyphen, and dangerous chars
+  filterTextOnly: (value: string): string => {
+    // Remove digits, spaces, hyphen, and dangerous characters
+    return value.replace(/[0-9!@#$%^&*()+=\[\]{};:'"<>,.?/\\|`~\s\-]/g, "");
+  },
+
+  // Normalize whitespace (remove leading spaces, collapse multiple spaces)
+  normalizeWhitespace: (value: string): string => {
+    return value.replace(/\s+/g, " ").trim();
+  }
+};
+
 type AttendanceType = "FULL" | "PARTIAL" | "WORSHIP_ONLY";
 type TransportationMethod = "OWN_CAR" | "BUS" | "PUBLIC_TRANSIT" | "RIDE_NEEDED";
 
@@ -232,7 +249,27 @@ export function PublicRegisterPage() {
             {currentSteps[step] === "name" ? (
               <label className="flow-field flow-field--lg">
                 <span>이름</span>
-                <input {...register("name", { required: true })} autoComplete="name" placeholder="홍길동" autoFocus />
+                <input
+                  {...register("name", {
+                    required: "이름을 입력해주세요.",
+                    minLength: { value: 2, message: "2자 이상 입력해주세요." },
+                    maxLength: { value: 50, message: "50자 이하로 입력해주세요." },
+                    validate: (value) => {
+                      const filtered = ValidationHelpers.filterTextOnly(value);
+                      return filtered.length > 0 || "한글 또는 영문만 입력 가능합니다.";
+                    }
+                  })}
+                  onChange={(e) => {
+                    const filtered = ValidationHelpers.filterTextOnly(e.target.value);
+                    e.target.value = filtered;
+                    const event = new Event("change", { bubbles: true });
+                    e.target.dispatchEvent(event);
+                  }}
+                  autoComplete="name"
+                  placeholder="홍길동"
+                  autoFocus
+                />
+                {formState.errors.name && <span className="field-error">{formState.errors.name.message}</span>}
               </label>
             ) : null}
 
@@ -275,12 +312,25 @@ export function PublicRegisterPage() {
               <label className="flow-field flow-field--lg">
                 <span>또래</span>
                 <input
-                  {...register("birthYear", { required: true })}
+                  {...register("birthYear", {
+                    required: "태어난 연도를 입력해주세요.",
+                    validate: (value) => {
+                      const numValue = parseInt(value as any, 10);
+                      if (isNaN(numValue)) return "숫자만 입력 가능합니다.";
+                      if (String(value).length !== 2) return "2자리로 입력해주세요.";
+                      return true;
+                    }
+                  })}
+                  onChange={(e) => {
+                    const filtered = ValidationHelpers.filterNumeric(e.target.value).slice(0, 2);
+                    e.target.value = filtered;
+                  }}
                   inputMode="numeric"
                   placeholder="90"
                   maxLength={2}
                   autoFocus
                 />
+                {formState.errors.birthYear && <span className="field-error">{formState.errors.birthYear.message}</span>}
               </label>
             ) : null}
 
@@ -291,13 +341,15 @@ export function PublicRegisterPage() {
                 <input
                   {...phoneField}
                   onChange={(event) => {
-                    event.target.value = formatPhoneNumber(event.target.value);
+                    const filtered = ValidationHelpers.filterNumeric(event.target.value);
+                    event.target.value = formatPhoneNumber(filtered);
                     onPhoneChange(event);
                   }}
                   inputMode="tel"
                   placeholder="01012345678"
                   autoFocus
                 />
+                {formState.errors.phoneNumber && <span className="field-error">010-1234-5678 형식으로 입력해주세요.</span>}
               </label>
             ) : null}
 
@@ -306,9 +358,25 @@ export function PublicRegisterPage() {
               <label className="flow-field flow-field--lg">
                 <span>셀</span>
                 <div className="suffix-input">
-                  <input {...register("churchCellDepartment")} placeholder="유성현" autoFocus />
+                  <input
+                    {...register("churchCellDepartment", {
+                      maxLength: { value: 100, message: "100자 이하로 입력해주세요." },
+                      validate: (value) => {
+                        if (!value) return true; // Optional field
+                        const filtered = ValidationHelpers.filterTextOnly(value);
+                        return filtered.length > 0 || "한글 또는 영문만 입력 가능합니다.";
+                      }
+                    })}
+                    onChange={(e) => {
+                      const filtered = ValidationHelpers.filterTextOnly(e.target.value);
+                      e.target.value = filtered;
+                    }}
+                    placeholder="유성현"
+                    autoFocus
+                  />
                   <span className="suffix-input__suffix">셀</span>
                 </div>
+                {formState.errors.churchCellDepartment && <span className="field-error">{formState.errors.churchCellDepartment.message}</span>}
               </label>
             ) : null}
 
@@ -415,11 +483,25 @@ export function PublicRegisterPage() {
               <label className="flow-field flow-field--lg">
                 <span>몇 명까지 가능해요?</span>
                 <input
-                  {...register("carpoolSeats", { min: 1, max: 10 })}
+                  {...register("carpoolSeats", {
+                    required: "동승자 수를 입력해주세요.",
+                    min: { value: 1, message: "최소 1명 이상이어야 합니다." },
+                    max: { value: 10, message: "최대 10명까지 입력 가능합니다." },
+                    validate: (value) => {
+                      const numValue = parseInt(value as any, 10);
+                      if (isNaN(numValue)) return "숫자만 입력 가능합니다.";
+                      return true;
+                    }
+                  })}
+                  onChange={(e) => {
+                    const filtered = ValidationHelpers.filterNumeric(e.target.value).slice(0, 2);
+                    e.target.value = filtered;
+                  }}
                   inputMode="numeric"
                   placeholder="1"
                   autoFocus
                 />
+                {formState.errors.carpoolSeats && <span className="field-error">{formState.errors.carpoolSeats.message}</span>}
               </label>
             ) : null}
 

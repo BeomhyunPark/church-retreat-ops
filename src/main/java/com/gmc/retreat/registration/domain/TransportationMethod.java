@@ -2,7 +2,9 @@ package com.gmc.retreat.registration.domain;
 
 public enum TransportationMethod {
     OWN_CAR,
-    BUS,
+    GROUP_BUS,
+    WORSHIP_SHUTTLE,
     PUBLIC_TRANSIT,
-    RIDE_NEEDED
+    CARPOOL_NEEDED,
+    NOT_DECIDED
 }

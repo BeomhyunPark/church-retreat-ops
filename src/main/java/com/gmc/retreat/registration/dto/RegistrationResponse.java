@@ -17,9 +17,6 @@ public record RegistrationResponse(
         Boolean feePaid,
         RegistrationStatus status,
         AttendanceType attendanceType,
-        TransportationMethod transportationMethod,
-        Boolean carpoolAvailable,
-        Integer carpoolSeats,
         Boolean lodgingNight1,
         Boolean lodgingNight2,
         Boolean attendDay1Morning,
@@ -29,7 +26,13 @@ public record RegistrationResponse(
         Boolean attendDay2Afternoon,
         Boolean attendDay2Worship,
         Boolean attendDay3Morning,
-        Boolean attendDay3Afternoon
+        Boolean attendDay3Afternoon,
+        TransportationMethod inboundTransportationMethod,
+        Boolean inboundCarpoolAvailable,
+        Integer inboundCarpoolSeats,
+        TransportationMethod outboundTransportationMethod,
+        Boolean outboundCarpoolAvailable,
+        Integer outboundCarpoolSeats
 ) {
     public static RegistrationResponse from(Registration registration) {
         return new RegistrationResponse(
@@ -42,9 +45,6 @@ public record RegistrationResponse(
                 registration.feePaid(),
                 registration.status(),
                 registration.attendanceType(),
-                registration.transportationMethod(),
-                registration.carpoolAvailable(),
-                registration.carpoolSeats(),
                 registration.lodgingNight1(),
                 registration.lodgingNight2(),
                 registration.attendDay1Morning(),
@@ -54,7 +54,13 @@ public record RegistrationResponse(
                 registration.attendDay2Afternoon(),
                 registration.attendDay2Worship(),
                 registration.attendDay3Morning(),
-                registration.attendDay3Afternoon()
+                registration.attendDay3Afternoon(),
+                registration.inboundTransportationMethod(),
+                registration.inboundCarpoolAvailable(),
+                registration.inboundCarpoolSeats(),
+                registration.outboundTransportationMethod(),
+                registration.outboundCarpoolAvailable(),
+                registration.outboundCarpoolSeats()
         );
     }
 }

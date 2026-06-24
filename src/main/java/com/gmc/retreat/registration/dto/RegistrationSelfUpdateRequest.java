@@ -23,9 +23,6 @@ public record RegistrationSelfUpdateRequest(
             @NotBlank String phoneNumber,
             @Size(max = 100) String churchCellDepartment,
             @NotNull AttendanceType attendanceType,
-            @NotNull TransportationMethod transportation,
-            Boolean carpoolAvailable,
-            @Min(1) @Max(10) Integer carpoolSeats,
             Boolean lodgingNight1,
             Boolean lodgingNight2,
             Boolean attendDay1Morning,
@@ -35,7 +32,13 @@ public record RegistrationSelfUpdateRequest(
             Boolean attendDay2Afternoon,
             Boolean attendDay2Worship,
             Boolean attendDay3Morning,
-            Boolean attendDay3Afternoon
+            Boolean attendDay3Afternoon,
+            @NotNull TransportationMethod inboundTransportation,
+            Boolean inboundCarpoolAvailable,
+            @Min(1) @Max(10) Integer inboundCarpoolSeats,
+            @NotNull TransportationMethod outboundTransportation,
+            Boolean outboundCarpoolAvailable,
+            @Min(1) @Max(10) Integer outboundCarpoolSeats
     ) {
     }
 }
