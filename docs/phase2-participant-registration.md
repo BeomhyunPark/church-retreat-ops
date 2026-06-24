@@ -10,22 +10,22 @@ Phase 2는 참가자가 관리자 계정 없이 수련회 등록을 제출하고
 
 ## 참가자 등록 흐름
 
-1. 참가자가 `POST /api/registrations`로 이름, 성별, 출생연도, 전화번호, 교구/셀/부서, 개인정보 동의 여부를 보냅니다.
+1. 참가자가 `POST /api/registrations`로 이름, 성별, 출생연도, 전화번호, 교구/셀/부서, 개인정보 동의 여부, 본인이 정한 6자리 숫자 조회 키(PIN)를 보냅니다.
 2. 서버가 이름을 trim하고 전화번호를 숫자만 남긴 값으로 정규화합니다.
 3. 전화번호는 10자리 또는 11자리 숫자여야 하며 DB에서도 `ck_registrations_phone_number`로 검증합니다.
 4. 개인정보 동의는 반드시 `true`여야 합니다.
-5. 서버가 개인 조회 키를 생성하고 BCrypt 해시만 DB에 저장합니다.
+5. 서버는 참가자가 보낸 6자리 숫자 조회 키를 BCrypt로 해시해서만 DB에 저장합니다(서버가 키를 생성하지 않음).
 6. 신규 등록이면 `registrations`에 행을 만들고 `CREATED` 이력을 저장합니다.
 7. 동일 이름과 동일 정규화 전화번호의 활성 등록이 이미 있으면 기존 행을 덮어쓰고 `OVERWRITTEN` 이력을 저장합니다.
-8. 응답에는 마스킹된 전화번호와 평문 조회 키가 포함됩니다.
+8. 응답에는 마스킹된 전화번호가 포함됩니다. 참가자가 직접 정한 조회 키는 다시 돌려주지 않습니다.
 
 ## 개인 조회 키 정책
 
-- 조회 키는 등록 또는 중복 덮어쓰기 응답에서만 평문으로 한 번 표시됩니다.
+- 조회 키는 참가자가 등록 시 직접 정하는 6자리 숫자(PIN)입니다. 서버는 키를 생성하지 않습니다.
 - DB에는 조회 키의 BCrypt 해시만 저장합니다.
 - 해시는 BCrypt로 생성합니다.
-- 조회 키를 분실하면 현재 Phase 2 API만으로는 다시 확인할 수 없습니다.
-- API 응답은 조회 키 해시 값을 노출하지 않습니다.
+- API 응답은 조회 키 평문과 해시 값을 모두 노출하지 않습니다.
+- 시도 횟수 제한(rate limit)은 두지 않습니다. 폐쇄된 교회 공동체 내부 사용을 전제로 한 의도적인 선택입니다.
 
 ## 중복 덮어쓰기 정책
 
@@ -34,7 +34,7 @@ Phase 2는 참가자가 관리자 계정 없이 수련회 등록을 제출하고
 - `normalized_name`: 현재는 trim된 이름입니다.
 - `phone_number`: 숫자만 남긴 정규화 전화번호입니다.
 - 중복이면 새 행을 추가하지 않고 기존 활성 행을 업데이트합니다.
-- 덮어쓰기 시 새 조회 키를 발급하고 새 BCrypt 해시로 교체합니다.
+- 덮어쓰기 시 요청에 담긴 조회 키로 새 BCrypt 해시로 교체합니다.
 - 덮어쓰기 전후 스냅샷은 `registration_histories`에 `OVERWRITTEN`으로 저장합니다.
 
 ## 본인 조회 / 수정 정책
@@ -42,8 +42,8 @@ Phase 2는 참가자가 관리자 계정 없이 수련회 등록을 제출하고
 본인 조회:
 
 - `POST /api/registrations/self/lookup`
-- 입력값: 이름, 전화번호 마지막 4자리, 조회 키
-- 서버는 이름과 마지막 4자리로 후보를 찾고 BCrypt로 조회 키를 검증합니다.
+- 입력값: 이름, 조회 키(숫자 6자리)
+- 서버는 이름으로 활성 등록 후보를 찾고 BCrypt로 조회 키를 검증합니다. 전화번호는 입력받지 않습니다.
 - 실패 시 어떤 값이 틀렸는지 구분하지 않고 조회 실패로 응답합니다.
 
 본인 수정:
@@ -101,7 +101,8 @@ curl -s -X POST http://localhost:8080/api/registrations \
     "birthYear":1991,
     "phoneNumber":"010-1234-5678",
     "churchCellDepartment":"Young Adults",
-    "privacyConsentAgreed":true
+    "privacyConsentAgreed":true,
+    "lookupKey":"123456"
   }'
 ```
 
@@ -112,8 +113,7 @@ curl -s -X POST http://localhost:8080/api/registrations/self/lookup \
   -H 'Content-Type: application/json' \
   -d '{
     "name":"Grace Kim",
-    "phoneLastFour":"5678",
-    "lookupKey":"<lookupKey>"
+    "lookupKey":"123456"
   }'
 ```
 
@@ -125,7 +125,7 @@ curl -s -X PUT http://localhost:8080/api/registrations/self \
   -d '{
     "name":"Grace Kim",
     "phoneLastFour":"5678",
-    "lookupKey":"<lookupKey>",
+    "lookupKey":"123456",
     "update":{
       "gender":"FEMALE",
       "birthYear":1992,
