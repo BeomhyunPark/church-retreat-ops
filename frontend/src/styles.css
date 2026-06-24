@@ -353,7 +353,6 @@ h2 {
 .public-main {
   display: grid;
   gap: 1rem;
-  margin: 0 auto;
   max-width: 560px;
   padding: 0 1rem 1.5rem;
 }
