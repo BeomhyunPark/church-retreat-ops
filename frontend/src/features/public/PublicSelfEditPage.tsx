@@ -110,8 +110,10 @@ function buildSteps(isLoaded: boolean, attendanceType?: AttendanceType): Array<k
     ...editSteps,
     "inboundTransportationMethod",
     "inboundCarpoolAvailable",
+    "inboundCarpoolSeats",
     "outboundTransportationMethod",
-    "outboundCarpoolAvailable"
+    "outboundCarpoolAvailable",
+    "outboundCarpoolSeats"
   ];
 
   if (attendanceType === "FULL") {
@@ -484,31 +486,33 @@ export function PublicSelfEditPage() {
             ) : null}
 
             {/* Step: inboundCarpoolSeats */}
-            {currentSteps[step] === "inboundCarpoolAvailable" && inboundTransportation === "OWN_CAR" && inboundCarpoolAvailable && isLoaded ? (
-              <label className="flow-field flow-field--lg">
-                <span>몇 명까지 가능해요? (인바운드)</span>
-                <span className="direction-label">올 때</span>
-                <input
-                  {...register("inboundCarpoolSeats", {
-                    required: "동승자 수를 입력해주세요.",
-                    min: { value: 1, message: "최소 1명 이상이어야 합니다." },
-                    max: { value: 10, message: "최대 10명까지 입력 가능합니다." },
-                    validate: (value) => {
-                      const numValue = parseInt(value as any, 10);
-                      if (isNaN(numValue)) return "숫자만 입력 가능합니다.";
-                      return true;
-                    }
-                  })}
-                  onChange={(e) => {
-                    const filtered = ValidationHelpers.filterNumeric(e.target.value).slice(0, 2);
-                    e.target.value = filtered;
-                  }}
-                  inputMode="numeric"
-                  placeholder="1"
-                  autoFocus
-                />
-                {formState.errors.inboundCarpoolSeats && <span className="field-error">{formState.errors.inboundCarpoolSeats.message}</span>}
-              </label>
+            {currentSteps[step] === "inboundCarpoolSeats" && isLoaded ? (
+              inboundTransportation === "OWN_CAR" && inboundCarpoolAvailable ? (
+                <label className="flow-field flow-field--lg">
+                  <span>몇 명까지 가능해요? (인바운드)</span>
+                  <span className="direction-label">올 때</span>
+                  <input
+                    {...register("inboundCarpoolSeats", {
+                      required: "동승자 수를 입력해주세요.",
+                      min: { value: 1, message: "최소 1명 이상이어야 합니다." },
+                      max: { value: 10, message: "최대 10명까지 입력 가능합니다." },
+                      validate: (value) => {
+                        const numValue = parseInt(value as any, 10);
+                        if (isNaN(numValue)) return "숫자만 입력 가능합니다.";
+                        return true;
+                      }
+                    })}
+                    onChange={(e) => {
+                      const filtered = ValidationHelpers.filterNumeric(e.target.value).slice(0, 2);
+                      e.target.value = filtered;
+                    }}
+                    inputMode="numeric"
+                    placeholder="1"
+                    autoFocus
+                  />
+                  {formState.errors.inboundCarpoolSeats && <span className="field-error">{formState.errors.inboundCarpoolSeats.message}</span>}
+                </label>
+              ) : null
             ) : null}
 
             {/* Step: outboundTransportationMethod */}
@@ -581,31 +585,33 @@ export function PublicSelfEditPage() {
             ) : null}
 
             {/* Step: outboundCarpoolSeats */}
-            {currentSteps[step] === "outboundCarpoolAvailable" && outboundTransportation === "OWN_CAR" && outboundCarpoolAvailable && isLoaded ? (
-              <label className="flow-field flow-field--lg">
-                <span>몇 명까지 가능해요? (아웃바운드)</span>
-                <span className="direction-label">돌아갈 때</span>
-                <input
-                  {...register("outboundCarpoolSeats", {
-                    required: "동승자 수를 입력해주세요.",
-                    min: { value: 1, message: "최소 1명 이상이어야 합니다." },
-                    max: { value: 10, message: "최대 10명까지 입력 가능합니다." },
-                    validate: (value) => {
-                      const numValue = parseInt(value as any, 10);
-                      if (isNaN(numValue)) return "숫자만 입력 가능합니다.";
-                      return true;
-                    }
-                  })}
-                  onChange={(e) => {
-                    const filtered = ValidationHelpers.filterNumeric(e.target.value).slice(0, 2);
-                    e.target.value = filtered;
-                  }}
-                  inputMode="numeric"
-                  placeholder="1"
-                  autoFocus
-                />
-                {formState.errors.outboundCarpoolSeats && <span className="field-error">{formState.errors.outboundCarpoolSeats.message}</span>}
-              </label>
+            {currentSteps[step] === "outboundCarpoolSeats" && isLoaded ? (
+              outboundTransportation === "OWN_CAR" && outboundCarpoolAvailable ? (
+                <label className="flow-field flow-field--lg">
+                  <span>몇 명까지 가능해요? (아웃바운드)</span>
+                  <span className="direction-label">돌아갈 때</span>
+                  <input
+                    {...register("outboundCarpoolSeats", {
+                      required: "동승자 수를 입력해주세요.",
+                      min: { value: 1, message: "최소 1명 이상이어야 합니다." },
+                      max: { value: 10, message: "최대 10명까지 입력 가능합니다." },
+                      validate: (value) => {
+                        const numValue = parseInt(value as any, 10);
+                        if (isNaN(numValue)) return "숫자만 입력 가능합니다.";
+                        return true;
+                      }
+                    })}
+                    onChange={(e) => {
+                      const filtered = ValidationHelpers.filterNumeric(e.target.value).slice(0, 2);
+                      e.target.value = filtered;
+                    }}
+                    inputMode="numeric"
+                    placeholder="1"
+                    autoFocus
+                  />
+                  {formState.errors.outboundCarpoolSeats && <span className="field-error">{formState.errors.outboundCarpoolSeats.message}</span>}
+                </label>
+              ) : null
             ) : null}
 
             {/* Step: lodgingNight1 and lodgingNight2 */}

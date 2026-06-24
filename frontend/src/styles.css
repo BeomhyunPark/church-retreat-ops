@@ -530,6 +530,30 @@ h2 {
   border-bottom-color: #0d4a3f !important;
 }
 
+.flow-field--lg input::placeholder {
+  color: #d0d0d0;
+  opacity: 1;
+}
+
+.flow-field__suffix {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #666;
+  font-size: 0.9rem;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.flow-field--with-suffix {
+  position: relative;
+}
+
+.flow-field--with-suffix input {
+  padding-right: 40px;
+}
+
 .suffix-input {
   position: relative;
   display: flex;
