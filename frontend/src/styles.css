@@ -247,11 +247,18 @@ h2 {
 }
 
 .home-pass {
-  background: #1a1a1a;
-  border: 3px solid #FFD700;
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(212, 175, 55, 0.2);
-  color: #FFE55C;
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.05) 50%, transparent 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.2) 20%, transparent 40%, transparent 60%, rgba(0, 0, 0, 0.1) 80%, rgba(0, 0, 0, 0.3) 100%),
+    linear-gradient(90deg, #FFF8DC 0%, #FFED4E 15%, #FFD700 35%, #FFC700 50%, #FFB700 70%, #FFA500 85%, #FFB700 100%);
+  border: 4px solid #1a1a1a;
+  border-radius: 16px;
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.5),
+    0 0 50px rgba(255, 215, 0, 0.4),
+    inset -3px -3px 8px rgba(0, 0, 0, 0.25),
+    inset 3px 3px 8px rgba(255, 255, 255, 0.4);
+  color: #1a1a1a;
   display: grid;
   gap: 1.1rem;
   min-height: 310px;
@@ -265,7 +272,7 @@ h2 {
 
 .home-pass::after {
   animation: pass-shine 3.8s ease-in-out infinite;
-  background: linear-gradient(90deg, transparent, rgba(244, 228, 193, 0.25), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
   content: "";
   height: 380px;
   position: absolute;
@@ -394,17 +401,24 @@ h2 {
 
 .register-pass {
   animation: page-rise 480ms ease both;
-  background: #1a1a1a;
-  border: 3px solid #FFD700;
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(212, 175, 55, 0.2);
-  color: #FFE55C;
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.05) 50%, transparent 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.2) 20%, transparent 40%, transparent 60%, rgba(0, 0, 0, 0.1) 80%, rgba(0, 0, 0, 0.3) 100%),
+    linear-gradient(90deg, #FFF8DC 0%, #FFED4E 15%, #FFD700 35%, #FFC700 50%, #FFB700 70%, #FFA500 85%, #FFB700 100%);
+  border: 4px solid #1a1a1a;
+  border-radius: 16px;
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.5),
+    0 0 50px rgba(255, 215, 0, 0.4),
+    inset -3px -3px 8px rgba(0, 0, 0, 0.25),
+    inset 3px 3px 8px rgba(255, 255, 255, 0.4);
+  color: #1a1a1a;
   display: grid;
   gap: 1.5rem;
-  max-width: 500px;
-  min-height: 340px;
+  max-width: 520px;
+  min-height: 360px;
   overflow: hidden;
-  padding: 2rem;
+  padding: 2.5rem;
   position: relative;
   transform: rotateX(9deg) rotateY(-13deg) rotateZ(-1deg);
   transform-style: preserve-3d;
@@ -416,6 +430,7 @@ h2 {
   font-weight: 900;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+  color: #1a1a1a;
 }
 
 .register-pass strong {
@@ -870,11 +885,18 @@ h2 {
 
 .result-pass {
   animation: page-rise 480ms ease both;
-  background: #1a1a1a;
-  border: 3px solid #FFD700;
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(212, 175, 55, 0.2);
-  color: #FFE55C;
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.05) 50%, transparent 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.2) 20%, transparent 40%, transparent 60%, rgba(0, 0, 0, 0.1) 80%, rgba(0, 0, 0, 0.3) 100%),
+    linear-gradient(90deg, #FFF8DC 0%, #FFED4E 15%, #FFD700 35%, #FFC700 50%, #FFB700 70%, #FFA500 85%, #FFB700 100%);
+  border: 4px solid #1a1a1a;
+  border-radius: 16px;
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.5),
+    0 0 50px rgba(255, 215, 0, 0.4),
+    inset -3px -3px 8px rgba(0, 0, 0, 0.25),
+    inset 3px 3px 8px rgba(255, 255, 255, 0.4);
+  color: #1a1a1a;
   display: grid;
   gap: 1.2rem;
   margin-top: 1rem;

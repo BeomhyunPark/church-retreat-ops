@@ -181,20 +181,6 @@ function buildSteps(
   return steps;
 }
 
-function RegisterPass() {
-  return (
-    <aside className="register-pass" aria-label="수련회 등록 카드">
-      <span className="register-pass__label">Retreat Pass</span>
-      <strong>나의 패스</strong>
-      <div className="register-pass__spacer" />
-      <div className="register-pass__meta">
-        <span>READY</span>
-        <span>2026</span>
-      </div>
-    </aside>
-  );
-}
-
 export function PublicRegisterPage() {
   const [registered, setRegistered] = useState(false);
   const [step, setStep] = useState(0);
@@ -315,10 +301,7 @@ export function PublicRegisterPage() {
         <p className="muted">필요한 것만, 한 번에 하나씩 물어볼게요.</p>
       </div>
 
-      <div className="register-flow__container">
-        <RegisterPass attendanceType={attendanceType} currentStep={step} />
-
-        {!registered ? (
+      {!registered ? (
           <form
           className="form-grid wizard"
           onSubmit={(e) => {
@@ -950,7 +933,6 @@ export function PublicRegisterPage() {
             </div>
           </div>
         ) : null}
-      </div>
     </section>
   );
 }
