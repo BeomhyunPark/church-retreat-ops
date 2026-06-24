@@ -1,8 +1,10 @@
 package com.gmc.retreat.registration.dto;
 
+import com.gmc.retreat.registration.domain.AttendanceType;
 import com.gmc.retreat.registration.domain.Gender;
 import com.gmc.retreat.registration.domain.Registration;
 import com.gmc.retreat.registration.domain.RegistrationStatus;
+import com.gmc.retreat.registration.domain.TransportationMethod;
 import com.gmc.retreat.registration.service.PhoneNumberNormalizer;
 
 public record RegistrationResponse(
@@ -13,7 +15,21 @@ public record RegistrationResponse(
         String phoneNumber,
         String churchCellDepartment,
         Boolean feePaid,
-        RegistrationStatus status
+        RegistrationStatus status,
+        AttendanceType attendanceType,
+        TransportationMethod transportationMethod,
+        Boolean carpoolAvailable,
+        Integer carpoolSeats,
+        Boolean lodgingNight1,
+        Boolean lodgingNight2,
+        Boolean attendDay1Morning,
+        Boolean attendDay1Afternoon,
+        Boolean attendDay1Worship,
+        Boolean attendDay2Morning,
+        Boolean attendDay2Afternoon,
+        Boolean attendDay2Worship,
+        Boolean attendDay3Morning,
+        Boolean attendDay3Afternoon
 ) {
     public static RegistrationResponse from(Registration registration) {
         return new RegistrationResponse(
@@ -24,7 +40,21 @@ public record RegistrationResponse(
                 PhoneNumberNormalizer.mask(registration.phoneNumber()),
                 registration.churchCellDepartment(),
                 registration.feePaid(),
-                registration.status()
+                registration.status(),
+                registration.attendanceType(),
+                registration.transportationMethod(),
+                registration.carpoolAvailable(),
+                registration.carpoolSeats(),
+                registration.lodgingNight1(),
+                registration.lodgingNight2(),
+                registration.attendDay1Morning(),
+                registration.attendDay1Afternoon(),
+                registration.attendDay1Worship(),
+                registration.attendDay2Morning(),
+                registration.attendDay2Afternoon(),
+                registration.attendDay2Worship(),
+                registration.attendDay3Morning(),
+                registration.attendDay3Afternoon()
         );
     }
 }

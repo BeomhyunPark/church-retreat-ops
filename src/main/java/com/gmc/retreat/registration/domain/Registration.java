@@ -26,6 +26,20 @@ public record Registration(
         Boolean newcomer,
         Boolean careTarget,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        OffsetDateTime updatedAt,
+        AttendanceType attendanceType,
+        TransportationMethod transportationMethod,
+        Boolean carpoolAvailable,
+        Integer carpoolSeats,
+        Boolean lodgingNight1,
+        Boolean lodgingNight2,
+        Boolean attendDay1Morning,
+        Boolean attendDay1Afternoon,
+        Boolean attendDay1Worship,
+        Boolean attendDay2Morning,
+        Boolean attendDay2Afternoon,
+        Boolean attendDay2Worship,
+        Boolean attendDay3Morning,
+        Boolean attendDay3Afternoon
 ) {
 }

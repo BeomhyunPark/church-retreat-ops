@@ -10,7 +10,7 @@ Phase 2는 참가자가 관리자 계정 없이 수련회 등록을 제출하고
 
 ## 참가자 등록 흐름
 
-1. 참가자가 `POST /api/registrations`로 이름, 성별, 출생연도, 전화번호, 교구/셀/부서, 개인정보 동의 여부, 본인이 정한 6자리 숫자 조회 키(PIN)를 보냅니다.
+1. 참가자가 `POST /api/registrations`로 이름, 성별, 출생연도, 전화번호, 교구/셀/부서, 개인정보 동의 여부, 본인이 정한 6자리 숫자 조회 키(PIN), 참석 조사 항목(아래 "참석 조사" 절 참고)을 보냅니다.
 2. 서버가 이름을 trim하고 전화번호를 숫자만 남긴 값으로 정규화합니다.
 3. 전화번호는 10자리 또는 11자리 숫자여야 하며 DB에서도 `ck_registrations_phone_number`로 검증합니다.
 4. 개인정보 동의는 반드시 `true`여야 합니다.
@@ -18,6 +18,27 @@ Phase 2는 참가자가 관리자 계정 없이 수련회 등록을 제출하고
 6. 신규 등록이면 `registrations`에 행을 만들고 `CREATED` 이력을 저장합니다.
 7. 동일 이름과 동일 정규화 전화번호의 활성 등록이 이미 있으면 기존 행을 덮어쓰고 `OVERWRITTEN` 이력을 저장합니다.
 8. 응답에는 마스킹된 전화번호가 포함됩니다. 참가자가 직접 정한 조회 키는 다시 돌려주지 않습니다.
+
+## 참석 조사
+
+등록(생성/덮어쓰기)과 본인 수정 모두에서 참석 형태와 이동 수단을 받습니다.
+
+- `attendanceType`: `FULL`(전체참석) / `PARTIAL`(부분참석) / `WORSHIP_ONLY`(집회만참석).
+- `transportation`: 참석 유형에 따라 허용되는 값이 다릅니다.
+  - `FULL`: `OWN_CAR`(자차) 또는 `BUS`(버스 이동)만 허용됩니다.
+  - `PARTIAL`, `WORSHIP_ONLY`: `OWN_CAR`, `PUBLIC_TRANSIT`(대중교통), `RIDE_NEEDED`(차량 지원 필요) 중 허용됩니다.
+  - 이 조합 규칙은 DB 제약이 아니라 `RegistrationService`의 `validateAttendanceSurvey`에서 검증하며, 위반 시 `INVALID_REQUEST`로 실패합니다.
+- `carpoolAvailable` / `carpoolSeats`(추가 탑승 가능 인원, 1~10): `transportation`이 `OWN_CAR`일 때만 의미가 있습니다.
+  - `OWN_CAR`이면 `carpoolAvailable`이 반드시 있어야 하고, 아니면 반드시 비어 있어야 합니다.
+  - `carpoolAvailable`이 `true`이면 `carpoolSeats`가 반드시 있어야 하고, 아니면 반드시 비어 있어야 합니다.
+  - `carpoolSeats`의 범위(1~10)는 출생연도와 동일하게 Bean Validation으로만 검증하며 DB에는 하드코딩하지 않습니다.
+- `lodgingNight1` / `lodgingNight2`(1일차/2일차 숙박 여부)와 8개의 참석 일정 체크박스(`attendDay1Morning`, `attendDay1Afternoon`, `attendDay1Worship`, `attendDay2Morning`, `attendDay2Afternoon`, `attendDay2Worship`, `attendDay3Morning`, `attendDay3Afternoon`)는 참석 유형에 따라 서버가 정규화합니다.
+  - `FULL`: 8개 일정 체크박스와 두 숙박 항목 모두 서버가 무조건 `true`로 저장합니다(전체 일정에 참석하고 양일 모두 숙박한다고 간주). 요청에 담긴 값은 무시됩니다.
+  - `PARTIAL`: 요청에 담긴 값을 그대로 저장합니다(비어 있으면 `false`).
+  - `WORSHIP_ONLY`: 일정 체크박스는 요청 값을 그대로 저장하지만, 숙박 두 항목은 항상 `false`로 강제합니다.
+- 이 정규화는 `RegistrationService`의 `resolveAttendanceFields`에서 처리하며, 등록 생성/덮어쓰기/본인 수정 경로 모두에 동일하게 적용됩니다.
+- 참석 조사 값은 `registration_histories`의 스냅샷에도 포함되어 변경 이력을 추적할 수 있습니다.
+- 관리자 화면에서 이 데이터를 조회/집계하는 기능은 아직 없습니다(다음 단계에서 다룰 예정).
 
 ## 개인 조회 키 정책
 
@@ -102,7 +123,21 @@ curl -s -X POST http://localhost:8080/api/registrations \
     "phoneNumber":"010-1234-5678",
     "churchCellDepartment":"Young Adults",
     "privacyConsentAgreed":true,
-    "lookupKey":"123456"
+    "lookupKey":"123456",
+    "attendanceType":"PARTIAL",
+    "transportation":"OWN_CAR",
+    "carpoolAvailable":true,
+    "carpoolSeats":2,
+    "lodgingNight1":true,
+    "lodgingNight2":false,
+    "attendDay1Morning":true,
+    "attendDay1Afternoon":true,
+    "attendDay1Worship":true,
+    "attendDay2Morning":false,
+    "attendDay2Afternoon":false,
+    "attendDay2Worship":false,
+    "attendDay3Morning":false,
+    "attendDay3Afternoon":false
   }'
 ```
 
@@ -130,7 +165,14 @@ curl -s -X PUT http://localhost:8080/api/registrations/self \
       "gender":"FEMALE",
       "birthYear":1992,
       "phoneNumber":"010-9999-0000",
-      "churchCellDepartment":"Updated Cell"
+      "churchCellDepartment":"Updated Cell",
+      "attendanceType":"PARTIAL",
+      "transportation":"PUBLIC_TRANSIT",
+      "lodgingNight1":false,
+      "lodgingNight2":true,
+      "attendDay2Morning":true,
+      "attendDay2Afternoon":true,
+      "attendDay2Worship":true
     }
   }'
 ```

@@ -624,6 +624,200 @@ class GmcRetreatApplicationTests {
     }
 
     @Test
+    void fullAttendanceForcesAllScheduleSlotsAndLodgingTrue() throws Exception {
+        MvcResult result = createRegistration(
+                "Grace Kim",
+                "010-1234-5678",
+                Map.of("attendDay1Morning", false, "lodgingNight1", false, "lodgingNight2", false)
+        );
+        result.getResponse().getContentAsString();
+        assertThat(result.getResponse().getStatus()).isEqualTo(200);
+
+        Map<String, Object> row = jdbcTemplate.queryForMap(
+                """
+                        SELECT lodging_night1, lodging_night2,
+                               attend_day1_morning, attend_day1_afternoon, attend_day1_worship,
+                               attend_day2_morning, attend_day2_afternoon, attend_day2_worship,
+                               attend_day3_morning, attend_day3_afternoon
+                        FROM registrations WHERE name = 'Grace Kim'
+                        """
+        );
+        assertThat(row.values()).allSatisfy(value -> assertThat(value).isEqualTo(true));
+    }
+
+    @Test
+    void worshipOnlyKeepsScheduleButForcesLodgingFalse() throws Exception {
+        MvcResult result = createRegistration(
+                "Grace Kim",
+                "010-1234-5678",
+                Map.of(
+                        "attendanceType", "WORSHIP_ONLY",
+                        "transportation", "PUBLIC_TRANSIT",
+                        "lodgingNight1", true,
+                        "lodgingNight2", true,
+                        "attendDay1Worship", true,
+                        "attendDay2Worship", true
+                )
+        );
+        assertThat(result.getResponse().getStatus()).isEqualTo(200);
+
+        Map<String, Object> row = jdbcTemplate.queryForMap(
+                """
+                        SELECT lodging_night1, lodging_night2, attend_day1_worship, attend_day2_worship,
+                               attend_day1_morning
+                        FROM registrations WHERE name = 'Grace Kim'
+                        """
+        );
+        assertThat(row.get("lodging_night1")).isEqualTo(false);
+        assertThat(row.get("lodging_night2")).isEqualTo(false);
+        assertThat(row.get("attend_day1_worship")).isEqualTo(true);
+        assertThat(row.get("attend_day2_worship")).isEqualTo(true);
+        assertThat(row.get("attend_day1_morning")).isEqualTo(false);
+    }
+
+    @Test
+    void partialAttendancePersistsScheduleAndLodgingAsSubmitted() throws Exception {
+        MvcResult result = createRegistration(
+                "Grace Kim",
+                "010-1234-5678",
+                Map.of(
+                        "attendanceType", "PARTIAL",
+                        "transportation", "PUBLIC_TRANSIT",
+                        "lodgingNight1", true,
+                        "lodgingNight2", false,
+                        "attendDay2Morning", true,
+                        "attendDay2Afternoon", true
+                )
+        );
+        assertThat(result.getResponse().getStatus()).isEqualTo(200);
+
+        Map<String, Object> row = jdbcTemplate.queryForMap(
+                """
+                        SELECT lodging_night1, lodging_night2, attend_day2_morning, attend_day2_afternoon,
+                               attend_day1_morning
+                        FROM registrations WHERE name = 'Grace Kim'
+                        """
+        );
+        assertThat(row.get("lodging_night1")).isEqualTo(true);
+        assertThat(row.get("lodging_night2")).isEqualTo(false);
+        assertThat(row.get("attend_day2_morning")).isEqualTo(true);
+        assertThat(row.get("attend_day2_afternoon")).isEqualTo(true);
+        assertThat(row.get("attend_day1_morning")).isEqualTo(false);
+    }
+
+    @Test
+    void fullAttendanceRejectsPublicTransit() throws Exception {
+        MvcResult result = createRegistration(
+                "Grace Kim",
+                "010-1234-5678",
+                Map.of("attendanceType", "FULL", "transportation", "PUBLIC_TRANSIT")
+        );
+        assertThat(result.getResponse().getStatus()).isEqualTo(400);
+        JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(response.path("error").path("code").asText()).isEqualTo("INVALID_REQUEST");
+    }
+
+    @Test
+    void partialAttendanceRejectsBus() throws Exception {
+        MvcResult result = createRegistration(
+                "Grace Kim",
+                "010-1234-5678",
+                Map.of("attendanceType", "PARTIAL", "transportation", "BUS")
+        );
+        assertThat(result.getResponse().getStatus()).isEqualTo(400);
+        JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(response.path("error").path("code").asText()).isEqualTo("INVALID_REQUEST");
+    }
+
+    @Test
+    void ownCarCarpoolAvailableRequiresSeatsWithinRange() throws Exception {
+        MvcResult missingSeats = createRegistration(
+                "Grace Kim",
+                "010-1234-5678",
+                Map.of("transportation", "OWN_CAR", "carpoolAvailable", true)
+        );
+        assertThat(missingSeats.getResponse().getStatus()).isEqualTo(400);
+
+        MvcResult outOfRange = createRegistration(
+                "Grace Lee",
+                "010-1234-9999",
+                Map.of("transportation", "OWN_CAR", "carpoolAvailable", true, "carpoolSeats", 20)
+        );
+        assertThat(outOfRange.getResponse().getStatus()).isEqualTo(400);
+
+        MvcResult valid = createRegistration(
+                "Grace Park",
+                "010-1234-8888",
+                Map.of("transportation", "OWN_CAR", "carpoolAvailable", true, "carpoolSeats", 3)
+        );
+        assertThat(valid.getResponse().getStatus()).isEqualTo(200);
+    }
+
+    @Test
+    void carpoolFieldsRejectedWhenTransportationIsNotOwnCar() throws Exception {
+        MvcResult result = createRegistration(
+                "Grace Kim",
+                "010-1234-5678",
+                Map.of("transportation", "BUS", "carpoolAvailable", true, "carpoolSeats", 2)
+        );
+        assertThat(result.getResponse().getStatus()).isEqualTo(400);
+        JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(response.path("error").path("code").asText()).isEqualTo("INVALID_REQUEST");
+    }
+
+    @Test
+    void selfUpdateChangesAttendanceAnswersAndRecordsHistory() throws Exception {
+        createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true);
+
+        mockMvc.perform(put("/api/registrations/self")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(selfUpdateRequest(
+                                DEFAULT_LOOKUP_KEY,
+                                "010-1234-5678",
+                                Map.of(
+                                        "attendanceType", "PARTIAL",
+                                        "transportation", "PUBLIC_TRANSIT",
+                                        "lodgingNight1", true,
+                                        "attendDay1Morning", true
+                                )
+                        )))
+                .andExpect(status().isOk());
+
+        Map<String, Object> row = jdbcTemplate.queryForMap(
+                "SELECT attendance_type, transportation_method, lodging_night1, attend_day1_morning "
+                        + "FROM registrations WHERE name = 'Grace Kim'"
+        );
+        assertThat(row.get("attendance_type")).isEqualTo("PARTIAL");
+        assertThat(row.get("transportation_method")).isEqualTo("PUBLIC_TRANSIT");
+        assertThat(row.get("lodging_night1")).isEqualTo(true);
+        assertThat(row.get("attend_day1_morning")).isEqualTo(true);
+
+        Integer selfUpdatedCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM registration_histories WHERE change_type = 'SELF_UPDATED'",
+                Integer.class
+        );
+        assertThat(selfUpdatedCount).isEqualTo(1);
+    }
+
+    @Test
+    void historySnapshotIncludesAttendanceFields() throws Exception {
+        JsonNode created = objectMapper.readTree(
+                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+        Long registrationId = created.path("data").path("registration").path("id").asLong();
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+
+        MvcResult historiesResult = mockMvc.perform(get("/api/admin/registrations/" + registrationId + "/histories")
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        assertThat(historiesResult.getResponse().getContentAsString()).contains("attendanceType", "transportationMethod");
+    }
+
+    @Test
     void adminRegistrationListAndDetailRequireJwt() throws Exception {
         mockMvc.perform(get("/api/admin/registrations"))
                 .andExpect(status().isUnauthorized())
@@ -2444,35 +2638,79 @@ class GmcRetreatApplicationTests {
                 .andReturn();
     }
 
+    private MvcResult createRegistration(
+            String name,
+            String phoneNumber,
+            Map<String, Object> attendanceOverrides
+    ) throws Exception {
+        return mockMvc.perform(post("/api/registrations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registrationRequest(name, phoneNumber, attendanceOverrides)))
+                .andReturn();
+    }
+
     private String registrationRequest(
             String name,
             String phoneNumber,
             String churchCellDepartment,
             boolean privacyConsentAgreed
     ) throws Exception {
-        return objectMapper.writeValueAsString(Map.of(
-                "name", name,
-                "gender", "FEMALE",
-                "birthYear", 1991,
-                "phoneNumber", phoneNumber,
-                "churchCellDepartment", churchCellDepartment,
-                "privacyConsentAgreed", privacyConsentAgreed,
-                "lookupKey", DEFAULT_LOOKUP_KEY
+        return objectMapper.writeValueAsString(Map.ofEntries(
+                Map.entry("name", name),
+                Map.entry("gender", "FEMALE"),
+                Map.entry("birthYear", 1991),
+                Map.entry("phoneNumber", phoneNumber),
+                Map.entry("churchCellDepartment", churchCellDepartment),
+                Map.entry("privacyConsentAgreed", privacyConsentAgreed),
+                Map.entry("lookupKey", DEFAULT_LOOKUP_KEY),
+                Map.entry("attendanceType", "FULL"),
+                Map.entry("transportation", "BUS")
         ));
     }
 
+    private String registrationRequest(
+            String name,
+            String phoneNumber,
+            Map<String, Object> attendanceOverrides
+    ) throws Exception {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("name", name);
+        body.put("gender", "FEMALE");
+        body.put("birthYear", 1991);
+        body.put("phoneNumber", phoneNumber);
+        body.put("churchCellDepartment", "Young Adults");
+        body.put("privacyConsentAgreed", true);
+        body.put("lookupKey", DEFAULT_LOOKUP_KEY);
+        body.put("attendanceType", "FULL");
+        body.put("transportation", "BUS");
+        body.putAll(attendanceOverrides);
+        return objectMapper.writeValueAsString(body);
+    }
+
     private String selfUpdateRequest(String lookupKey, String phoneNumber) throws Exception {
-        return objectMapper.writeValueAsString(Map.of(
-                "name", "Grace Kim",
-                "phoneLastFour", "5678",
-                "lookupKey", lookupKey,
-                "update", Map.of(
-                        "gender", "FEMALE",
-                        "birthYear", 1992,
-                        "phoneNumber", phoneNumber,
-                        "churchCellDepartment", "Updated Cell"
-                )
-        ));
+        return selfUpdateRequest(lookupKey, phoneNumber, Map.of());
+    }
+
+    private String selfUpdateRequest(
+            String lookupKey,
+            String phoneNumber,
+            Map<String, Object> attendanceOverrides
+    ) throws Exception {
+        Map<String, Object> update = new LinkedHashMap<>();
+        update.put("gender", "FEMALE");
+        update.put("birthYear", 1992);
+        update.put("phoneNumber", phoneNumber);
+        update.put("churchCellDepartment", "Updated Cell");
+        update.put("attendanceType", "FULL");
+        update.put("transportation", "BUS");
+        update.putAll(attendanceOverrides);
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("name", "Grace Kim");
+        body.put("phoneLastFour", "5678");
+        body.put("lookupKey", lookupKey);
+        body.put("update", update);
+        return objectMapper.writeValueAsString(body);
     }
 
     private int countOccurrences(String value, String needle) {

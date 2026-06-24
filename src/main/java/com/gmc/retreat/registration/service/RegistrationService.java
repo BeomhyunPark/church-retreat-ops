@@ -7,10 +7,12 @@ import com.gmc.retreat.error.BusinessException;
 import com.gmc.retreat.error.ErrorCode;
 import com.gmc.retreat.fee.mapper.FeeMapper;
 import com.gmc.retreat.fee.mapper.FeeMapper.FeeEventInsert;
+import com.gmc.retreat.registration.domain.AttendanceType;
 import com.gmc.retreat.registration.domain.Registration;
 import com.gmc.retreat.registration.domain.RegistrationActorType;
 import com.gmc.retreat.registration.domain.RegistrationHistoryChangeType;
 import com.gmc.retreat.registration.domain.RegistrationStatus;
+import com.gmc.retreat.registration.domain.TransportationMethod;
 import com.gmc.retreat.registration.dto.AdminParticipantChurchCellUpdateRequest;
 import com.gmc.retreat.registration.dto.AdminRegistrationFeePaidUpdateRequest;
 import com.gmc.retreat.registration.dto.AdminRegistrationManagementUpdateRequest;
@@ -84,6 +86,13 @@ public class RegistrationService {
         String phoneLastFour = PhoneNumberNormalizer.lastFour(phoneNumber);
         String lookupKeyHash = passwordEncoder.encode(request.lookupKey());
         String churchCellDepartment = normalizeOptional(request.churchCellDepartment());
+        validateAttendanceSurvey(
+                request.attendanceType(),
+                request.transportation(),
+                request.carpoolAvailable(),
+                request.carpoolSeats()
+        );
+        AttendanceFields attendanceFields = resolveAttendanceFields(request.attendanceType(), request);
 
         Registration existing = registrationMapper.findActiveByNormalizedNameAndPhoneNumber(normalizedName, phoneNumber)
                 .orElse(null);
@@ -100,7 +109,21 @@ public class RegistrationService {
                     lookupKeyHash,
                     true,
                     false,
-                    RegistrationStatus.REGISTERED
+                    RegistrationStatus.REGISTERED,
+                    request.attendanceType(),
+                    request.transportation(),
+                    request.carpoolAvailable(),
+                    request.carpoolSeats(),
+                    attendanceFields.lodgingNight1(),
+                    attendanceFields.lodgingNight2(),
+                    attendanceFields.attendDay1Morning(),
+                    attendanceFields.attendDay1Afternoon(),
+                    attendanceFields.attendDay1Worship(),
+                    attendanceFields.attendDay2Morning(),
+                    attendanceFields.attendDay2Afternoon(),
+                    attendanceFields.attendDay2Worship(),
+                    attendanceFields.attendDay3Morning(),
+                    attendanceFields.attendDay3Afternoon()
             );
             registrationMapper.insert(insert);
             Registration created = registrationMapper.findById(insert.getId())
@@ -123,7 +146,21 @@ public class RegistrationService {
                 phoneLastFour,
                 churchCellDepartment,
                 lookupKeyHash,
-                true
+                true,
+                request.attendanceType(),
+                request.transportation(),
+                request.carpoolAvailable(),
+                request.carpoolSeats(),
+                attendanceFields.lodgingNight1(),
+                attendanceFields.lodgingNight2(),
+                attendanceFields.attendDay1Morning(),
+                attendanceFields.attendDay1Afternoon(),
+                attendanceFields.attendDay1Worship(),
+                attendanceFields.attendDay2Morning(),
+                attendanceFields.attendDay2Afternoon(),
+                attendanceFields.attendDay2Worship(),
+                attendanceFields.attendDay3Morning(),
+                attendanceFields.attendDay3Afternoon()
         ));
         Registration updated = registrationMapper.findById(existing.id())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
@@ -157,6 +194,14 @@ public class RegistrationService {
             throw new BusinessException(ErrorCode.DUPLICATE_REGISTRATION);
         }
 
+        validateAttendanceSurvey(
+                request.update().attendanceType(),
+                request.update().transportation(),
+                request.update().carpoolAvailable(),
+                request.update().carpoolSeats()
+        );
+        AttendanceFields attendanceFields = resolveAttendanceFields(request.update().attendanceType(), request.update());
+
         String previousSnapshot = snapshot(registration);
         registrationMapper.selfUpdate(new RegistrationSelfUpdate(
                 registration.id(),
@@ -164,7 +209,21 @@ public class RegistrationService {
                 request.update().birthYear(),
                 newPhoneNumber,
                 newPhoneLastFour,
-                normalizeOptional(request.update().churchCellDepartment())
+                normalizeOptional(request.update().churchCellDepartment()),
+                request.update().attendanceType(),
+                request.update().transportation(),
+                request.update().carpoolAvailable(),
+                request.update().carpoolSeats(),
+                attendanceFields.lodgingNight1(),
+                attendanceFields.lodgingNight2(),
+                attendanceFields.attendDay1Morning(),
+                attendanceFields.attendDay1Afternoon(),
+                attendanceFields.attendDay1Worship(),
+                attendanceFields.attendDay2Morning(),
+                attendanceFields.attendDay2Afternoon(),
+                attendanceFields.attendDay2Worship(),
+                attendanceFields.attendDay3Morning(),
+                attendanceFields.attendDay3Afternoon()
         ));
         Registration updated = registrationMapper.findById(registration.id())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
@@ -334,6 +393,121 @@ public class RegistrationService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.REGISTRATION_LOOKUP_FAILED));
     }
 
+    private void validateAttendanceSurvey(
+            AttendanceType attendanceType,
+            TransportationMethod transportation,
+            Boolean carpoolAvailable,
+            Integer carpoolSeats
+    ) {
+        boolean transportationValid = switch (attendanceType) {
+            case FULL -> transportation == TransportationMethod.OWN_CAR || transportation == TransportationMethod.BUS;
+            case PARTIAL, WORSHIP_ONLY -> transportation == TransportationMethod.OWN_CAR
+                    || transportation == TransportationMethod.PUBLIC_TRANSIT
+                    || transportation == TransportationMethod.RIDE_NEEDED;
+        };
+        if (!transportationValid) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+
+        if (transportation == TransportationMethod.OWN_CAR) {
+            if (carpoolAvailable == null) {
+                throw new BusinessException(ErrorCode.INVALID_REQUEST);
+            }
+        } else if (carpoolAvailable != null || carpoolSeats != null) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+
+        if (Boolean.TRUE.equals(carpoolAvailable)) {
+            if (carpoolSeats == null) {
+                throw new BusinessException(ErrorCode.INVALID_REQUEST);
+            }
+        } else if (carpoolSeats != null) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+    }
+
+    private AttendanceFields resolveAttendanceFields(AttendanceType attendanceType, RegistrationCreateRequest request) {
+        return resolveAttendanceFields(
+                attendanceType,
+                request.lodgingNight1(),
+                request.lodgingNight2(),
+                request.attendDay1Morning(),
+                request.attendDay1Afternoon(),
+                request.attendDay1Worship(),
+                request.attendDay2Morning(),
+                request.attendDay2Afternoon(),
+                request.attendDay2Worship(),
+                request.attendDay3Morning(),
+                request.attendDay3Afternoon()
+        );
+    }
+
+    private AttendanceFields resolveAttendanceFields(AttendanceType attendanceType, RegistrationSelfUpdateRequest.Update update) {
+        return resolveAttendanceFields(
+                attendanceType,
+                update.lodgingNight1(),
+                update.lodgingNight2(),
+                update.attendDay1Morning(),
+                update.attendDay1Afternoon(),
+                update.attendDay1Worship(),
+                update.attendDay2Morning(),
+                update.attendDay2Afternoon(),
+                update.attendDay2Worship(),
+                update.attendDay3Morning(),
+                update.attendDay3Afternoon()
+        );
+    }
+
+    private AttendanceFields resolveAttendanceFields(
+            AttendanceType attendanceType,
+            Boolean lodgingNight1,
+            Boolean lodgingNight2,
+            Boolean attendDay1Morning,
+            Boolean attendDay1Afternoon,
+            Boolean attendDay1Worship,
+            Boolean attendDay2Morning,
+            Boolean attendDay2Afternoon,
+            Boolean attendDay2Worship,
+            Boolean attendDay3Morning,
+            Boolean attendDay3Afternoon
+    ) {
+        if (attendanceType == AttendanceType.FULL) {
+            return new AttendanceFields(true, true, true, true, true, true, true, true, true, true);
+        }
+
+        boolean resolvedLodgingNight1 = attendanceType == AttendanceType.WORSHIP_ONLY
+                ? false : Boolean.TRUE.equals(lodgingNight1);
+        boolean resolvedLodgingNight2 = attendanceType == AttendanceType.WORSHIP_ONLY
+                ? false : Boolean.TRUE.equals(lodgingNight2);
+
+        return new AttendanceFields(
+                resolvedLodgingNight1,
+                resolvedLodgingNight2,
+                Boolean.TRUE.equals(attendDay1Morning),
+                Boolean.TRUE.equals(attendDay1Afternoon),
+                Boolean.TRUE.equals(attendDay1Worship),
+                Boolean.TRUE.equals(attendDay2Morning),
+                Boolean.TRUE.equals(attendDay2Afternoon),
+                Boolean.TRUE.equals(attendDay2Worship),
+                Boolean.TRUE.equals(attendDay3Morning),
+                Boolean.TRUE.equals(attendDay3Afternoon)
+        );
+    }
+
+    private record AttendanceFields(
+            Boolean lodgingNight1,
+            Boolean lodgingNight2,
+            Boolean attendDay1Morning,
+            Boolean attendDay1Afternoon,
+            Boolean attendDay1Worship,
+            Boolean attendDay2Morning,
+            Boolean attendDay2Afternoon,
+            Boolean attendDay2Worship,
+            Boolean attendDay3Morning,
+            Boolean attendDay3Afternoon
+    ) {
+    }
+
     private void insertHistory(
             Long registrationId,
             RegistrationHistoryChangeType changeType,
@@ -383,7 +557,7 @@ public class RegistrationService {
 
     private String snapshot(Registration registration) {
         try {
-            Map<String, Object> snapshot = Map.ofEntries(
+            Map<String, Object> snapshot = Map.<String, Object>ofEntries(
                     Map.entry("id", registration.id()),
                     Map.entry("name", registration.name()),
                     Map.entry("gender", registration.gender()),
@@ -405,7 +579,22 @@ public class RegistrationService {
                     Map.entry("status", registration.status()),
                     Map.entry("adminMemo", registration.adminMemo() == null ? "" : registration.adminMemo()),
                     Map.entry("newcomer", registration.newcomer()),
-                    Map.entry("careTarget", registration.careTarget())
+                    Map.entry("careTarget", registration.careTarget()),
+                    Map.entry("attendanceType", registration.attendanceType()),
+                    Map.entry("transportationMethod", registration.transportationMethod()),
+                    Map.entry("carpoolAvailable", registration.carpoolAvailable() == null
+                            ? "" : registration.carpoolAvailable()),
+                    Map.entry("carpoolSeats", registration.carpoolSeats() == null ? "" : registration.carpoolSeats()),
+                    Map.entry("lodgingNight1", registration.lodgingNight1()),
+                    Map.entry("lodgingNight2", registration.lodgingNight2()),
+                    Map.entry("attendDay1Morning", registration.attendDay1Morning()),
+                    Map.entry("attendDay1Afternoon", registration.attendDay1Afternoon()),
+                    Map.entry("attendDay1Worship", registration.attendDay1Worship()),
+                    Map.entry("attendDay2Morning", registration.attendDay2Morning()),
+                    Map.entry("attendDay2Afternoon", registration.attendDay2Afternoon()),
+                    Map.entry("attendDay2Worship", registration.attendDay2Worship()),
+                    Map.entry("attendDay3Morning", registration.attendDay3Morning()),
+                    Map.entry("attendDay3Afternoon", registration.attendDay3Afternoon())
             );
             return objectMapper.writeValueAsString(snapshot);
         } catch (Exception exception) {
