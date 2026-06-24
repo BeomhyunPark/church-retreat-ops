@@ -247,18 +247,10 @@ h2 {
 }
 
 .home-pass {
-  background:
-    repeating-linear-gradient(90deg, transparent, transparent 1px, rgba(212, 175, 55, 0.05) 1px, rgba(212, 175, 55, 0.05) 3px),
-    repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(212, 175, 55, 0.05) 1px, rgba(212, 175, 55, 0.05) 3px),
-    linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #0d0d0d 100%);
-  border: 2px solid;
-  border-image: linear-gradient(135deg, #d4af37 0%, #f4e4c1 50%, #d4af37 100%) 1;
+  background: #1a1a1a;
+  border: 3px solid #d4af37;
   border-radius: 12px;
-  box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.8),
-    0 0 40px rgba(212, 175, 55, 0.25),
-    inset 0 1px 0 rgba(212, 175, 55, 0.3),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(212, 175, 55, 0.2);
   color: #f4e4c1;
   display: grid;
   gap: 1.1rem;
@@ -270,18 +262,6 @@ h2 {
   transform-style: preserve-3d;
 }
 
-.home-pass::before {
-  background:
-    radial-gradient(circle at 30% 30%, rgba(212, 175, 55, 0.2), transparent 50%),
-    linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0) 60%);
-  content: "";
-  height: 100%;
-  left: -50%;
-  position: absolute;
-  top: -50%;
-  width: 200%;
-  pointer-events: none;
-}
 
 .home-pass::after {
   animation: pass-shine 3.8s ease-in-out infinite;
@@ -433,18 +413,10 @@ h2 {
 
 .register-pass {
   animation: page-rise 480ms ease both;
-  background:
-    repeating-linear-gradient(90deg, transparent, transparent 1px, rgba(212, 175, 55, 0.05) 1px, rgba(212, 175, 55, 0.05) 3px),
-    repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(212, 175, 55, 0.05) 1px, rgba(212, 175, 55, 0.05) 3px),
-    linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #0d0d0d 100%);
-  border: 2px solid;
-  border-image: linear-gradient(135deg, #d4af37 0%, #f4e4c1 50%, #d4af37 100%) 1;
+  background: #1a1a1a;
+  border: 3px solid #d4af37;
   border-radius: 12px;
-  box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.8),
-    0 0 40px rgba(212, 175, 55, 0.25),
-    inset 0 1px 0 rgba(212, 175, 55, 0.3),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(212, 175, 55, 0.2);
   color: #f4e4c1;
   display: grid;
   gap: 1.5rem;
@@ -457,18 +429,6 @@ h2 {
   transform-style: preserve-3d;
 }
 
-.register-pass::before {
-  background:
-    radial-gradient(circle at 30% 30%, rgba(212, 175, 55, 0.2), transparent 50%),
-    linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0) 60%);
-  content: "";
-  height: 100%;
-  left: -50%;
-  position: absolute;
-  top: -50%;
-  width: 200%;
-  pointer-events: none;
-}
 
 .register-pass__label {
   font-size: 0.76rem;
@@ -956,18 +916,10 @@ h2 {
 
 .result-pass {
   animation: page-rise 480ms ease both;
-  background:
-    repeating-linear-gradient(90deg, transparent, transparent 1px, rgba(212, 175, 55, 0.05) 1px, rgba(212, 175, 55, 0.05) 3px),
-    repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(212, 175, 55, 0.05) 1px, rgba(212, 175, 55, 0.05) 3px),
-    linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #0d0d0d 100%);
-  border: 2px solid;
-  border-image: linear-gradient(135deg, #d4af37 0%, #f4e4c1 50%, #d4af37 100%) 1;
+  background: #1a1a1a;
+  border: 3px solid #d4af37;
   border-radius: 12px;
-  box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.8),
-    0 0 40px rgba(212, 175, 55, 0.25),
-    inset 0 1px 0 rgba(212, 175, 55, 0.3),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(212, 175, 55, 0.2);
   color: #f4e4c1;
   display: grid;
   gap: 1.2rem;
@@ -980,18 +932,6 @@ h2 {
   transform-style: preserve-3d;
 }
 
-.result-pass::before {
-  background:
-    radial-gradient(circle at 30% 30%, rgba(212, 175, 55, 0.2), transparent 50%),
-    linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0) 60%);
-  content: "";
-  height: 100%;
-  left: -50%;
-  position: absolute;
-  top: -50%;
-  width: 200%;
-  pointer-events: none;
-}
 
 .result-pass__label {
   font-size: 0.76rem;
