@@ -154,6 +154,7 @@ h2 {
 }
 
 .app-home {
+  align-content: start;
   background:
     linear-gradient(135deg, rgb(255 255 255 / 0.5) 0 1px, transparent 1px 18px),
     linear-gradient(145deg, #fffaf0 0%, #f5f1e8 42%, #dcefe5 100%);
