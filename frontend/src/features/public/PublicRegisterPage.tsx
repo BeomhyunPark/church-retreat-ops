@@ -147,10 +147,16 @@ export function PublicRegisterPage() {
             {step === 2 ? (
               <div className="flow-field flow-field--lg">
                 <span>성별</span>
-                <div className={gender ? "segmented segmented--picked" : "segmented"} role="radiogroup" aria-label="성별">
+                <div className="segmented" role="radiogroup" aria-label="성별">
                   <span
-                    className="segmented__pill"
-                    style={{ transform: gender === "MALE" ? "translateX(100%)" : "translateX(0%)" }}
+                    className={gender ? "segmented__pill segmented__pill--active" : "segmented__pill"}
+                    style={
+                      gender === "MALE"
+                        ? { left: "50%", width: "calc(50% - 0.25rem)" }
+                        : gender === "FEMALE"
+                          ? { left: "0.25rem", width: "calc(50% - 0.25rem)" }
+                          : { left: "50%", width: "2px", transform: "translateX(-1px)" }
+                    }
                   />
                   <button
                     type="button"
