@@ -180,7 +180,10 @@ export function PublicRegisterPage() {
             {step === 4 ? (
               <label className="flow-field flow-field--lg">
                 <span>셀</span>
-                <input {...register("churchCellDepartment")} placeholder="OOO셀" autoFocus />
+                <div className="suffix-input">
+                  <input {...register("churchCellDepartment")} placeholder="유성현" autoFocus />
+                  <span className="suffix-input__suffix">셀</span>
+                </div>
               </label>
             ) : null}
 

@@ -545,6 +545,23 @@ h2 {
   height: 56px !important;
 }
 
+.suffix-input {
+  align-items: baseline;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.suffix-input input {
+  flex: 1;
+}
+
+.suffix-input__suffix {
+  color: var(--color-muted);
+  font-size: 1.6rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .wizard__actions {
   align-items: center;
   display: flex;
