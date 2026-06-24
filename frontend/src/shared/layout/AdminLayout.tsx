@@ -4,6 +4,7 @@ import { Navigate, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { getAdminProfile } from "../../features/admin/adminApi";
 import { ApiRequestError } from "../api/client";
 import { clearAccessToken, getAccessToken } from "../auth/tokenStore";
+import { brandInitials, useAppIdentity } from "../identity/appIdentity";
 
 const links = [
   { to: "/admin/dashboard", label: "대시보드" },
@@ -21,6 +22,7 @@ const systemAdminLinks = [{ to: "/admin/accounts", label: "계정 관리" }];
 export function AdminLayout() {
   const navigate = useNavigate();
   const hasToken = Boolean(getAccessToken());
+  const { identity } = useAppIdentity();
   const profileQuery = useQuery({
     queryKey: ["admin", "me"],
     queryFn: getAdminProfile,
@@ -50,10 +52,10 @@ export function AdminLayout() {
     <div className="admin-shell">
       <aside className="admin-sidebar">
         <div className="admin-sidebar__brand">
-          <span className="brand-mark">GMC</span>
+          <span className="brand-mark">{brandInitials(identity.appName)}</span>
           <div>
-            <p className="eyebrow">Admin</p>
-            <strong>Retreat Ops</strong>
+            <p className="eyebrow">{identity.organizationName}</p>
+            <strong>{identity.appName}</strong>
           </div>
         </div>
         <nav className="admin-nav" aria-label="관리자 메뉴">

@@ -1,6 +1,6 @@
 # Phase 8 체크인 도메인
 
-이 문서는 GMC Retreat App의 Phase 8 체크인 도메인 구현 범위를 설명합니다.
+이 문서는 Retreat Ops의 Phase 8 체크인 도메인 구현 범위를 설명합니다.
 
 ## 목적
 

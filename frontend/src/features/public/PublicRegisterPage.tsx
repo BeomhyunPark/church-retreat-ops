@@ -60,7 +60,7 @@ export function PublicRegisterPage() {
         </label>
         <label>
           교구/셀
-          <input {...register("churchCellDepartment")} placeholder="드림공동체 1셀" />
+          <input {...register("churchCellDepartment")} placeholder="예: 청년부 1셀" />
         </label>
         <label className="check-row">
           <input {...register("privacyConsentAgreed", { required: true })} type="checkbox" />

@@ -1,6 +1,6 @@
 # Phase 2 참가자 등록
 
-이 문서는 GMC Retreat App의 Phase 2 참가자 등록 구현 범위를 설명합니다.
+이 문서는 Retreat Ops의 Phase 2 참가자 등록 구현 범위를 설명합니다.
 
 ## 목적
 
@@ -140,7 +140,7 @@ curl -s -X PUT http://localhost:8080/api/registrations/self \
 ```bash
 curl -s -X POST http://localhost:8080/api/admin/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"email":"admin@gmc.local","password":"admin1234!"}'
+  -d '{"email":"admin@example.local","password":"admin1234!"}'
 ```
 
 관리자 등록 목록:

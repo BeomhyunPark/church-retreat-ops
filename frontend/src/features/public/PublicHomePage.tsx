@@ -1,10 +1,13 @@
 import { Link } from "react-router-dom";
+import { useAppIdentity } from "../../shared/identity/appIdentity";
 
 export function PublicHomePage() {
+  const { identity } = useAppIdentity();
+
   return (
     <section className="hero-card">
-      <p className="eyebrow">GMC Retreat</p>
-      <h1>드림공동체 수련회</h1>
+      <p className="eyebrow">{identity.organizationName}</p>
+      <h1>{identity.eventName}</h1>
       <p>등록, 조회, 현장 체크인을 한 곳에서 확인할 수 있습니다.</p>
       <div className="home-status">
         <strong>참가 등록 진행 중</strong>

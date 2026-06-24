@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { loginAdmin } from "./adminApi";
 import { setAccessToken } from "../../shared/auth/tokenStore";
+import { brandInitials, useAppIdentity } from "../../shared/identity/appIdentity";
 import { StatusMessage } from "../../shared/ui/StatusMessage";
 
 type LoginForm = {
@@ -13,6 +14,7 @@ type LoginForm = {
 
 export function AdminLoginPage() {
   const navigate = useNavigate();
+  const { identity } = useAppIdentity();
   const { register, handleSubmit, resetField, setFocus } = useForm<LoginForm>();
 
   const mutation = useMutation({
@@ -34,10 +36,10 @@ export function AdminLoginPage() {
   return (
     <main className="login-shell">
       <section className="login-card">
-        <span className="brand-mark">GMC</span>
-        <p className="eyebrow">Retreat Ops</p>
+        <span className="brand-mark">{brandInitials(identity.appName)}</span>
+        <p className="eyebrow">{identity.organizationName}</p>
         <h1>관리자 로그인</h1>
-        <p className="muted">등록, 참가비, 현장 운영 정보를 확인하려면 관리자 계정으로 로그인하세요.</p>
+        <p className="muted">{identity.appName} 운영 정보를 확인하려면 관리자 계정으로 로그인하세요.</p>
         <form className="form-grid" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
           <label>
             이메일

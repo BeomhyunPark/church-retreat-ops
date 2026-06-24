@@ -114,6 +114,16 @@ class GmcRetreatApplicationTests {
     }
 
     @Test
+    void appIdentityEndpointIsPublicAndReturnsConfiguredIdentity() throws Exception {
+        mockMvc.perform(get("/api/app/identity"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.appName").value("Retreat Ops"))
+                .andExpect(jsonPath("$.data.organizationName").value("Your Church"))
+                .andExpect(jsonPath("$.data.eventName").value("Your Retreat"));
+    }
+
+    @Test
     void flywayMigrationCreatesAdminUsersTable() {
         Integer tableCount = jdbcTemplate.queryForObject(
                 """
@@ -304,11 +314,11 @@ class GmcRetreatApplicationTests {
     @Test
     void bootstrapSystemAdminIsCreatedWhenMissingAndIsIdempotent() throws Exception {
         Integer adminCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM admin_users WHERE email = 'admin@gmc.local'",
+                "SELECT COUNT(*) FROM admin_users WHERE email = 'admin@example.local'",
                 Integer.class
         );
         String passwordHash = jdbcTemplate.queryForObject(
-                "SELECT password_hash FROM admin_users WHERE email = 'admin@gmc.local'",
+                "SELECT password_hash FROM admin_users WHERE email = 'admin@example.local'",
                 String.class
         );
 
@@ -319,7 +329,7 @@ class GmcRetreatApplicationTests {
         systemAdminBootstrapper.run(null);
 
         Integer adminCountAfterSecondRun = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM admin_users WHERE email = 'admin@gmc.local'",
+                "SELECT COUNT(*) FROM admin_users WHERE email = 'admin@example.local'",
                 Integer.class
         );
         assertThat(adminCountAfterSecondRun).isEqualTo(1);
@@ -331,7 +341,7 @@ class GmcRetreatApplicationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "email": "admin@gmc.local",
+                                  "email": "admin@example.local",
                                   "password": "admin1234!"
                                 }
                                 """))
@@ -339,7 +349,7 @@ class GmcRetreatApplicationTests {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.tokenType").value("Bearer"))
                 .andExpect(jsonPath("$.data.accessToken").isString())
-                .andExpect(jsonPath("$.data.admin.email").value("admin@gmc.local"))
+                .andExpect(jsonPath("$.data.admin.email").value("admin@example.local"))
                 .andExpect(jsonPath("$.data.admin.role").value("SYSTEM_ADMIN"));
     }
 
@@ -349,7 +359,7 @@ class GmcRetreatApplicationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "email": "admin@gmc.local",
+                                  "email": "admin@example.local",
                                   "password": "wrong-password"
                                 }
                                 """))
@@ -396,7 +406,7 @@ class GmcRetreatApplicationTests {
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.email").value("admin@gmc.local"))
+                .andExpect(jsonPath("$.data.email").value("admin@example.local"))
                 .andExpect(jsonPath("$.data.name").value("System Admin"))
                 .andExpect(jsonPath("$.data.role").value("SYSTEM_ADMIN"))
                 .andExpect(jsonPath("$.data.status").value("ACTIVE"));
@@ -406,7 +416,7 @@ class GmcRetreatApplicationTests {
     void currentAdminProfileRejectsJwtWithInvalidSubjectClaim() throws Exception {
         String accessToken = signedToken(Map.of(
                 "sub", "not-a-number",
-                "email", "admin@gmc.local",
+                "email", "admin@example.local",
                 "name", "System Admin",
                 "role", "SYSTEM_ADMIN",
                 "iat", Instant.now().getEpochSecond(),
@@ -424,7 +434,7 @@ class GmcRetreatApplicationTests {
     void currentAdminProfileRejectsJwtWithUnknownRoleClaim() throws Exception {
         String accessToken = signedToken(Map.of(
                 "sub", "1",
-                "email", "admin@gmc.local",
+                "email", "admin@example.local",
                 "name", "System Admin",
                 "role", "OWNER",
                 "iat", Instant.now().getEpochSecond(),
@@ -442,7 +452,7 @@ class GmcRetreatApplicationTests {
     void currentAdminProfileRejectsJwtWithMissingRequiredClaim() throws Exception {
         String accessToken = signedToken(Map.of(
                 "sub", "1",
-                "email", "admin@gmc.local",
+                "email", "admin@example.local",
                 "role", "SYSTEM_ADMIN",
                 "iat", Instant.now().getEpochSecond(),
                 "exp", Instant.now().plusSeconds(3600).getEpochSecond()
@@ -2248,7 +2258,7 @@ class GmcRetreatApplicationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "email": "admin@gmc.local",
+                                  "email": "admin@example.local",
                                   "password": "admin1234!"
                                 }
                                 """))
@@ -2262,7 +2272,7 @@ class GmcRetreatApplicationTests {
     private String accessTokenForRole(AdminRole role) throws Exception {
         return signedToken(Map.of(
                 "sub", "1",
-                "email", "admin@gmc.local",
+                "email", "admin@example.local",
                 "name", "System Admin",
                 "role", role.name(),
                 "iat", Instant.now().getEpochSecond(),

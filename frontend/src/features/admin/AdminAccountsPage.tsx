@@ -97,7 +97,7 @@ export function AdminAccountsPage() {
       <form className="form-grid" onSubmit={handleSubmit((values) => saveMutation.mutate(values))}>
         <label>
           이메일
-          <input {...register("email", { required: true })} disabled={Boolean(editingId)} placeholder="staff@gmc.local" type="email" />
+          <input {...register("email", { required: true })} disabled={Boolean(editingId)} placeholder="staff@example.local" type="email" />
         </label>
         <label>
           이름

@@ -1,4 +1,4 @@
-const ACCESS_TOKEN_KEY = "gmc-retreat-admin-access-token";
+const ACCESS_TOKEN_KEY = "retreat-ops-admin-access-token";
 
 export function getAccessToken() {
   return window.localStorage.getItem(ACCESS_TOKEN_KEY);

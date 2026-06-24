@@ -2,3 +2,6 @@
 
 ### Health
 GET {{baseUrl}}/api/health
+
+### App identity
+GET {{baseUrl}}/api/app/identity
