@@ -247,7 +247,6 @@ h2 {
 }
 
 .home-pass {
-  animation: pass-float 4.8s ease-in-out infinite;
   background:
     linear-gradient(135deg, rgb(255 255 255 / 0.3) 0 1px, transparent 1px 18px),
     linear-gradient(150deg, #12352f 0%, #176b5b 58%, #f4a340 155%);
@@ -417,6 +416,123 @@ h2 {
 .register-flow__header h1 {
   font-size: 2.2rem;
   letter-spacing: 0;
+}
+
+.register-flow__container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3rem;
+  align-items: start;
+}
+
+.register-pass {
+  animation: page-rise 480ms ease both;
+  background:
+    repeating-linear-gradient(90deg, transparent, transparent 2px, rgb(255 255 255 / 0.08) 2px, rgb(255 255 255 / 0.08) 4px),
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgb(255 255 255 / 0.08) 2px, rgb(255 255 255 / 0.08) 4px),
+    linear-gradient(135deg, #0a1f1b 0%, #12352f 35%, #1a5a4f 70%, #f4a340 155%);
+  border: 2px solid;
+  border-image: linear-gradient(135deg, rgb(255 255 255 / 0.4), rgb(255 255 255 / 0.1)) 1;
+  border-radius: 12px;
+  box-shadow:
+    0 40px 60px rgb(15 73 62 / 0.3),
+    0 0 30px rgb(244 163 64 / 0.15),
+    inset 0 1px 0 rgb(255 255 255 / 0.2),
+    inset 0 -1px 2px rgb(0 0 0 / 0.2);
+  color: #fff;
+  display: grid;
+  gap: 1.5rem;
+  max-width: 500px;
+  min-height: 340px;
+  overflow: hidden;
+  padding: 2rem;
+  position: relative;
+  transform: rotateX(9deg) rotateY(-13deg) rotateZ(-1deg);
+  transform-style: preserve-3d;
+}
+
+.register-pass::before {
+  background:
+    radial-gradient(circle at 30% 30%, rgb(255 255 255 / 0.15), transparent 50%),
+    linear-gradient(135deg, rgb(244 163 64 / 0.1), rgb(244 163 64 / 0) 60%);
+  content: "";
+  height: 100%;
+  left: -50%;
+  position: absolute;
+  top: -50%;
+  width: 200%;
+  pointer-events: none;
+}
+
+.register-pass__label {
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.register-pass strong {
+  font-size: 2rem;
+  line-height: 0.98;
+  max-width: 8ch;
+  position: relative;
+  z-index: 1;
+}
+
+.register-pass__code {
+  align-items: end;
+  display: grid;
+  gap: 0.4rem;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: auto;
+  min-height: 6rem;
+}
+
+.register-pass__bar {
+  background: rgb(255 255 255 / 0.18);
+  border-radius: 999px;
+  display: block;
+  height: 3rem;
+  transform-origin: center bottom;
+  transition: all 200ms ease;
+}
+
+.register-pass__bar:nth-child(2) {
+  height: 5rem;
+}
+
+.register-pass__bar:nth-child(3) {
+  height: 4rem;
+}
+
+.register-pass__bar--filled {
+  animation: pass-bar-fill 700ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  background: rgb(255 255 255 / 0.9);
+}
+
+.register-pass__meta {
+  align-items: center;
+  border-top: 1px dashed rgb(255 255 255 / 0.5);
+  display: flex;
+  font-size: 0.78rem;
+  font-weight: 900;
+  justify-content: space-between;
+  letter-spacing: 0.1em;
+  padding-top: 1rem;
+  position: relative;
+  z-index: 1;
+}
+
+.status-badge {
+  background: rgb(255 255 255 / 0.15);
+  border-radius: 4px;
+  padding: 0.3rem 0.6rem;
+}
+
+.status-badge--complete {
+  animation: pass-bar-pulse 1.5s ease-in-out infinite;
+  background: rgba(244, 163, 64, 0.3);
+  color: #ffd699;
 }
 
 .flow-field {
@@ -831,6 +947,123 @@ h2 {
   padding: 1rem;
 }
 
+.result-pass {
+  animation: page-rise 480ms ease both;
+  background:
+    repeating-linear-gradient(90deg, transparent, transparent 2px, rgb(255 255 255 / 0.08) 2px, rgb(255 255 255 / 0.08) 4px),
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgb(255 255 255 / 0.08) 2px, rgb(255 255 255 / 0.08) 4px),
+    linear-gradient(135deg, #0a1f1b 0%, #12352f 35%, #1a5a4f 70%, #f4a340 155%);
+  border: 2px solid;
+  border-image: linear-gradient(135deg, rgb(255 255 255 / 0.4), rgb(255 255 255 / 0.1)) 1;
+  border-radius: 12px;
+  box-shadow:
+    0 40px 60px rgb(15 73 62 / 0.3),
+    0 0 30px rgb(244 163 64 / 0.15),
+    inset 0 1px 0 rgb(255 255 255 / 0.2),
+    inset 0 -1px 2px rgb(0 0 0 / 0.2);
+  color: #fff;
+  display: grid;
+  gap: 1.2rem;
+  margin-top: 1rem;
+  min-height: 380px;
+  overflow: hidden;
+  padding: 1.5rem;
+  position: relative;
+  transform: rotateX(9deg) rotateY(-13deg) rotateZ(-1deg);
+  transform-style: preserve-3d;
+}
+
+.result-pass::before {
+  background:
+    radial-gradient(circle at 30% 30%, rgb(255 255 255 / 0.15), transparent 50%),
+    linear-gradient(135deg, rgb(244 163 64 / 0.1), rgb(244 163 64 / 0) 60%);
+  content: "";
+  height: 100%;
+  left: -50%;
+  position: absolute;
+  top: -50%;
+  width: 200%;
+  pointer-events: none;
+}
+
+.result-pass__label {
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  position: relative;
+  z-index: 1;
+}
+
+.result-pass strong {
+  font-size: 2rem;
+  line-height: 0.98;
+  max-width: 8ch;
+  position: relative;
+  z-index: 1;
+}
+
+.result-pass__info {
+  display: grid;
+  gap: 0.6rem;
+  position: relative;
+  z-index: 1;
+}
+
+.result-pass__phone {
+  font-size: 0.95rem;
+  opacity: 0.95;
+}
+
+.result-pass__status-group {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.result-pass__code {
+  align-items: end;
+  display: grid;
+  gap: 0.35rem;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: auto;
+  position: relative;
+  z-index: 1;
+}
+
+.result-pass__bar {
+  background: rgb(255 255 255 / 0.2);
+  border-radius: 999px;
+  display: block;
+  height: 3.2rem;
+}
+
+.result-pass__bar:nth-child(2) {
+  height: 5rem;
+}
+
+.result-pass__bar:nth-child(3) {
+  height: 4rem;
+}
+
+.result-pass__bar--filled {
+  animation: pass-bar-fill 600ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  background: rgb(255 255 255 / 0.82);
+}
+
+.result-pass__meta {
+  align-items: center;
+  border-top: 1px dashed rgb(255 255 255 / 0.5);
+  display: flex;
+  font-size: 0.78rem;
+  font-weight: 900;
+  justify-content: space-between;
+  letter-spacing: 0.1em;
+  padding-top: 1rem;
+  position: relative;
+  z-index: 1;
+}
+
 .admin-shell {
   display: grid;
   grid-template-columns: 280px 1fr;
@@ -1149,6 +1382,12 @@ th {
   color: #475467;
 }
 
+.status-pill--info {
+  background: rgb(255 255 255 / 0.2);
+  color: #fff;
+  border: 1px solid rgb(255 255 255 / 0.3);
+}
+
 .detail-grid {
   display: grid;
   gap: 1rem;
@@ -1279,6 +1518,23 @@ th {
     font-size: 1.6rem;
   }
 
+  .register-flow__container {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .register-pass,
+  .result-pass {
+    min-height: 240px;
+    position: static;
+    width: 100%;
+  }
+
+  .register-pass strong,
+  .result-pass strong {
+    font-size: 1.5rem;
+  }
+
   .admin-sidebar__brand {
     min-height: 44px;
   }
@@ -1346,6 +1602,34 @@ th {
 
   50% {
     transform: rotateX(11deg) rotateY(-9deg) rotateZ(1deg) translateY(-10px);
+  }
+}
+
+@keyframes pass-bar-fill {
+  0% {
+    opacity: 0;
+    transform: scaleY(0);
+  }
+
+  50% {
+    filter: brightness(1.3) drop-shadow(0 0 8px rgba(23, 107, 91, 0.6));
+  }
+
+  100% {
+    opacity: 1;
+    transform: scaleY(1);
+    filter: brightness(1) drop-shadow(0 0 4px rgba(23, 107, 91, 0.3));
+  }
+}
+
+@keyframes pass-bar-pulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 4px rgba(23, 107, 91, 0.3));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 12px rgba(244, 163, 64, 0.8));
   }
 }
 

@@ -181,6 +181,42 @@ function buildSteps(
   return steps;
 }
 
+function RegisterPass({ attendanceType, currentStep }: { attendanceType?: AttendanceType; currentStep: number }) {
+  const getPassProgress = (): number => {
+    if (!attendanceType) return 0;
+    if (currentStep <= 5) return 1;
+    if (currentStep <= 6) return 2;
+    if (currentStep <= 12) return 3;
+    return 4;
+  };
+
+  const passProgress = getPassProgress();
+
+  return (
+    <aside className="register-pass" aria-label="수련회 등록 진행 카드">
+      <span className="register-pass__label">Retreat Pass</span>
+      <strong>나의 패스</strong>
+      <div className="register-pass__code">
+        {[0, 1, 2, 3].map((index) => (
+          <span
+            key={index}
+            className={index < passProgress ? "register-pass__bar register-pass__bar--filled" : "register-pass__bar"}
+            style={{
+              animationDelay: index < passProgress ? `${index * 150}ms` : "0ms"
+            }}
+          />
+        ))}
+      </div>
+      <div className="register-pass__meta">
+        <span className={passProgress === 4 ? "status-badge status-badge--complete" : "status-badge"}>
+          {passProgress === 4 ? "READY" : "IN PROGRESS"}
+        </span>
+        <span>2026</span>
+      </div>
+    </aside>
+  );
+}
+
 export function PublicRegisterPage() {
   const [registered, setRegistered] = useState(false);
   const [step, setStep] = useState(0);
@@ -301,8 +337,11 @@ export function PublicRegisterPage() {
         <p className="muted">필요한 것만, 한 번에 하나씩 물어볼게요.</p>
       </div>
 
-      {!registered ? (
-        <form
+      <div className="register-flow__container">
+        <RegisterPass attendanceType={attendanceType} currentStep={step} />
+
+        {!registered ? (
+          <form
           className="form-grid wizard"
           onSubmit={(e) => {
             // Allow form submission only on last step
@@ -914,25 +953,26 @@ export function PublicRegisterPage() {
               </button>
             )}
           </div>
-        </form>
-      ) : null}
+          </form>
+        ) : null}
 
-      {mutation.isError ? <StatusMessage message={mutation.error.message} tone="error" /> : null}
-      {registered ? (
-        <div className="completion-card" role="status">
-          <p className="eyebrow">Registered</p>
-          <h2>등록 끝났어요</h2>
-          <p className="muted">방금 정한 비밀번호로 내 등록을 확인할 수 있어요.</p>
-          <div className="completion-actions">
-            <Link className="button button--primary" to="/public/self-lookup">
-              내 등록 확인
-            </Link>
-            <Link className="button button--secondary" to="/">
-              처음으로
-            </Link>
+        {mutation.isError ? <StatusMessage message={mutation.error.message} tone="error" /> : null}
+          {registered ? (
+          <div className="completion-card" role="status">
+            <p className="eyebrow">Registered</p>
+            <h2>등록 끝났어요</h2>
+            <p className="muted">방금 정한 비밀번호로 내 등록을 확인할 수 있어요.</p>
+            <div className="completion-actions">
+              <Link className="button button--primary" to="/public/self-lookup">
+                내 등록 확인
+              </Link>
+              <Link className="button button--secondary" to="/">
+                처음으로
+              </Link>
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </section>
   );
 }

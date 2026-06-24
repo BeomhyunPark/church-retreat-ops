@@ -108,13 +108,30 @@ export function PublicSelfLookupPage() {
 
       {mutation.isError ? <StatusMessage message={mutation.error.message} tone="error" /> : null}
       {mutation.data ? (
-        <div className="result-card">
+        <div className="result-pass">
+          <span className="result-pass__label">My Pass</span>
           <strong>{mutation.data.name}</strong>
-          <span>{mutation.data.phoneNumber}</span>
-          <span className={mutation.data.feePaid ? "status-pill status-pill--success" : "status-pill status-pill--warning"}>
-            {mutation.data.feePaid ? "참가비 납부 완료" : "참가비 확인 필요"}
-          </span>
-          <span>등록 상태: {mutation.data.status === "REGISTERED" ? "등록 완료" : mutation.data.status}</span>
+          <div className="result-pass__info">
+            <span className="result-pass__phone">{mutation.data.phoneNumber}</span>
+            <div className="result-pass__status-group">
+              <span className={mutation.data.feePaid ? "status-pill status-pill--success" : "status-pill status-pill--warning"}>
+                {mutation.data.feePaid ? "참가비 완료" : "참가비 확인"}
+              </span>
+              <span className="status-pill status-pill--info">
+                {mutation.data.status === "REGISTERED" ? "✓ 등록됨" : mutation.data.status}
+              </span>
+            </div>
+          </div>
+          <div className="result-pass__code">
+            <span className="result-pass__bar result-pass__bar--filled" />
+            <span className="result-pass__bar result-pass__bar--filled" />
+            <span className="result-pass__bar result-pass__bar--filled" />
+            <span className="result-pass__bar result-pass__bar--filled" />
+          </div>
+          <div className="result-pass__meta">
+            <span>COMPLETE</span>
+            <span>2026</span>
+          </div>
         </div>
       ) : null}
     </section>
