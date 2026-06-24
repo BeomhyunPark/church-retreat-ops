@@ -171,8 +171,6 @@ h2 {
   animation: page-rise 520ms ease both;
   display: flex;
   justify-content: space-between;
-  margin: 0 auto;
-  max-width: 960px;
   width: 100%;
 }
 
@@ -348,9 +346,8 @@ h2 {
 
 .public-header {
   align-items: center;
-  margin: 0 auto;
-  max-width: 560px;
-  padding: 1rem 1rem 0.875rem;
+  display: flex;
+  padding: 1rem;
 }
 
 .public-main {
