@@ -46,7 +46,10 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        .requestMatchers("/api/health", "/api/app/identity", "/api/admin/auth/login",
+                                "/api/registrations", "/api/registrations/self/lookup", "/api/registrations/self",
+                                "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
+                        .permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exception -> exception

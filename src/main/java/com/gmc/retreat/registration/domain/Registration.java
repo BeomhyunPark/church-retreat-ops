@@ -28,9 +28,6 @@ public record Registration(
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
         AttendanceType attendanceType,
-        TransportationMethod transportationMethod,
-        Boolean carpoolAvailable,
-        Integer carpoolSeats,
         Boolean lodgingNight1,
         Boolean lodgingNight2,
         Boolean attendDay1Morning,
@@ -40,6 +37,12 @@ public record Registration(
         Boolean attendDay2Afternoon,
         Boolean attendDay2Worship,
         Boolean attendDay3Morning,
-        Boolean attendDay3Afternoon
+        Boolean attendDay3Afternoon,
+        TransportationMethod inboundTransportationMethod,
+        Boolean inboundCarpoolAvailable,
+        Integer inboundCarpoolSeats,
+        TransportationMethod outboundTransportationMethod,
+        Boolean outboundCarpoolAvailable,
+        Integer outboundCarpoolSeats
 ) {
 }

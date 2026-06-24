@@ -8,6 +8,10 @@ spring:
   web:
     resources:
       add-mappings: false
+  flyway:
+    baselineOnMigrate: true
+    validateOnMigrate: false
+    outOfOrder: true
 
 server:
   port: 8080
