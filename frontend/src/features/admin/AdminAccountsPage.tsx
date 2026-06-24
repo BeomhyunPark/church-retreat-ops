@@ -7,6 +7,7 @@ import {
   updateAdminAccount,
   updateAdminAccountStatus,
   resetAdminAccountPassword,
+  roleLabel,
   type AdminAccount,
   type AdminRoleValue,
   type AdminStatusValue
@@ -97,7 +98,7 @@ export function AdminAccountsPage() {
       <form className="form-grid" onSubmit={handleSubmit((values) => saveMutation.mutate(values))}>
         <label>
           이메일
-          <input {...register("email", { required: true })} disabled={Boolean(editingId)} placeholder="staff@gmc.local" type="email" />
+          <input {...register("email", { required: true })} disabled={Boolean(editingId)} placeholder="staff@example.local" type="email" />
         </label>
         <label>
           이름
@@ -235,17 +236,6 @@ export function AdminAccountsPage() {
       </div>
     </section>
   );
-}
-
-function roleLabel(role: AdminRoleValue) {
-  const labels: Record<AdminRoleValue, string> = {
-    STAFF: "스태프",
-    CHAIR: "회장단",
-    PASTOR: "목회자",
-    SYSTEM_ADMIN: "시스템 관리자"
-  };
-
-  return labels[role];
 }
 
 function statusLabel(status: AdminStatusValue) {

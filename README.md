@@ -1,6 +1,6 @@
-# GMC Retreat App
+# Retreat Ops
 
-`church-retreat-ops`는 교회 수련회 준비와 현장 운영을 위한 백엔드 프로젝트입니다.
+`church-retreat-ops`는 교회 수련회 준비와 현장 운영을 위한 운영 도구입니다.
 
 현재는 백엔드 기반, 관리자 인증 기반, 참가자 등록, 참석/교통 수집, 관리자 참가자 관리, 공동체 구조, 수련회 조 편성, 공지 도메인, 일정 도메인, 체크인 도메인, 참가비 관리 도메인 Phase 9가 구현되어 있습니다. 프론트엔드는 `frontend/`에 Vite React 앱 셸이 구성되어 있습니다.
 
@@ -195,6 +195,20 @@ docker compose down -v
 
 기본 포트는 `8080`입니다.
 
+## 앱 아이덴티티 설정
+
+화면에 표시되는 앱 이름, 교회/단체명, 행사명은 환경변수로 바꿀 수 있습니다. 기본값은 특정 교회에 묶이지 않는 플레이스홀더입니다.
+
+- `APP_IDENTITY_APP_NAME`: 기본값 `Retreat Ops`
+- `APP_IDENTITY_ORGANIZATION_NAME`: 기본값 `Your Church`
+- `APP_IDENTITY_EVENT_NAME`: 기본값 `Your Retreat`
+
+현재 설정값 확인:
+
+```bash
+curl http://localhost:8080/api/app/identity
+```
+
 ## 프론트엔드 실행
 
 프론트엔드는 `frontend/` 디렉터리의 Vite React 앱입니다. 공개 참가자 화면은 스마트폰 우선, 관리자 화면은 데스크톱/태블릿 우선으로 구성합니다.
@@ -242,17 +256,23 @@ Phase 2 이후 통합 테스트도 같은 명령에 포함됩니다.
 curl http://localhost:8080/api/health
 ```
 
+## 앱 아이덴티티 조회
+
+```bash
+curl http://localhost:8080/api/app/identity
+```
+
 ## 관리자 로그인 테스트
 
 로컬 개발 기본 관리자 계정:
 
-- Email: `admin@gmc.local`
+- Email: `admin@example.local`
 - Password: `admin1234!`
 
 ```bash
 curl -s -X POST http://localhost:8080/api/admin/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"email":"admin@gmc.local","password":"admin1234!"}'
+  -d '{"email":"admin@example.local","password":"admin1234!"}'
 ```
 
 응답의 `data.accessToken` 값을 `/me` API 호출에 사용합니다.

@@ -11,8 +11,8 @@ import { AdminParticipantsPage } from "../features/admin/AdminParticipantsPage";
 import { AdminProfilePage } from "../features/admin/AdminProfilePage";
 import { AdminRetreatGroupsPage } from "../features/admin/AdminRetreatGroupsPage";
 import { AdminSchedulesPage } from "../features/admin/AdminSchedulesPage";
+import { AppHomePage } from "../features/home/AppHomePage";
 import { PublicCheckInPage } from "../features/public/PublicCheckInPage";
-import { PublicHomePage } from "../features/public/PublicHomePage";
 import { PublicRegisterPage } from "../features/public/PublicRegisterPage";
 import { PublicSelfLookupPage } from "../features/public/PublicSelfLookupPage";
 import { AdminLayout } from "../shared/layout/AdminLayout";
@@ -21,13 +21,13 @@ import { PublicLayout } from "../shared/layout/PublicLayout";
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: <Navigate to="/public" replace />
+    element: <AppHomePage />
   },
   {
     path: "/public",
     element: <PublicLayout />,
     children: [
-      { index: true, element: <PublicHomePage /> },
+      { index: true, element: <Navigate to="/public/register" replace /> },
       { path: "register", element: <PublicRegisterPage /> },
       { path: "self-lookup", element: <PublicSelfLookupPage /> },
       { path: "check-in", element: <PublicCheckInPage /> }

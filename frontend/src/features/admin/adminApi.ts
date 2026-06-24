@@ -3,6 +3,17 @@ import { apiRequest } from "../../shared/api/client";
 export type AdminRoleValue = "STAFF" | "CHAIR" | "PASTOR" | "SYSTEM_ADMIN";
 export type AdminStatusValue = "ACTIVE" | "INACTIVE" | "LOCKED";
 
+const ROLE_LABELS: Record<AdminRoleValue, string> = {
+  STAFF: "스태프",
+  CHAIR: "회장단",
+  PASTOR: "목회자",
+  SYSTEM_ADMIN: "시스템 관리자"
+};
+
+export function roleLabel(role: AdminRoleValue) {
+  return ROLE_LABELS[role];
+}
+
 export type AdminProfile = {
   id: number;
   email: string;

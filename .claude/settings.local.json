@@ -11,7 +11,13 @@
       "Bash(chromium-cli *)",
       "Bash(curl -s http://localhost:5173)",
       "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
-      "Bash(git restore *)"
+      "Bash(git restore *)",
+      "Bash(git checkout *)",
+      "Bash(gh pr *)",
+      "Bash(git fetch *)",
+      "Bash(git merge *)",
+      "Bash(rm frontend/src/features/public/PublicHomePage.tsx)",
+      "Bash(git add *)"
     ]
   }
 }

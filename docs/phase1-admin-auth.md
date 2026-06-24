@@ -1,6 +1,6 @@
 # Phase 1 관리자 인증 / 역할 기반 권한 기초
 
-이 문서는 GMC Retreat App의 Phase 1 구현 범위를 설명합니다.
+이 문서는 Retreat Ops의 Phase 1 구현 범위를 설명합니다.
 
 ## 목적
 
@@ -112,7 +112,7 @@ curl http://localhost:8080/api/health
 ```bash
 curl -s -X POST http://localhost:8080/api/admin/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"email":"admin@gmc.local","password":"admin1234!"}'
+  -d '{"email":"admin@example.local","password":"admin1234!"}'
 ```
 
 현재 관리자 프로필:

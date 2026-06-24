@@ -1,6 +1,6 @@
 # Phase 5 수련회 조 편성
 
-이 문서는 GMC Retreat App의 Phase 5 수련회 조 편성 구현 범위를 설명합니다.
+이 문서는 Retreat Ops의 Phase 5 수련회 조 편성 구현 범위를 설명합니다.
 
 ## 목적
 

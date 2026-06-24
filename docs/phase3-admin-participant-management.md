@@ -1,6 +1,6 @@
 # Phase 3 관리자 참가자 관리
 
-이 문서는 GMC Retreat App의 Phase 3 관리자 참가자 관리 구현 범위를 설명합니다.
+이 문서는 Retreat Ops의 Phase 3 관리자 참가자 관리 구현 범위를 설명합니다.
 
 ## 목적
 
@@ -101,7 +101,7 @@ Docker Desktop이 실행 중이어야 합니다. 테스트는 Testcontainers Pos
 ```bash
 curl -s -X POST http://localhost:8080/api/admin/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"email":"admin@gmc.local","password":"admin1234!"}'
+  -d '{"email":"admin@example.local","password":"admin1234!"}'
 ```
 
 참가비 납부 상태 변경:

@@ -1,6 +1,6 @@
 # Phase 7 일정 도메인
 
-이 문서는 GMC Retreat App의 Phase 7 일정 도메인 구현 범위를 설명합니다.
+이 문서는 Retreat Ops의 Phase 7 일정 도메인 구현 범위를 설명합니다.
 
 ## 목적
 
@@ -131,13 +131,13 @@ active=true
   "displayOrder": 0,
   "createdBy": {
     "id": 1,
-    "email": "admin@gmc.local",
+    "email": "admin@example.local",
     "name": "System Admin",
     "role": "SYSTEM_ADMIN"
   },
   "updatedBy": {
     "id": 1,
-    "email": "admin@gmc.local",
+    "email": "admin@example.local",
     "name": "System Admin",
     "role": "SYSTEM_ADMIN"
   }
