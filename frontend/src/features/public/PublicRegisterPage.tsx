@@ -82,6 +82,10 @@ export function PublicRegisterPage() {
     setStep((current) => Math.max(current - 1, 0));
   }
 
+  function goHome() {
+    window.location.href = "/";
+  }
+
   function handleStepKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === "Enter" && !isLastStep) {
       event.preventDefault();
@@ -143,7 +147,11 @@ export function PublicRegisterPage() {
             {step === 2 ? (
               <div className="flow-field flow-field--lg">
                 <span>성별</span>
-                <div className="segmented" role="radiogroup" aria-label="성별">
+                <div className={gender ? "segmented segmented--picked" : "segmented"} role="radiogroup" aria-label="성별">
+                  <span
+                    className="segmented__pill"
+                    style={{ transform: gender === "MALE" ? "translateX(100%)" : "translateX(0%)" }}
+                  />
                   <button
                     type="button"
                     className={gender === "FEMALE" ? "segmented__option segmented__option--active" : "segmented__option"}
@@ -209,6 +217,11 @@ export function PublicRegisterPage() {
           ) : null}
 
           <div className="wizard__actions">
+            {step === 0 ? (
+              <button type="button" className="button button--ghost" onClick={goHome}>
+                취소
+              </button>
+            ) : null}
             {step > 0 ? (
               <button type="button" className="button button--ghost" onClick={goBack}>
                 이전

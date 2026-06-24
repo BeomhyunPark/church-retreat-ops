@@ -27,6 +27,10 @@ export function PublicSelfLookupPage() {
     setStep((current) => Math.max(current - 1, 0));
   }
 
+  function goHome() {
+    window.location.href = "/";
+  }
+
   function handleStepKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === "Enter" && !isLastStep) {
       event.preventDefault();
@@ -80,6 +84,11 @@ export function PublicSelfLookupPage() {
         </div>
 
         <div className="wizard__actions">
+          {step === 0 ? (
+              <button type="button" className="button button--ghost" onClick={goHome}>
+                취소
+              </button>
+            ) : null}
           {step > 0 ? (
             <button type="button" className="button button--ghost" onClick={goBack}>
               이전
