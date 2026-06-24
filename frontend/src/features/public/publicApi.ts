@@ -1,5 +1,7 @@
 import { apiRequest } from "../../shared/api/client";
 
+export type TransportationMethod = "OWN_CAR" | "GROUP_BUS" | "WORSHIP_SHUTTLE" | "PUBLIC_TRANSIT" | "CARPOOL_NEEDED" | "NOT_DECIDED";
+
 export type RegistrationCreatePayload = {
   name: string;
   gender: "MALE" | "FEMALE";
@@ -9,9 +11,12 @@ export type RegistrationCreatePayload = {
   privacyConsentAgreed: boolean;
   lookupKey: string;
   attendanceType: "FULL" | "PARTIAL" | "WORSHIP_ONLY";
-  transportation: "OWN_CAR" | "BUS" | "PUBLIC_TRANSIT" | "RIDE_NEEDED";
-  carpoolAvailable?: boolean;
-  carpoolSeats?: number;
+  inboundTransportationMethod: TransportationMethod;
+  outboundTransportationMethod: TransportationMethod;
+  inboundCarpoolAvailable?: boolean;
+  inboundCarpoolSeats?: number;
+  outboundCarpoolAvailable?: boolean;
+  outboundCarpoolSeats?: number;
   lodgingNight1?: boolean;
   lodgingNight2?: boolean;
   attendDay1Morning?: boolean;
@@ -55,9 +60,12 @@ export type RegistrationSelfUpdatePayload = {
     phoneNumber: string;
     churchCellDepartment?: string;
     attendanceType: "FULL" | "PARTIAL" | "WORSHIP_ONLY";
-    transportation: "OWN_CAR" | "BUS" | "PUBLIC_TRANSIT" | "RIDE_NEEDED";
-    carpoolAvailable?: boolean;
-    carpoolSeats?: number;
+    inboundTransportationMethod: TransportationMethod;
+    outboundTransportationMethod: TransportationMethod;
+    inboundCarpoolAvailable?: boolean;
+    inboundCarpoolSeats?: number;
+    outboundCarpoolAvailable?: boolean;
+    outboundCarpoolSeats?: number;
     lodgingNight1?: boolean;
     lodgingNight2?: boolean;
     attendDay1Morning?: boolean;

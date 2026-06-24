@@ -419,7 +419,6 @@ h2 {
 
 .flow-field {
   background: transparent;
-  border-bottom: 1px solid rgb(15 73 62 / 0.22);
   border-radius: 0;
   padding: 0.75rem 0;
   transition:
@@ -435,7 +434,8 @@ h2 {
 .form-grid input,
 .form-grid select {
   background: transparent;
-  border: 0;
+  border: none;
+  border-bottom: 2px solid #176b5b;
   border-radius: 0;
   color: var(--color-text);
   display: block;
@@ -445,18 +445,22 @@ h2 {
   min-height: 42px;
   padding: 0;
   width: 100%;
+  transition: border-color 0.2s;
+}
+
+.form-grid input::placeholder,
+.form-grid select::placeholder {
+  color: #d0d0d0;
+  opacity: 1;
 }
 
 .form-grid input:focus,
 .form-grid select:focus {
   box-shadow: none;
   outline: none;
+  border-bottom-color: #0d4a3f;
 }
 
-.flow-field:focus-within {
-  border-color: var(--color-primary);
-  transform: translateX(3px);
-}
 
 .field-error {
   color: var(--color-danger);
@@ -516,24 +520,36 @@ h2 {
 }
 
 .flow-field--lg input {
+  border-bottom: 2px solid #176b5b !important;
   font-size: 1.6rem !important;
   height: 56px !important;
+  transition: border-color 0.2s;
+}
+
+.flow-field--lg input:focus {
+  border-bottom-color: #0d4a3f !important;
 }
 
 .suffix-input {
-  align-items: baseline;
+  position: relative;
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
 }
 
 .suffix-input input {
   flex: 1;
+  padding-right: 40px;
 }
 
 .suffix-input__suffix {
-  color: var(--color-muted);
-  font-size: 1.6rem;
-  font-weight: 700;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #666;
+  font-size: 0.9rem;
+  font-weight: 500;
+  pointer-events: none;
   white-space: nowrap;
 }
 
@@ -1353,4 +1369,13 @@ th {
   letter-spacing: 0.5px;
   margin-bottom: 8px;
   text-transform: uppercase;
+}
+
+.direction-label {
+  color: #999;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  display: block;
 }
