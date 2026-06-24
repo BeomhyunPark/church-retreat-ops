@@ -1,7 +1,7 @@
 import { useState, type KeyboardEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { lookupRegistration, selfUpdateRegistration, type RegistrationResponse, type RegistrationSelfUpdatePayload } from "./publicApi";
+import { lookupRegistration, selfUpdateRegistration, type RegistrationResponse, type RegistrationSelfUpdatePayload, type TransportationMethod } from "./publicApi";
 import { StatusMessage } from "../../shared/ui/StatusMessage";
 
 // Validation helper functions
@@ -22,7 +22,6 @@ const ValidationHelpers = {
 };
 
 type AttendanceType = "FULL" | "PARTIAL" | "WORSHIP_ONLY";
-type TransportationMethod = "OWN_CAR" | "BUS" | "PUBLIC_TRANSIT" | "RIDE_NEEDED";
 
 type FormValues = {
   name: string;
@@ -33,9 +32,12 @@ type FormValues = {
   phoneNumber: string;
   churchCellDepartment?: string;
   attendanceType: AttendanceType;
-  transportation: TransportationMethod;
-  carpoolAvailable?: boolean;
-  carpoolSeats?: number;
+  inboundTransportationMethod: TransportationMethod;
+  outboundTransportationMethod: TransportationMethod;
+  inboundCarpoolAvailable?: boolean;
+  inboundCarpoolSeats?: number;
+  outboundCarpoolAvailable?: boolean;
+  outboundCarpoolSeats?: number;
   lodgingNight1?: boolean;
   lodgingNight2?: boolean;
   attendDay1Morning?: boolean;
@@ -61,17 +63,19 @@ function formatPhoneNumber(value: string) {
 
 function getTransportationOptions(attendanceType: AttendanceType): TransportationMethod[] {
   if (attendanceType === "FULL") {
-    return ["OWN_CAR", "BUS"];
+    return ["OWN_CAR", "GROUP_BUS", "WORSHIP_SHUTTLE"];
   }
-  return ["OWN_CAR", "PUBLIC_TRANSIT", "RIDE_NEEDED"];
+  return ["OWN_CAR", "GROUP_BUS", "WORSHIP_SHUTTLE", "PUBLIC_TRANSIT", "CARPOOL_NEEDED", "NOT_DECIDED"];
 }
 
 function getTransportationLabel(method: TransportationMethod): string {
   const labels: Record<TransportationMethod, string> = {
     OWN_CAR: "자차",
-    BUS: "버스",
+    GROUP_BUS: "단체버스",
+    WORSHIP_SHUTTLE: "예배셔틀",
     PUBLIC_TRANSIT: "대중교통",
-    RIDE_NEEDED: "차량 필요"
+    CARPOOL_NEEDED: "차량 필요",
+    NOT_DECIDED: "미정"
   };
   return labels[method];
 }
@@ -100,19 +104,24 @@ function buildSteps(isLoaded: boolean, attendanceType?: AttendanceType): Array<k
     return [...lookupSteps, ...editSteps];
   }
 
-  const steps: Array<keyof FormValues> = [...lookupSteps, ...editSteps, "transportation"];
+  // All attendance types have both inbound and outbound transportation
+  const steps: Array<keyof FormValues> = [
+    ...lookupSteps,
+    ...editSteps,
+    "inboundTransportationMethod",
+    "inboundCarpoolAvailable",
+    "outboundTransportationMethod",
+    "outboundCarpoolAvailable"
+  ];
 
   if (attendanceType === "FULL") {
-    // FULL: no carpool, lodging, or checklist
-    // steps already has transportation
+    // FULL: inbound and outbound transportation only
   } else if (attendanceType === "PARTIAL") {
-    // PARTIAL: carpool (if OWN_CAR), lodging, checklist
-    steps.push("carpoolAvailable");
+    // PARTIAL: inbound/outbound, lodging, checklist
     steps.push("lodgingNight1");
     steps.push("attendDay1Morning");
   } else {
-    // WORSHIP_ONLY: carpool (if OWN_CAR), no lodging, checklist
-    steps.push("carpoolAvailable");
+    // WORSHIP_ONLY: inbound/outbound, checklist (no lodging)
     steps.push("attendDay1Morning");
   }
 
@@ -147,7 +156,8 @@ export function PublicSelfEditPage() {
       attendDay2Worship: false,
       attendDay3Morning: false,
       attendDay3Afternoon: false,
-      carpoolAvailable: false
+      inboundCarpoolAvailable: false,
+      outboundCarpoolAvailable: false
     }
   });
 
@@ -179,8 +189,10 @@ export function PublicSelfEditPage() {
   }
 
   const attendanceType = watch("attendanceType");
-  const transportation = watch("transportation");
-  const carpoolAvailable = watch("carpoolAvailable");
+  const inboundTransportation = watch("inboundTransportationMethod");
+  const outboundTransportation = watch("outboundTransportationMethod");
+  const inboundCarpoolAvailable = watch("inboundCarpoolAvailable");
+  const outboundCarpoolAvailable = watch("outboundCarpoolAvailable");
   const gender = watch("gender");
 
   const currentSteps = buildSteps(isLoaded, attendanceType);
@@ -197,9 +209,12 @@ export function PublicSelfEditPage() {
         phoneNumber: values.phoneNumber,
         churchCellDepartment: values.churchCellDepartment,
         attendanceType: values.attendanceType,
-        transportation: values.transportation,
-        carpoolAvailable: values.carpoolAvailable,
-        carpoolSeats: values.carpoolSeats,
+        inboundTransportationMethod: values.inboundTransportationMethod,
+        outboundTransportationMethod: values.outboundTransportationMethod,
+        inboundCarpoolAvailable: values.inboundCarpoolAvailable,
+        inboundCarpoolSeats: values.inboundCarpoolSeats,
+        outboundCarpoolAvailable: values.outboundCarpoolAvailable,
+        outboundCarpoolSeats: values.outboundCarpoolSeats,
         lodgingNight1: values.lodgingNight1,
         lodgingNight2: values.lodgingNight2,
         attendDay1Morning: values.attendDay1Morning,
@@ -215,8 +230,6 @@ export function PublicSelfEditPage() {
 
     // For FULL attendance, remove survey-related fields
     if (values.attendanceType === "FULL") {
-      delete payload.update.carpoolAvailable;
-      delete payload.update.carpoolSeats;
       delete payload.update.lodgingNight1;
       delete payload.update.lodgingNight2;
       delete payload.update.attendDay1Morning;
@@ -296,7 +309,6 @@ export function PublicSelfEditPage() {
           <div
             className={shake ? "wizard__step wizard__step--shake" : "wizard__step"}
             onKeyDown={handleStepKeyDown}
-            onAnimationEnd={() => setShake(false)}
           >
             {/* Step: name */}
             {currentSteps[step] === "name" ? (
@@ -384,8 +396,12 @@ export function PublicSelfEditPage() {
                       onClick={() => {
                         setValue("attendanceType", type, { shouldValidate: true });
                         // Reset dependent fields when changing attendance type
-                        setValue("transportation", undefined as any);
-                        setValue("carpoolAvailable", false);
+                        setValue("inboundTransportationMethod", undefined as any);
+                        setValue("outboundTransportationMethod", undefined as any);
+                        setValue("inboundCarpoolAvailable", false);
+                        setValue("inboundCarpoolSeats", undefined);
+                        setValue("outboundCarpoolAvailable", false);
+                        setValue("outboundCarpoolSeats", undefined);
                         setValue("lodgingNight1", false);
                         setValue("lodgingNight2", false);
                       }}
@@ -398,25 +414,26 @@ export function PublicSelfEditPage() {
               </div>
             ) : null}
 
-            {/* Step: transportation */}
-            {currentSteps[step] === "transportation" && attendanceType && isLoaded ? (
+            {/* Step: inboundTransportationMethod */}
+            {currentSteps[step] === "inboundTransportationMethod" && attendanceType && isLoaded ? (
               <div className="flow-field flow-field--lg">
-                <span>이동 방식</span>
-                <div className="option-cards" role="radiogroup" aria-label="이동 방식">
+                <span>어떻게 가세요? (인바운드)</span>
+                <span className="direction-label">올 때</span>
+                <div className="option-cards" role="radiogroup" aria-label="인바운드 이동 방식">
                   {getTransportationOptions(attendanceType).map((method) => (
                     <button
                       key={method}
                       type="button"
                       className={
-                        transportation === method
+                        inboundTransportation === method
                           ? "option-card option-card--active"
                           : "option-card"
                       }
                       onClick={() => {
-                        setValue("transportation", method, { shouldValidate: true });
+                        setValue("inboundTransportationMethod", method, { shouldValidate: true });
                         if (method !== "OWN_CAR") {
-                          setValue("carpoolAvailable", false);
-                          setValue("carpoolSeats", undefined);
+                          setValue("inboundCarpoolAvailable", false);
+                          setValue("inboundCarpoolSeats", undefined);
                         }
                       }}
                     >
@@ -424,53 +441,55 @@ export function PublicSelfEditPage() {
                     </button>
                   ))}
                 </div>
-                <input type="hidden" {...register("transportation", { required: true })} />
+                <input type="hidden" {...register("inboundTransportationMethod", { required: true })} />
               </div>
             ) : null}
 
-            {/* Step: carpoolAvailable */}
-            {currentSteps[step] === "carpoolAvailable" && transportation === "OWN_CAR" && isLoaded ? (
+            {/* Step: inboundCarpoolAvailable */}
+            {currentSteps[step] === "inboundCarpoolAvailable" && inboundTransportation === "OWN_CAR" && isLoaded ? (
               <div className="flow-field flow-field--lg">
-                <span>동승자 탈 수 있어요?</span>
-                <div className="segmented" role="radiogroup" aria-label="동승자 여부">
+                <span>동승자 탈 수 있어요? (인바운드)</span>
+                <span className="direction-label">올 때</span>
+                <div className="segmented" role="radiogroup" aria-label="인바운드 동승자 여부">
                   <span
-                    className={carpoolAvailable !== undefined ? "segmented__pill segmented__pill--active" : "segmented__pill"}
+                    className={inboundCarpoolAvailable !== undefined ? "segmented__pill segmented__pill--active" : "segmented__pill"}
                     style={
-                      carpoolAvailable === true
+                      inboundCarpoolAvailable === true
                         ? { left: "50%", width: "calc(50% - 0.25rem)" }
-                        : carpoolAvailable === false
+                        : inboundCarpoolAvailable === false
                           ? { left: "0.25rem", width: "calc(50% - 0.25rem)" }
                           : { left: "50%", width: "2px", transform: "translateX(-1px)" }
                     }
                   />
                   <button
                     type="button"
-                    className={carpoolAvailable === false ? "segmented__option segmented__option--active" : "segmented__option"}
+                    className={inboundCarpoolAvailable === false ? "segmented__option segmented__option--active" : "segmented__option"}
                     onClick={() => {
-                      setValue("carpoolAvailable", false, { shouldValidate: true });
-                      setValue("carpoolSeats", undefined);
+                      setValue("inboundCarpoolAvailable", false, { shouldValidate: true });
+                      setValue("inboundCarpoolSeats", undefined);
                     }}
                   >
                     아니오
                   </button>
                   <button
                     type="button"
-                    className={carpoolAvailable === true ? "segmented__option segmented__option--active" : "segmented__option"}
-                    onClick={() => setValue("carpoolAvailable", true, { shouldValidate: true })}
+                    className={inboundCarpoolAvailable === true ? "segmented__option segmented__option--active" : "segmented__option"}
+                    onClick={() => setValue("inboundCarpoolAvailable", true, { shouldValidate: true })}
                   >
                     네
                   </button>
                 </div>
-                <input type="hidden" {...register("carpoolAvailable")} />
+                <input type="hidden" {...register("inboundCarpoolAvailable")} />
               </div>
             ) : null}
 
-            {/* Step: carpoolSeats */}
-            {currentSteps[step] === "carpoolAvailable" && transportation === "OWN_CAR" && carpoolAvailable && isLoaded ? (
+            {/* Step: inboundCarpoolSeats */}
+            {currentSteps[step] === "inboundCarpoolAvailable" && inboundTransportation === "OWN_CAR" && inboundCarpoolAvailable && isLoaded ? (
               <label className="flow-field flow-field--lg">
-                <span>몇 명까지 가능해요?</span>
+                <span>몇 명까지 가능해요? (인바운드)</span>
+                <span className="direction-label">올 때</span>
                 <input
-                  {...register("carpoolSeats", {
+                  {...register("inboundCarpoolSeats", {
                     required: "동승자 수를 입력해주세요.",
                     min: { value: 1, message: "최소 1명 이상이어야 합니다." },
                     max: { value: 10, message: "최대 10명까지 입력 가능합니다." },
@@ -488,7 +507,104 @@ export function PublicSelfEditPage() {
                   placeholder="1"
                   autoFocus
                 />
-                {formState.errors.carpoolSeats && <span className="field-error">{formState.errors.carpoolSeats.message}</span>}
+                {formState.errors.inboundCarpoolSeats && <span className="field-error">{formState.errors.inboundCarpoolSeats.message}</span>}
+              </label>
+            ) : null}
+
+            {/* Step: outboundTransportationMethod */}
+            {currentSteps[step] === "outboundTransportationMethod" && attendanceType && isLoaded ? (
+              <div className="flow-field flow-field--lg">
+                <span>어떻게 돌아가세요? (아웃바운드)</span>
+                <span className="direction-label">돌아갈 때</span>
+                <div className="option-cards" role="radiogroup" aria-label="아웃바운드 이동 방식">
+                  {getTransportationOptions(attendanceType).map((method) => (
+                    <button
+                      key={method}
+                      type="button"
+                      className={
+                        outboundTransportation === method
+                          ? "option-card option-card--active"
+                          : "option-card"
+                      }
+                      onClick={() => {
+                        setValue("outboundTransportationMethod", method, { shouldValidate: true });
+                        if (method !== "OWN_CAR") {
+                          setValue("outboundCarpoolAvailable", false);
+                          setValue("outboundCarpoolSeats", undefined);
+                        }
+                      }}
+                    >
+                      {getTransportationLabel(method)}
+                    </button>
+                  ))}
+                </div>
+                <input type="hidden" {...register("outboundTransportationMethod", { required: true })} />
+              </div>
+            ) : null}
+
+            {/* Step: outboundCarpoolAvailable */}
+            {currentSteps[step] === "outboundCarpoolAvailable" && outboundTransportation === "OWN_CAR" && isLoaded ? (
+              <div className="flow-field flow-field--lg">
+                <span>동승자 탈 수 있어요? (아웃바운드)</span>
+                <span className="direction-label">돌아갈 때</span>
+                <div className="segmented" role="radiogroup" aria-label="아웃바운드 동승자 여부">
+                  <span
+                    className={outboundCarpoolAvailable !== undefined ? "segmented__pill segmented__pill--active" : "segmented__pill"}
+                    style={
+                      outboundCarpoolAvailable === true
+                        ? { left: "50%", width: "calc(50% - 0.25rem)" }
+                        : outboundCarpoolAvailable === false
+                          ? { left: "0.25rem", width: "calc(50% - 0.25rem)" }
+                          : { left: "50%", width: "2px", transform: "translateX(-1px)" }
+                    }
+                  />
+                  <button
+                    type="button"
+                    className={outboundCarpoolAvailable === false ? "segmented__option segmented__option--active" : "segmented__option"}
+                    onClick={() => {
+                      setValue("outboundCarpoolAvailable", false, { shouldValidate: true });
+                      setValue("outboundCarpoolSeats", undefined);
+                    }}
+                  >
+                    아니오
+                  </button>
+                  <button
+                    type="button"
+                    className={outboundCarpoolAvailable === true ? "segmented__option segmented__option--active" : "segmented__option"}
+                    onClick={() => setValue("outboundCarpoolAvailable", true, { shouldValidate: true })}
+                  >
+                    네
+                  </button>
+                </div>
+                <input type="hidden" {...register("outboundCarpoolAvailable")} />
+              </div>
+            ) : null}
+
+            {/* Step: outboundCarpoolSeats */}
+            {currentSteps[step] === "outboundCarpoolAvailable" && outboundTransportation === "OWN_CAR" && outboundCarpoolAvailable && isLoaded ? (
+              <label className="flow-field flow-field--lg">
+                <span>몇 명까지 가능해요? (아웃바운드)</span>
+                <span className="direction-label">돌아갈 때</span>
+                <input
+                  {...register("outboundCarpoolSeats", {
+                    required: "동승자 수를 입력해주세요.",
+                    min: { value: 1, message: "최소 1명 이상이어야 합니다." },
+                    max: { value: 10, message: "최대 10명까지 입력 가능합니다." },
+                    validate: (value) => {
+                      const numValue = parseInt(value as any, 10);
+                      if (isNaN(numValue)) return "숫자만 입력 가능합니다.";
+                      return true;
+                    }
+                  })}
+                  onChange={(e) => {
+                    const filtered = ValidationHelpers.filterNumeric(e.target.value).slice(0, 2);
+                    e.target.value = filtered;
+                  }}
+                  inputMode="numeric"
+                  placeholder="1"
+                  autoFocus
+                />
+                {formState.errors.outboundCarpoolSeats && <span className="field-error">{formState.errors.outboundCarpoolSeats.message}</span>}
               </label>
             ) : null}
 
