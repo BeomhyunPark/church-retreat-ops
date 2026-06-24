@@ -98,7 +98,6 @@ export function PublicRegisterPage() {
     <section className="register-flow">
       <div className="register-flow__header">
         <p className="eyebrow">Registration</p>
-        <h1>하나씩 적으면 끝</h1>
         <p className="muted">필요한 것만, 한 번에 하나씩 물어볼게요.</p>
       </div>
 

@@ -1,20 +1,15 @@
 import { Link } from "react-router-dom";
 import { StatusMessage } from "../../shared/ui/StatusMessage";
-import { brandInitials, useAppIdentity } from "../../shared/identity/appIdentity";
+import { useAppIdentity } from "../../shared/identity/appIdentity";
+import { BrandHeader } from "../../shared/layout/BrandHeader";
 
 export function AppHomePage() {
-  const { identity, isLoading, isError, error } = useAppIdentity();
+  const { identity, isError, error } = useAppIdentity();
 
   return (
     <main className="app-home">
       <header className="app-home__top">
-        <div className="app-home__brand">
-          <span className="brand-mark">{isLoading ? "" : brandInitials(identity.organizationName)}</span>
-          <div>
-            <p className="eyebrow">{isLoading ? "불러오는 중..." : identity.organizationName}</p>
-            <strong>{isLoading ? "" : identity.appName}</strong>
-          </div>
-        </div>
+        <BrandHeader />
         <Link className="text-link" to="/admin/login">
           관리자
         </Link>
