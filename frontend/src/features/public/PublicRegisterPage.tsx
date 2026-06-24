@@ -181,36 +181,14 @@ function buildSteps(
   return steps;
 }
 
-function RegisterPass({ attendanceType, currentStep }: { attendanceType?: AttendanceType; currentStep: number }) {
-  const getPassProgress = (): number => {
-    if (!attendanceType) return 0;
-    if (currentStep <= 5) return 1;
-    if (currentStep <= 6) return 2;
-    if (currentStep <= 12) return 3;
-    return 4;
-  };
-
-  const passProgress = getPassProgress();
-
+function RegisterPass() {
   return (
-    <aside className="register-pass" aria-label="수련회 등록 진행 카드">
+    <aside className="register-pass" aria-label="수련회 등록 카드">
       <span className="register-pass__label">Retreat Pass</span>
       <strong>나의 패스</strong>
-      <div className="register-pass__code">
-        {[0, 1, 2, 3].map((index) => (
-          <span
-            key={index}
-            className={index < passProgress ? "register-pass__bar register-pass__bar--filled" : "register-pass__bar"}
-            style={{
-              animationDelay: index < passProgress ? `${index * 150}ms` : "0ms"
-            }}
-          />
-        ))}
-      </div>
+      <div className="register-pass__spacer" />
       <div className="register-pass__meta">
-        <span className={passProgress === 4 ? "status-badge status-badge--complete" : "status-badge"}>
-          {passProgress === 4 ? "READY" : "IN PROGRESS"}
-        </span>
+        <span>READY</span>
         <span>2026</span>
       </div>
     </aside>

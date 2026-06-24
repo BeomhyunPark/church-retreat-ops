@@ -122,12 +122,7 @@ export function PublicSelfLookupPage() {
               </span>
             </div>
           </div>
-          <div className="result-pass__code">
-            <span className="result-pass__bar result-pass__bar--filled" />
-            <span className="result-pass__bar result-pass__bar--filled" />
-            <span className="result-pass__bar result-pass__bar--filled" />
-            <span className="result-pass__bar result-pass__bar--filled" />
-          </div>
+          <div className="result-pass__spacer" />
           <div className="result-pass__meta">
             <span>COMPLETE</span>
             <span>2026</span>

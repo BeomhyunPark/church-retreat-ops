@@ -248,10 +248,10 @@ h2 {
 
 .home-pass {
   background: #1a1a1a;
-  border: 3px solid #d4af37;
+  border: 3px solid #FFD700;
   border-radius: 12px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(212, 175, 55, 0.2);
-  color: #f4e4c1;
+  color: #FFE55C;
   display: grid;
   gap: 1.1rem;
   min-height: 310px;
@@ -290,27 +290,8 @@ h2 {
   z-index: 1;
 }
 
-.home-pass__code {
-  align-items: end;
-  display: grid;
-  gap: 0.35rem;
-  grid-template-columns: repeat(4, 1fr);
-  margin-top: auto;
-}
-
-.home-pass__code span {
-  background: linear-gradient(180deg, #f4e4c1 0%, #d4af37 50%, #f4e4c1 100%);
-  border-radius: 999px;
-  display: block;
-  height: 3.2rem;
-}
-
-.home-pass__code span:nth-child(2) {
-  height: 5rem;
-}
-
-.home-pass__code span:nth-child(3) {
-  height: 4rem;
+.home-pass__spacer {
+  flex: 1;
 }
 
 .home-pass__meta {
@@ -414,10 +395,10 @@ h2 {
 .register-pass {
   animation: page-rise 480ms ease both;
   background: #1a1a1a;
-  border: 3px solid #d4af37;
+  border: 3px solid #FFD700;
   border-radius: 12px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(212, 175, 55, 0.2);
-  color: #f4e4c1;
+  color: #FFE55C;
   display: grid;
   gap: 1.5rem;
   max-width: 500px;
@@ -445,35 +426,8 @@ h2 {
   z-index: 1;
 }
 
-.register-pass__code {
-  align-items: end;
-  display: grid;
-  gap: 0.4rem;
-  grid-template-columns: repeat(4, 1fr);
-  margin-top: auto;
-  min-height: 6rem;
-}
-
-.register-pass__bar {
-  background: rgb(255 255 255 / 0.18);
-  border-radius: 999px;
-  display: block;
-  height: 3rem;
-  transform-origin: center bottom;
-  transition: all 200ms ease;
-}
-
-.register-pass__bar:nth-child(2) {
-  height: 5rem;
-}
-
-.register-pass__bar:nth-child(3) {
-  height: 4rem;
-}
-
-.register-pass__bar--filled {
-  animation: pass-bar-fill 700ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-  background: linear-gradient(180deg, #f4e4c1 0%, #d4af37 50%, #f4e4c1 100%);
+.register-pass__spacer {
+  flex: 1;
 }
 
 .register-pass__meta {
@@ -498,7 +452,7 @@ h2 {
 .status-badge--complete {
   animation: pass-bar-pulse 1.5s ease-in-out infinite;
   background: rgba(212, 175, 55, 0.2);
-  color: #f4e4c1;
+  color: #FFE55C;
   border-color: rgba(212, 175, 55, 0.5);
 }
 
@@ -917,10 +871,10 @@ h2 {
 .result-pass {
   animation: page-rise 480ms ease both;
   background: #1a1a1a;
-  border: 3px solid #d4af37;
+  border: 3px solid #FFD700;
   border-radius: 12px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(212, 175, 55, 0.2);
-  color: #f4e4c1;
+  color: #FFE55C;
   display: grid;
   gap: 1.2rem;
   margin-top: 1rem;
@@ -968,34 +922,8 @@ h2 {
   flex-wrap: wrap;
 }
 
-.result-pass__code {
-  align-items: end;
-  display: grid;
-  gap: 0.35rem;
-  grid-template-columns: repeat(4, 1fr);
-  margin-top: auto;
-  position: relative;
-  z-index: 1;
-}
-
-.result-pass__bar {
-  background: rgb(255 255 255 / 0.2);
-  border-radius: 999px;
-  display: block;
-  height: 3.2rem;
-}
-
-.result-pass__bar:nth-child(2) {
-  height: 5rem;
-}
-
-.result-pass__bar:nth-child(3) {
-  height: 4rem;
-}
-
-.result-pass__bar--filled {
-  animation: pass-bar-fill 600ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-  background: linear-gradient(180deg, #f4e4c1 0%, #d4af37 50%, #f4e4c1 100%);
+.result-pass__spacer {
+  flex: 1;
 }
 
 .result-pass__meta {

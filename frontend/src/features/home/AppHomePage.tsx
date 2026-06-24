@@ -41,12 +41,7 @@ export function AppHomePage() {
         <aside className="home-pass" aria-label={`${identity.eventName} 앱 입장 카드`}>
           <span className="home-pass__label">Retreat Pass</span>
           <strong>{identity.eventName}</strong>
-          <div className="home-pass__code">
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
+          <div className="home-pass__spacer" />
           <div className="home-pass__meta">
             <span>READY</span>
             <span>2026</span>
