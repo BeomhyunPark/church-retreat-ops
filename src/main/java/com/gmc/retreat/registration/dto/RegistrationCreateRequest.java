@@ -1,16 +1,15 @@
 package com.gmc.retreat.registration.dto;
 
-import com.gmc.retreat.registration.domain.Gender;
-import com.gmc.retreat.registration.domain.AttendanceSlot;
 import com.gmc.retreat.registration.domain.AttendanceType;
-import com.gmc.retreat.registration.domain.TransportationType;
+import com.gmc.retreat.registration.domain.Gender;
+import com.gmc.retreat.registration.domain.TransportationMethod;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import java.util.List;
 
 public record RegistrationCreateRequest(
         @NotBlank @Size(max = 50) String name,
@@ -18,29 +17,21 @@ public record RegistrationCreateRequest(
         @NotNull @Min(1900) @Max(2026) Integer birthYear,
         @NotBlank String phoneNumber,
         @Size(max = 100) String churchCellDepartment,
+        @NotNull @AssertTrue Boolean privacyConsentAgreed,
+        @NotBlank @Pattern(regexp = "^[0-9]{6}$") String lookupKey,
         @NotNull AttendanceType attendanceType,
-        List<AttendanceSlot> attendanceSlots,
-        @NotNull TransportationType transportationType,
-        @NotNull Boolean carpoolNeeded,
-        @NotNull Boolean carpoolOffer,
-        @Min(0) @Max(20) Integer carpoolSeats,
-        @Size(max = 200) String transportationNote,
-        @NotNull @AssertTrue Boolean privacyConsentAgreed
+        @NotNull TransportationMethod transportation,
+        Boolean carpoolAvailable,
+        @Min(1) @Max(10) Integer carpoolSeats,
+        Boolean lodgingNight1,
+        Boolean lodgingNight2,
+        Boolean attendDay1Morning,
+        Boolean attendDay1Afternoon,
+        Boolean attendDay1Worship,
+        Boolean attendDay2Morning,
+        Boolean attendDay2Afternoon,
+        Boolean attendDay2Worship,
+        Boolean attendDay3Morning,
+        Boolean attendDay3Afternoon
 ) {
-    @AssertTrue
-    public boolean isPartialPlanValid() {
-        if (attendanceType != AttendanceType.PARTIAL) {
-            return true;
-        }
-        return attendanceSlots != null && !attendanceSlots.isEmpty();
-    }
-
-    @AssertTrue
-    public boolean isCarpoolOfferValid() {
-        if (Boolean.TRUE.equals(carpoolOffer)) {
-            return transportationType == TransportationType.OWN_CAR;
-        }
-        return true;
-    }
-
 }

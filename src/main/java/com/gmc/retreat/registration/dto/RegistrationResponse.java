@@ -1,14 +1,11 @@
 package com.gmc.retreat.registration.dto;
 
-import com.gmc.retreat.registration.domain.Gender;
-import com.gmc.retreat.registration.domain.AttendanceSlot;
 import com.gmc.retreat.registration.domain.AttendanceType;
+import com.gmc.retreat.registration.domain.Gender;
 import com.gmc.retreat.registration.domain.Registration;
 import com.gmc.retreat.registration.domain.RegistrationStatus;
-import com.gmc.retreat.registration.domain.TransportationType;
+import com.gmc.retreat.registration.domain.TransportationMethod;
 import com.gmc.retreat.registration.service.PhoneNumberNormalizer;
-import java.util.Arrays;
-import java.util.List;
 
 public record RegistrationResponse(
         Long id,
@@ -17,15 +14,22 @@ public record RegistrationResponse(
         Integer birthYear,
         String phoneNumber,
         String churchCellDepartment,
-        AttendanceType attendanceType,
-        List<AttendanceSlot> attendanceSlots,
-        TransportationType transportationType,
-        Boolean carpoolNeeded,
-        Boolean carpoolOffer,
-        Integer carpoolSeats,
-        String transportationNote,
         Boolean feePaid,
-        RegistrationStatus status
+        RegistrationStatus status,
+        AttendanceType attendanceType,
+        TransportationMethod transportationMethod,
+        Boolean carpoolAvailable,
+        Integer carpoolSeats,
+        Boolean lodgingNight1,
+        Boolean lodgingNight2,
+        Boolean attendDay1Morning,
+        Boolean attendDay1Afternoon,
+        Boolean attendDay1Worship,
+        Boolean attendDay2Morning,
+        Boolean attendDay2Afternoon,
+        Boolean attendDay2Worship,
+        Boolean attendDay3Morning,
+        Boolean attendDay3Afternoon
 ) {
     public static RegistrationResponse from(Registration registration) {
         return new RegistrationResponse(
@@ -35,24 +39,22 @@ public record RegistrationResponse(
                 registration.birthYear(),
                 PhoneNumberNormalizer.mask(registration.phoneNumber()),
                 registration.churchCellDepartment(),
-                registration.attendanceType(),
-                parseAttendanceSlots(registration.attendanceSlots()),
-                registration.transportationType(),
-                registration.carpoolNeeded(),
-                registration.carpoolOffer(),
-                registration.carpoolSeats(),
-                registration.transportationNote(),
                 registration.feePaid(),
-                registration.status()
+                registration.status(),
+                registration.attendanceType(),
+                registration.transportationMethod(),
+                registration.carpoolAvailable(),
+                registration.carpoolSeats(),
+                registration.lodgingNight1(),
+                registration.lodgingNight2(),
+                registration.attendDay1Morning(),
+                registration.attendDay1Afternoon(),
+                registration.attendDay1Worship(),
+                registration.attendDay2Morning(),
+                registration.attendDay2Afternoon(),
+                registration.attendDay2Worship(),
+                registration.attendDay3Morning(),
+                registration.attendDay3Afternoon()
         );
-    }
-
-    private static List<AttendanceSlot> parseAttendanceSlots(String value) {
-        if (value == null || value.isBlank()) {
-            return List.of();
-        }
-        return Arrays.stream(value.split(","))
-                .map(AttendanceSlot::valueOf)
-                .toList();
     }
 }

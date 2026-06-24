@@ -2,5 +2,6 @@ package com.gmc.retreat.registration.domain;
 
 public enum AttendanceType {
     FULL,
-    PARTIAL
+    PARTIAL,
+    WORSHIP_ONLY
 }

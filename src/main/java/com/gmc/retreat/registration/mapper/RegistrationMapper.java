@@ -4,13 +4,12 @@ import com.gmc.retreat.registration.domain.AttendanceType;
 import com.gmc.retreat.registration.domain.Gender;
 import com.gmc.retreat.registration.domain.Registration;
 import com.gmc.retreat.registration.domain.RegistrationStatus;
-import com.gmc.retreat.registration.domain.TransportationType;
+import com.gmc.retreat.registration.domain.TransportationMethod;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.apache.ibatis.annotations.Arg;
 import org.apache.ibatis.annotations.ConstructorArgs;
-import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Options;
@@ -23,16 +22,16 @@ public interface RegistrationMapper {
 
     @Select("""
             SELECT r.id, r.name, r.normalized_name, r.gender, r.birth_year, r.phone_number, r.phone_last_four,
-                   r.church_cell_department, r.attendance_type,
-                   (SELECT string_agg(ras.slot_code, ',' ORDER BY ras.slot_code)
-                    FROM registration_attendance_slots ras
-                    WHERE ras.registration_id = r.id) AS attendance_slots,
-                   r.transportation_type, r.carpool_needed, r.carpool_offer, r.carpool_seats, r.transportation_note,
-                   r.church_cell_id, cc.name AS church_cell_name,
+                   r.church_cell_department, r.church_cell_id, cc.name AS church_cell_name,
                    mg.id AS middle_group_id, mg.name AS middle_group_name,
                    rg.id AS retreat_group_id, rg.name AS retreat_group_name, rgm.leader AS retreat_group_leader,
                    r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
-                   r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at
+                   r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at,
+                   r.attendance_type, r.transportation_method, r.carpool_available, r.carpool_seats,
+                   r.lodging_night1, r.lodging_night2,
+                   r.attend_day1_morning, r.attend_day1_afternoon, r.attend_day1_worship,
+                   r.attend_day2_morning, r.attend_day2_afternoon, r.attend_day2_worship,
+                   r.attend_day3_morning, r.attend_day3_afternoon
             FROM registrations r
             LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
             LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
@@ -49,13 +48,6 @@ public interface RegistrationMapper {
             @Arg(column = "phone_number", javaType = String.class),
             @Arg(column = "phone_last_four", javaType = String.class),
             @Arg(column = "church_cell_department", javaType = String.class),
-            @Arg(column = "attendance_type", javaType = AttendanceType.class),
-            @Arg(column = "attendance_slots", javaType = String.class),
-            @Arg(column = "transportation_type", javaType = TransportationType.class),
-            @Arg(column = "carpool_needed", javaType = Boolean.class),
-            @Arg(column = "carpool_offer", javaType = Boolean.class),
-            @Arg(column = "carpool_seats", javaType = Integer.class),
-            @Arg(column = "transportation_note", javaType = String.class),
             @Arg(column = "church_cell_id", javaType = Long.class),
             @Arg(column = "church_cell_name", javaType = String.class),
             @Arg(column = "middle_group_id", javaType = Long.class),
@@ -71,22 +63,36 @@ public interface RegistrationMapper {
             @Arg(column = "newcomer", javaType = Boolean.class),
             @Arg(column = "care_target", javaType = Boolean.class),
             @Arg(column = "created_at", javaType = OffsetDateTime.class),
-            @Arg(column = "updated_at", javaType = OffsetDateTime.class)
+            @Arg(column = "updated_at", javaType = OffsetDateTime.class),
+            @Arg(column = "attendance_type", javaType = AttendanceType.class),
+            @Arg(column = "transportation_method", javaType = TransportationMethod.class),
+            @Arg(column = "carpool_available", javaType = Boolean.class),
+            @Arg(column = "carpool_seats", javaType = Integer.class),
+            @Arg(column = "lodging_night1", javaType = Boolean.class),
+            @Arg(column = "lodging_night2", javaType = Boolean.class),
+            @Arg(column = "attend_day1_morning", javaType = Boolean.class),
+            @Arg(column = "attend_day1_afternoon", javaType = Boolean.class),
+            @Arg(column = "attend_day1_worship", javaType = Boolean.class),
+            @Arg(column = "attend_day2_morning", javaType = Boolean.class),
+            @Arg(column = "attend_day2_afternoon", javaType = Boolean.class),
+            @Arg(column = "attend_day2_worship", javaType = Boolean.class),
+            @Arg(column = "attend_day3_morning", javaType = Boolean.class),
+            @Arg(column = "attend_day3_afternoon", javaType = Boolean.class)
     })
     Optional<Registration> findById(@Param("id") Long id);
 
     @Select("""
             SELECT r.id, r.name, r.normalized_name, r.gender, r.birth_year, r.phone_number, r.phone_last_four,
-                   r.church_cell_department, r.attendance_type,
-                   (SELECT string_agg(ras.slot_code, ',' ORDER BY ras.slot_code)
-                    FROM registration_attendance_slots ras
-                    WHERE ras.registration_id = r.id) AS attendance_slots,
-                   r.transportation_type, r.carpool_needed, r.carpool_offer, r.carpool_seats, r.transportation_note,
-                   r.church_cell_id, cc.name AS church_cell_name,
+                   r.church_cell_department, r.church_cell_id, cc.name AS church_cell_name,
                    mg.id AS middle_group_id, mg.name AS middle_group_name,
                    rg.id AS retreat_group_id, rg.name AS retreat_group_name, rgm.leader AS retreat_group_leader,
                    r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
-                   r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at
+                   r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at,
+                   r.attendance_type, r.transportation_method, r.carpool_available, r.carpool_seats,
+                   r.lodging_night1, r.lodging_night2,
+                   r.attend_day1_morning, r.attend_day1_afternoon, r.attend_day1_worship,
+                   r.attend_day2_morning, r.attend_day2_afternoon, r.attend_day2_worship,
+                   r.attend_day3_morning, r.attend_day3_afternoon
             FROM registrations r
             LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
             LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
@@ -105,13 +111,6 @@ public interface RegistrationMapper {
             @Arg(column = "phone_number", javaType = String.class),
             @Arg(column = "phone_last_four", javaType = String.class),
             @Arg(column = "church_cell_department", javaType = String.class),
-            @Arg(column = "attendance_type", javaType = AttendanceType.class),
-            @Arg(column = "attendance_slots", javaType = String.class),
-            @Arg(column = "transportation_type", javaType = TransportationType.class),
-            @Arg(column = "carpool_needed", javaType = Boolean.class),
-            @Arg(column = "carpool_offer", javaType = Boolean.class),
-            @Arg(column = "carpool_seats", javaType = Integer.class),
-            @Arg(column = "transportation_note", javaType = String.class),
             @Arg(column = "church_cell_id", javaType = Long.class),
             @Arg(column = "church_cell_name", javaType = String.class),
             @Arg(column = "middle_group_id", javaType = Long.class),
@@ -127,7 +126,21 @@ public interface RegistrationMapper {
             @Arg(column = "newcomer", javaType = Boolean.class),
             @Arg(column = "care_target", javaType = Boolean.class),
             @Arg(column = "created_at", javaType = OffsetDateTime.class),
-            @Arg(column = "updated_at", javaType = OffsetDateTime.class)
+            @Arg(column = "updated_at", javaType = OffsetDateTime.class),
+            @Arg(column = "attendance_type", javaType = AttendanceType.class),
+            @Arg(column = "transportation_method", javaType = TransportationMethod.class),
+            @Arg(column = "carpool_available", javaType = Boolean.class),
+            @Arg(column = "carpool_seats", javaType = Integer.class),
+            @Arg(column = "lodging_night1", javaType = Boolean.class),
+            @Arg(column = "lodging_night2", javaType = Boolean.class),
+            @Arg(column = "attend_day1_morning", javaType = Boolean.class),
+            @Arg(column = "attend_day1_afternoon", javaType = Boolean.class),
+            @Arg(column = "attend_day1_worship", javaType = Boolean.class),
+            @Arg(column = "attend_day2_morning", javaType = Boolean.class),
+            @Arg(column = "attend_day2_afternoon", javaType = Boolean.class),
+            @Arg(column = "attend_day2_worship", javaType = Boolean.class),
+            @Arg(column = "attend_day3_morning", javaType = Boolean.class),
+            @Arg(column = "attend_day3_afternoon", javaType = Boolean.class)
     })
     Optional<Registration> findActiveByNormalizedNameAndPhoneNumber(
             @Param("normalizedName") String normalizedName,
@@ -136,16 +149,16 @@ public interface RegistrationMapper {
 
     @Select("""
             SELECT r.id, r.name, r.normalized_name, r.gender, r.birth_year, r.phone_number, r.phone_last_four,
-                   r.church_cell_department, r.attendance_type,
-                   (SELECT string_agg(ras.slot_code, ',' ORDER BY ras.slot_code)
-                    FROM registration_attendance_slots ras
-                    WHERE ras.registration_id = r.id) AS attendance_slots,
-                   r.transportation_type, r.carpool_needed, r.carpool_offer, r.carpool_seats, r.transportation_note,
-                   r.church_cell_id, cc.name AS church_cell_name,
+                   r.church_cell_department, r.church_cell_id, cc.name AS church_cell_name,
                    mg.id AS middle_group_id, mg.name AS middle_group_name,
                    rg.id AS retreat_group_id, rg.name AS retreat_group_name, rgm.leader AS retreat_group_leader,
                    r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
-                   r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at
+                   r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at,
+                   r.attendance_type, r.transportation_method, r.carpool_available, r.carpool_seats,
+                   r.lodging_night1, r.lodging_night2,
+                   r.attend_day1_morning, r.attend_day1_afternoon, r.attend_day1_worship,
+                   r.attend_day2_morning, r.attend_day2_afternoon, r.attend_day2_worship,
+                   r.attend_day3_morning, r.attend_day3_afternoon
             FROM registrations r
             LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
             LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
@@ -165,13 +178,6 @@ public interface RegistrationMapper {
             @Arg(column = "phone_number", javaType = String.class),
             @Arg(column = "phone_last_four", javaType = String.class),
             @Arg(column = "church_cell_department", javaType = String.class),
-            @Arg(column = "attendance_type", javaType = AttendanceType.class),
-            @Arg(column = "attendance_slots", javaType = String.class),
-            @Arg(column = "transportation_type", javaType = TransportationType.class),
-            @Arg(column = "carpool_needed", javaType = Boolean.class),
-            @Arg(column = "carpool_offer", javaType = Boolean.class),
-            @Arg(column = "carpool_seats", javaType = Integer.class),
-            @Arg(column = "transportation_note", javaType = String.class),
             @Arg(column = "church_cell_id", javaType = Long.class),
             @Arg(column = "church_cell_name", javaType = String.class),
             @Arg(column = "middle_group_id", javaType = Long.class),
@@ -187,7 +193,21 @@ public interface RegistrationMapper {
             @Arg(column = "newcomer", javaType = Boolean.class),
             @Arg(column = "care_target", javaType = Boolean.class),
             @Arg(column = "created_at", javaType = OffsetDateTime.class),
-            @Arg(column = "updated_at", javaType = OffsetDateTime.class)
+            @Arg(column = "updated_at", javaType = OffsetDateTime.class),
+            @Arg(column = "attendance_type", javaType = AttendanceType.class),
+            @Arg(column = "transportation_method", javaType = TransportationMethod.class),
+            @Arg(column = "carpool_available", javaType = Boolean.class),
+            @Arg(column = "carpool_seats", javaType = Integer.class),
+            @Arg(column = "lodging_night1", javaType = Boolean.class),
+            @Arg(column = "lodging_night2", javaType = Boolean.class),
+            @Arg(column = "attend_day1_morning", javaType = Boolean.class),
+            @Arg(column = "attend_day1_afternoon", javaType = Boolean.class),
+            @Arg(column = "attend_day1_worship", javaType = Boolean.class),
+            @Arg(column = "attend_day2_morning", javaType = Boolean.class),
+            @Arg(column = "attend_day2_afternoon", javaType = Boolean.class),
+            @Arg(column = "attend_day2_worship", javaType = Boolean.class),
+            @Arg(column = "attend_day3_morning", javaType = Boolean.class),
+            @Arg(column = "attend_day3_afternoon", javaType = Boolean.class)
     })
     List<Registration> findActiveByNormalizedNameAndPhoneLastFour(
             @Param("normalizedName") String normalizedName,
@@ -196,16 +216,79 @@ public interface RegistrationMapper {
 
     @Select("""
             SELECT r.id, r.name, r.normalized_name, r.gender, r.birth_year, r.phone_number, r.phone_last_four,
-                   r.church_cell_department, r.attendance_type,
-                   (SELECT string_agg(ras.slot_code, ',' ORDER BY ras.slot_code)
-                    FROM registration_attendance_slots ras
-                    WHERE ras.registration_id = r.id) AS attendance_slots,
-                   r.transportation_type, r.carpool_needed, r.carpool_offer, r.carpool_seats, r.transportation_note,
-                   r.church_cell_id, cc.name AS church_cell_name,
+                   r.church_cell_department, r.church_cell_id, cc.name AS church_cell_name,
                    mg.id AS middle_group_id, mg.name AS middle_group_name,
                    rg.id AS retreat_group_id, rg.name AS retreat_group_name, rgm.leader AS retreat_group_leader,
                    r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
-                   r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at
+                   r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at,
+                   r.attendance_type, r.transportation_method, r.carpool_available, r.carpool_seats,
+                   r.lodging_night1, r.lodging_night2,
+                   r.attend_day1_morning, r.attend_day1_afternoon, r.attend_day1_worship,
+                   r.attend_day2_morning, r.attend_day2_afternoon, r.attend_day2_worship,
+                   r.attend_day3_morning, r.attend_day3_afternoon
+            FROM registrations r
+            LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
+            LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
+            LEFT JOIN retreat_group_members rgm ON rgm.registration_id = r.id
+            LEFT JOIN retreat_groups rg ON rg.id = rgm.retreat_group_id
+            WHERE r.normalized_name = #{normalizedName}
+              AND r.status = 'REGISTERED'
+            ORDER BY r.id ASC
+            """)
+    @ConstructorArgs({
+            @Arg(column = "id", javaType = Long.class),
+            @Arg(column = "name", javaType = String.class),
+            @Arg(column = "normalized_name", javaType = String.class),
+            @Arg(column = "gender", javaType = Gender.class),
+            @Arg(column = "birth_year", javaType = Integer.class),
+            @Arg(column = "phone_number", javaType = String.class),
+            @Arg(column = "phone_last_four", javaType = String.class),
+            @Arg(column = "church_cell_department", javaType = String.class),
+            @Arg(column = "church_cell_id", javaType = Long.class),
+            @Arg(column = "church_cell_name", javaType = String.class),
+            @Arg(column = "middle_group_id", javaType = Long.class),
+            @Arg(column = "middle_group_name", javaType = String.class),
+            @Arg(column = "retreat_group_id", javaType = Long.class),
+            @Arg(column = "retreat_group_name", javaType = String.class),
+            @Arg(column = "retreat_group_leader", javaType = Boolean.class),
+            @Arg(column = "lookup_key_hash", javaType = String.class),
+            @Arg(column = "privacy_consent_agreed", javaType = Boolean.class),
+            @Arg(column = "fee_paid", javaType = Boolean.class),
+            @Arg(column = "status", javaType = RegistrationStatus.class),
+            @Arg(column = "admin_memo", javaType = String.class),
+            @Arg(column = "newcomer", javaType = Boolean.class),
+            @Arg(column = "care_target", javaType = Boolean.class),
+            @Arg(column = "created_at", javaType = OffsetDateTime.class),
+            @Arg(column = "updated_at", javaType = OffsetDateTime.class),
+            @Arg(column = "attendance_type", javaType = AttendanceType.class),
+            @Arg(column = "transportation_method", javaType = TransportationMethod.class),
+            @Arg(column = "carpool_available", javaType = Boolean.class),
+            @Arg(column = "carpool_seats", javaType = Integer.class),
+            @Arg(column = "lodging_night1", javaType = Boolean.class),
+            @Arg(column = "lodging_night2", javaType = Boolean.class),
+            @Arg(column = "attend_day1_morning", javaType = Boolean.class),
+            @Arg(column = "attend_day1_afternoon", javaType = Boolean.class),
+            @Arg(column = "attend_day1_worship", javaType = Boolean.class),
+            @Arg(column = "attend_day2_morning", javaType = Boolean.class),
+            @Arg(column = "attend_day2_afternoon", javaType = Boolean.class),
+            @Arg(column = "attend_day2_worship", javaType = Boolean.class),
+            @Arg(column = "attend_day3_morning", javaType = Boolean.class),
+            @Arg(column = "attend_day3_afternoon", javaType = Boolean.class)
+    })
+    List<Registration> findActiveByNormalizedName(@Param("normalizedName") String normalizedName);
+
+    @Select("""
+            SELECT r.id, r.name, r.normalized_name, r.gender, r.birth_year, r.phone_number, r.phone_last_four,
+                   r.church_cell_department, r.church_cell_id, cc.name AS church_cell_name,
+                   mg.id AS middle_group_id, mg.name AS middle_group_name,
+                   rg.id AS retreat_group_id, rg.name AS retreat_group_name, rgm.leader AS retreat_group_leader,
+                   r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
+                   r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at,
+                   r.attendance_type, r.transportation_method, r.carpool_available, r.carpool_seats,
+                   r.lodging_night1, r.lodging_night2,
+                   r.attend_day1_morning, r.attend_day1_afternoon, r.attend_day1_worship,
+                   r.attend_day2_morning, r.attend_day2_afternoon, r.attend_day2_worship,
+                   r.attend_day3_morning, r.attend_day3_afternoon
             FROM registrations r
             LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
             LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
@@ -224,13 +307,6 @@ public interface RegistrationMapper {
             @Arg(column = "phone_number", javaType = String.class),
             @Arg(column = "phone_last_four", javaType = String.class),
             @Arg(column = "church_cell_department", javaType = String.class),
-            @Arg(column = "attendance_type", javaType = AttendanceType.class),
-            @Arg(column = "attendance_slots", javaType = String.class),
-            @Arg(column = "transportation_type", javaType = TransportationType.class),
-            @Arg(column = "carpool_needed", javaType = Boolean.class),
-            @Arg(column = "carpool_offer", javaType = Boolean.class),
-            @Arg(column = "carpool_seats", javaType = Integer.class),
-            @Arg(column = "transportation_note", javaType = String.class),
             @Arg(column = "church_cell_id", javaType = Long.class),
             @Arg(column = "church_cell_name", javaType = String.class),
             @Arg(column = "middle_group_id", javaType = Long.class),
@@ -246,7 +322,21 @@ public interface RegistrationMapper {
             @Arg(column = "newcomer", javaType = Boolean.class),
             @Arg(column = "care_target", javaType = Boolean.class),
             @Arg(column = "created_at", javaType = OffsetDateTime.class),
-            @Arg(column = "updated_at", javaType = OffsetDateTime.class)
+            @Arg(column = "updated_at", javaType = OffsetDateTime.class),
+            @Arg(column = "attendance_type", javaType = AttendanceType.class),
+            @Arg(column = "transportation_method", javaType = TransportationMethod.class),
+            @Arg(column = "carpool_available", javaType = Boolean.class),
+            @Arg(column = "carpool_seats", javaType = Integer.class),
+            @Arg(column = "lodging_night1", javaType = Boolean.class),
+            @Arg(column = "lodging_night2", javaType = Boolean.class),
+            @Arg(column = "attend_day1_morning", javaType = Boolean.class),
+            @Arg(column = "attend_day1_afternoon", javaType = Boolean.class),
+            @Arg(column = "attend_day1_worship", javaType = Boolean.class),
+            @Arg(column = "attend_day2_morning", javaType = Boolean.class),
+            @Arg(column = "attend_day2_afternoon", javaType = Boolean.class),
+            @Arg(column = "attend_day2_worship", javaType = Boolean.class),
+            @Arg(column = "attend_day3_morning", javaType = Boolean.class),
+            @Arg(column = "attend_day3_afternoon", javaType = Boolean.class)
     })
     List<Registration> findPage(@Param("limit") int limit, @Param("offset") int offset);
 
@@ -256,15 +346,21 @@ public interface RegistrationMapper {
     @Insert("""
             INSERT INTO registrations (
                 name, normalized_name, gender, birth_year, phone_number, phone_last_four,
-                church_cell_department, attendance_type,
-                transportation_type, carpool_needed, carpool_offer, carpool_seats, transportation_note,
-                lookup_key_hash, privacy_consent_agreed, fee_paid, status
+                church_cell_department, lookup_key_hash, privacy_consent_agreed, fee_paid, status,
+                attendance_type, transportation_method, carpool_available, carpool_seats,
+                lodging_night1, lodging_night2,
+                attend_day1_morning, attend_day1_afternoon, attend_day1_worship,
+                attend_day2_morning, attend_day2_afternoon, attend_day2_worship,
+                attend_day3_morning, attend_day3_afternoon
             )
             VALUES (
                 #{name}, #{normalizedName}, #{gender}, #{birthYear}, #{phoneNumber}, #{phoneLastFour},
-                #{churchCellDepartment}, #{attendanceType},
-                #{transportationType}, #{carpoolNeeded}, #{carpoolOffer}, #{carpoolSeats}, #{transportationNote},
-                #{lookupKeyHash}, #{privacyConsentAgreed}, #{feePaid}, #{status}
+                #{churchCellDepartment}, #{lookupKeyHash}, #{privacyConsentAgreed}, #{feePaid}, #{status},
+                #{attendanceType}, #{transportationMethod}, #{carpoolAvailable}, #{carpoolSeats},
+                #{lodgingNight1}, #{lodgingNight2},
+                #{attendDay1Morning}, #{attendDay1Afternoon}, #{attendDay1Worship},
+                #{attendDay2Morning}, #{attendDay2Afternoon}, #{attendDay2Worship},
+                #{attendDay3Morning}, #{attendDay3Afternoon}
             )
             """)
     @Options(useGeneratedKeys = true, keyProperty = "id")
@@ -279,14 +375,22 @@ public interface RegistrationMapper {
                 phone_number = #{phoneNumber},
                 phone_last_four = #{phoneLastFour},
                 church_cell_department = #{churchCellDepartment},
-                attendance_type = #{attendanceType},
-                transportation_type = #{transportationType},
-                carpool_needed = #{carpoolNeeded},
-                carpool_offer = #{carpoolOffer},
-                carpool_seats = #{carpoolSeats},
-                transportation_note = #{transportationNote},
                 lookup_key_hash = #{lookupKeyHash},
                 privacy_consent_agreed = #{privacyConsentAgreed},
+                attendance_type = #{attendanceType},
+                transportation_method = #{transportationMethod},
+                carpool_available = #{carpoolAvailable},
+                carpool_seats = #{carpoolSeats},
+                lodging_night1 = #{lodgingNight1},
+                lodging_night2 = #{lodgingNight2},
+                attend_day1_morning = #{attendDay1Morning},
+                attend_day1_afternoon = #{attendDay1Afternoon},
+                attend_day1_worship = #{attendDay1Worship},
+                attend_day2_morning = #{attendDay2Morning},
+                attend_day2_afternoon = #{attendDay2Afternoon},
+                attend_day2_worship = #{attendDay2Worship},
+                attend_day3_morning = #{attendDay3Morning},
+                attend_day3_afternoon = #{attendDay3Afternoon},
                 updated_at = now()
             WHERE id = #{id}
             """)
@@ -299,6 +403,20 @@ public interface RegistrationMapper {
                 phone_number = #{phoneNumber},
                 phone_last_four = #{phoneLastFour},
                 church_cell_department = #{churchCellDepartment},
+                attendance_type = #{attendanceType},
+                transportation_method = #{transportationMethod},
+                carpool_available = #{carpoolAvailable},
+                carpool_seats = #{carpoolSeats},
+                lodging_night1 = #{lodgingNight1},
+                lodging_night2 = #{lodgingNight2},
+                attend_day1_morning = #{attendDay1Morning},
+                attend_day1_afternoon = #{attendDay1Afternoon},
+                attend_day1_worship = #{attendDay1Worship},
+                attend_day2_morning = #{attendDay2Morning},
+                attend_day2_afternoon = #{attendDay2Afternoon},
+                attend_day2_worship = #{attendDay2Worship},
+                attend_day3_morning = #{attendDay3Morning},
+                attend_day3_afternoon = #{attendDay3Afternoon},
                 updated_at = now()
             WHERE id = #{id}
             """)
@@ -338,16 +456,6 @@ public interface RegistrationMapper {
             """)
     int updateChurchCell(@Param("id") Long id, @Param("churchCellId") Long churchCellId);
 
-    @Delete("DELETE FROM registration_attendance_slots WHERE registration_id = #{registrationId}")
-    int deleteAttendanceSlots(@Param("registrationId") Long registrationId);
-
-    @Insert("""
-            INSERT INTO registration_attendance_slots (registration_id, slot_code)
-            VALUES (#{registrationId}, #{slotCode})
-            ON CONFLICT DO NOTHING
-            """)
-    int insertAttendanceSlot(@Param("registrationId") Long registrationId, @Param("slotCode") String slotCode);
-
     class RegistrationInsert {
         private Long id;
         private final String name;
@@ -357,16 +465,24 @@ public interface RegistrationMapper {
         private final String phoneNumber;
         private final String phoneLastFour;
         private final String churchCellDepartment;
-        private final AttendanceType attendanceType;
-        private final TransportationType transportationType;
-        private final Boolean carpoolNeeded;
-        private final Boolean carpoolOffer;
-        private final Integer carpoolSeats;
-        private final String transportationNote;
         private final String lookupKeyHash;
         private final Boolean privacyConsentAgreed;
         private final Boolean feePaid;
         private final RegistrationStatus status;
+        private final AttendanceType attendanceType;
+        private final TransportationMethod transportationMethod;
+        private final Boolean carpoolAvailable;
+        private final Integer carpoolSeats;
+        private final Boolean lodgingNight1;
+        private final Boolean lodgingNight2;
+        private final Boolean attendDay1Morning;
+        private final Boolean attendDay1Afternoon;
+        private final Boolean attendDay1Worship;
+        private final Boolean attendDay2Morning;
+        private final Boolean attendDay2Afternoon;
+        private final Boolean attendDay2Worship;
+        private final Boolean attendDay3Morning;
+        private final Boolean attendDay3Afternoon;
 
         public RegistrationInsert(
                 String name,
@@ -376,16 +492,24 @@ public interface RegistrationMapper {
                 String phoneNumber,
                 String phoneLastFour,
                 String churchCellDepartment,
-                AttendanceType attendanceType,
-                TransportationType transportationType,
-                Boolean carpoolNeeded,
-                Boolean carpoolOffer,
-                Integer carpoolSeats,
-                String transportationNote,
                 String lookupKeyHash,
                 Boolean privacyConsentAgreed,
                 Boolean feePaid,
-                RegistrationStatus status
+                RegistrationStatus status,
+                AttendanceType attendanceType,
+                TransportationMethod transportationMethod,
+                Boolean carpoolAvailable,
+                Integer carpoolSeats,
+                Boolean lodgingNight1,
+                Boolean lodgingNight2,
+                Boolean attendDay1Morning,
+                Boolean attendDay1Afternoon,
+                Boolean attendDay1Worship,
+                Boolean attendDay2Morning,
+                Boolean attendDay2Afternoon,
+                Boolean attendDay2Worship,
+                Boolean attendDay3Morning,
+                Boolean attendDay3Afternoon
         ) {
             this.name = name;
             this.normalizedName = normalizedName;
@@ -394,16 +518,24 @@ public interface RegistrationMapper {
             this.phoneNumber = phoneNumber;
             this.phoneLastFour = phoneLastFour;
             this.churchCellDepartment = churchCellDepartment;
-            this.attendanceType = attendanceType;
-            this.transportationType = transportationType;
-            this.carpoolNeeded = carpoolNeeded;
-            this.carpoolOffer = carpoolOffer;
-            this.carpoolSeats = carpoolSeats;
-            this.transportationNote = transportationNote;
             this.lookupKeyHash = lookupKeyHash;
             this.privacyConsentAgreed = privacyConsentAgreed;
             this.feePaid = feePaid;
             this.status = status;
+            this.attendanceType = attendanceType;
+            this.transportationMethod = transportationMethod;
+            this.carpoolAvailable = carpoolAvailable;
+            this.carpoolSeats = carpoolSeats;
+            this.lodgingNight1 = lodgingNight1;
+            this.lodgingNight2 = lodgingNight2;
+            this.attendDay1Morning = attendDay1Morning;
+            this.attendDay1Afternoon = attendDay1Afternoon;
+            this.attendDay1Worship = attendDay1Worship;
+            this.attendDay2Morning = attendDay2Morning;
+            this.attendDay2Afternoon = attendDay2Afternoon;
+            this.attendDay2Worship = attendDay2Worship;
+            this.attendDay3Morning = attendDay3Morning;
+            this.attendDay3Afternoon = attendDay3Afternoon;
         }
 
         public Long getId() {
@@ -442,30 +574,6 @@ public interface RegistrationMapper {
             return churchCellDepartment;
         }
 
-        public AttendanceType getAttendanceType() {
-            return attendanceType;
-        }
-
-        public TransportationType getTransportationType() {
-            return transportationType;
-        }
-
-        public Boolean getCarpoolNeeded() {
-            return carpoolNeeded;
-        }
-
-        public Boolean getCarpoolOffer() {
-            return carpoolOffer;
-        }
-
-        public Integer getCarpoolSeats() {
-            return carpoolSeats;
-        }
-
-        public String getTransportationNote() {
-            return transportationNote;
-        }
-
         public String getLookupKeyHash() {
             return lookupKeyHash;
         }
@@ -481,6 +589,62 @@ public interface RegistrationMapper {
         public RegistrationStatus getStatus() {
             return status;
         }
+
+        public AttendanceType getAttendanceType() {
+            return attendanceType;
+        }
+
+        public TransportationMethod getTransportationMethod() {
+            return transportationMethod;
+        }
+
+        public Boolean getCarpoolAvailable() {
+            return carpoolAvailable;
+        }
+
+        public Integer getCarpoolSeats() {
+            return carpoolSeats;
+        }
+
+        public Boolean getLodgingNight1() {
+            return lodgingNight1;
+        }
+
+        public Boolean getLodgingNight2() {
+            return lodgingNight2;
+        }
+
+        public Boolean getAttendDay1Morning() {
+            return attendDay1Morning;
+        }
+
+        public Boolean getAttendDay1Afternoon() {
+            return attendDay1Afternoon;
+        }
+
+        public Boolean getAttendDay1Worship() {
+            return attendDay1Worship;
+        }
+
+        public Boolean getAttendDay2Morning() {
+            return attendDay2Morning;
+        }
+
+        public Boolean getAttendDay2Afternoon() {
+            return attendDay2Afternoon;
+        }
+
+        public Boolean getAttendDay2Worship() {
+            return attendDay2Worship;
+        }
+
+        public Boolean getAttendDay3Morning() {
+            return attendDay3Morning;
+        }
+
+        public Boolean getAttendDay3Afternoon() {
+            return attendDay3Afternoon;
+        }
     }
 
     record RegistrationOverwrite(
@@ -492,14 +656,22 @@ public interface RegistrationMapper {
             String phoneNumber,
             String phoneLastFour,
             String churchCellDepartment,
-            AttendanceType attendanceType,
-            TransportationType transportationType,
-            Boolean carpoolNeeded,
-            Boolean carpoolOffer,
-            Integer carpoolSeats,
-            String transportationNote,
             String lookupKeyHash,
-            Boolean privacyConsentAgreed
+            Boolean privacyConsentAgreed,
+            AttendanceType attendanceType,
+            TransportationMethod transportationMethod,
+            Boolean carpoolAvailable,
+            Integer carpoolSeats,
+            Boolean lodgingNight1,
+            Boolean lodgingNight2,
+            Boolean attendDay1Morning,
+            Boolean attendDay1Afternoon,
+            Boolean attendDay1Worship,
+            Boolean attendDay2Morning,
+            Boolean attendDay2Afternoon,
+            Boolean attendDay2Worship,
+            Boolean attendDay3Morning,
+            Boolean attendDay3Afternoon
     ) {
     }
 
@@ -509,7 +681,21 @@ public interface RegistrationMapper {
             Integer birthYear,
             String phoneNumber,
             String phoneLastFour,
-            String churchCellDepartment
+            String churchCellDepartment,
+            AttendanceType attendanceType,
+            TransportationMethod transportationMethod,
+            Boolean carpoolAvailable,
+            Integer carpoolSeats,
+            Boolean lodgingNight1,
+            Boolean lodgingNight2,
+            Boolean attendDay1Morning,
+            Boolean attendDay1Afternoon,
+            Boolean attendDay1Worship,
+            Boolean attendDay2Morning,
+            Boolean attendDay2Afternoon,
+            Boolean attendDay2Worship,
+            Boolean attendDay3Morning,
+            Boolean attendDay3Afternoon
     ) {
     }
 

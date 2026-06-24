@@ -49,10 +49,6 @@ export function AdminParticipantDetailPage() {
             <DetailCard title="운영 상태">
               <DetailRow label="등록 상태" value={participant.status === "REGISTERED" ? "등록 완료" : "취소"} />
               <DetailRow label="참가비" value={participant.feePaid ? "납부" : "미납"} />
-              <DetailRow label="참석 형태" value={participant.attendanceType === "FULL" ? "전체참석" : "부분참석"} />
-              <DetailRow label="참석 시간" value={formatAttendanceSlots(participant.attendanceSlots)} />
-              <DetailRow label="이동 수단" value={transportationLabel(participant.transportationType)} />
-              <DetailRow label="카풀" value={formatCarpool(participant)} />
               <DetailRow label="새가족" value={participant.newcomer ? "예" : "아니오"} />
               <DetailRow label="돌봄 대상" value={participant.careTarget ? "예" : "아니오"} />
             </DetailCard>
@@ -65,13 +61,6 @@ export function AdminParticipantDetailPage() {
                 value={`${participant.retreatGroupName ?? "-"}${participant.retreatGroupLeader ? " / 조장" : ""}`}
               />
             </DetailCard>
-          </section>
-
-          <section className="panel">
-            <h2>이동 메모</h2>
-            <p className="muted detail-memo">
-              {participant.transportationNote?.trim() ? participant.transportationNote : "메모가 없습니다."}
-            </p>
           </section>
 
           <section className="panel">
@@ -112,48 +101,4 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString();
-}
-
-function transportationLabel(value: "OWN_CAR" | "PUBLIC_TRANSPORT" | "UNDECIDED") {
-  if (value === "OWN_CAR") return "자차";
-  if (value === "PUBLIC_TRANSPORT") return "대중교통";
-  return "미정";
-}
-
-function formatCarpool(participant: {
-  carpoolNeeded: boolean;
-  carpoolOffer: boolean;
-  carpoolSeats?: number | null;
-}) {
-  if (participant.carpoolNeeded) {
-    return "카풀 희망";
-  }
-  if (participant.carpoolOffer) {
-    return `카풀 가능 ${participant.carpoolSeats ?? 0}명`;
-  }
-  return "-";
-}
-
-function formatAttendanceSlots(values: string[]) {
-  if (!values.length) {
-    return "-";
-  }
-
-  return values.map(attendanceSlotLabel).join(", ");
-}
-
-function attendanceSlotLabel(value: string) {
-  const labels: Record<string, string> = {
-    DAY1_MORNING: "첫째날 오전",
-    DAY1_AFTERNOON: "첫째날 오후",
-    DAY1_GATHERING: "첫째날 집회",
-    DAY2_MORNING: "둘째날 오전",
-    DAY2_AFTERNOON: "둘째날 오후",
-    DAY2_GATHERING: "둘째날 집회",
-    DAY3_MORNING: "셋째날 오전",
-    DAY3_AFTERNOON: "셋째날 오후",
-    DAY3_GATHERING: "셋째날 집회"
-  };
-
-  return labels[value] ?? value;
 }

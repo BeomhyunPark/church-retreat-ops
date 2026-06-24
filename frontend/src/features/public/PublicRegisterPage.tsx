@@ -1,560 +1,267 @@
-import { useMemo, useState } from "react";
+import { useState, type KeyboardEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
-import {
-  createRegistration,
-  type AttendanceSlot,
-  type AttendanceType,
-  type RegistrationCreatePayload,
-  type TransportationType
-} from "./publicApi";
+import { createRegistration, type RegistrationCreatePayload } from "./publicApi";
 import { StatusMessage } from "../../shared/ui/StatusMessage";
 
-type FormValues = Omit<RegistrationCreatePayload, "birthYear" | "carpoolSeats" | "privacyConsentAgreed"> & {
-  birthYear: string;
-  carpoolSeats: string;
+type FormValues = Omit<RegistrationCreatePayload, "birthYear" | "privacyConsentAgreed"> & {
+  ageGroup: string;
   privacyConsentAgreed: boolean;
 };
 
-type StepId =
-  | "name"
-  | "gender"
-  | "birthYear"
-  | "phoneNumber"
-  | "churchCellDepartment"
-  | "attendanceType"
-  | "attendanceSlots"
-  | "transportationType"
-  | "carpoolNeeded"
-  | "carpoolOffer"
-  | "carpoolSeats"
-  | "transportationNote"
-  | "privacyConsentAgreed";
-
-const initialValues: FormValues = {
-  name: "",
-  gender: "FEMALE",
-  birthYear: "",
-  phoneNumber: "",
-  churchCellDepartment: "",
-  attendanceType: "FULL",
-  attendanceSlots: [],
-  transportationType: "UNDECIDED",
-  carpoolNeeded: false,
-  carpoolOffer: false,
-  carpoolSeats: "",
-  transportationNote: "",
-  privacyConsentAgreed: false
-};
-
-const attendanceSlotOptions: Array<{ value: AttendanceSlot; label: string }> = [
-  { value: "DAY1_MORNING", label: "첫째날 오전" },
-  { value: "DAY1_AFTERNOON", label: "첫째날 오후" },
-  { value: "DAY1_GATHERING", label: "첫째날 집회" },
-  { value: "DAY2_MORNING", label: "둘째날 오전" },
-  { value: "DAY2_AFTERNOON", label: "둘째날 오후" },
-  { value: "DAY2_GATHERING", label: "둘째날 집회" },
-  { value: "DAY3_MORNING", label: "셋째날 오전" },
-  { value: "DAY3_AFTERNOON", label: "셋째날 오후" },
-  { value: "DAY3_GATHERING", label: "셋째날 집회" }
+const STEP_FIELDS: Array<keyof FormValues> = [
+  "name",
+  "phoneNumber",
+  "gender",
+  "ageGroup",
+  "churchCellDepartment",
+  "lookupKey"
 ];
 
-const attendanceTypeLabels: Record<AttendanceType, string> = {
-  FULL: "전체참석",
-  PARTIAL: "부분참석"
-};
+function formatPhoneNumber(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 3) {
+    return digits;
+  }
+  if (digits.length <= 7) {
+    return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  }
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+}
 
-const transportationTypeLabels: Record<TransportationType, string> = {
-  OWN_CAR: "자차",
-  PUBLIC_TRANSPORT: "대중교통",
-  UNDECIDED: "아직 미정"
-};
+function ageGroupToBirthYear(ageGroup: string) {
+  const yy = Number(ageGroup);
+  const currentYy = new Date().getFullYear() % 100;
+  return yy <= currentYy ? 2000 + yy : 1900 + yy;
+}
 
 export function PublicRegisterPage() {
-  const [lookupKey, setLookupKey] = useState<string | null>(null);
-  const [stepIndex, setStepIndex] = useState(0);
-  const [values, setValues] = useState<FormValues>(initialValues);
-  const steps = useMemo(() => buildSteps(values), [values]);
-  const currentStep = steps[Math.min(stepIndex, steps.length - 1)];
-  const isLastStep = stepIndex === steps.length - 1;
-  const progress = `${stepIndex + 1}/${steps.length}`;
-  const answeredSteps = steps.slice(0, stepIndex);
+  const [registered, setRegistered] = useState(false);
+  const [step, setStep] = useState(0);
+  const [shake, setShake] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    trigger,
+    setValue,
+    watch,
+    formState
+  } = useForm<FormValues>({
+    defaultValues: {
+      privacyConsentAgreed: false
+    }
+  });
 
   const mutation = useMutation({
     mutationFn: createRegistration,
-    onSuccess: (data) => setLookupKey(data.lookupKey)
+    onSuccess: () => setRegistered(true)
   });
 
-  function updateValue<Key extends keyof FormValues>(key: Key, value: FormValues[Key]) {
-    setValues((current) => ({ ...current, [key]: value }));
-  }
-
-  function toggleAttendanceSlot(slot: AttendanceSlot) {
-    setValues((current) => ({
-      ...current,
-      attendanceSlots: current.attendanceSlots.includes(slot)
-        ? current.attendanceSlots.filter((item) => item !== slot)
-        : [...current.attendanceSlots, slot]
-    }));
-  }
-
-  function isStepReady(step: StepId) {
-    if (step === "churchCellDepartment" || step === "transportationNote") {
-      return true;
-    }
-
-    if (step === "privacyConsentAgreed") {
-      return values.privacyConsentAgreed;
-    }
-
-    if (step === "birthYear") {
-      const digits = values.birthYear.replace(/\D/g, "");
-      return digits.length === 2 || digits.length === 4;
-    }
-
-    if (step === "phoneNumber") {
-      return values.phoneNumber.replace(/\D/g, "").length >= 10;
-    }
-
-    if (step === "attendanceSlots") {
-      return values.attendanceSlots.length > 0;
-    }
-
-    if (step === "carpoolSeats") {
-      return Number(values.carpoolSeats) > 0;
-    }
-
-    return String(values[step]).trim().length > 0;
-  }
-
-  function goNext() {
-    if (!isStepReady(currentStep)) {
-      return;
-    }
-
-    setStepIndex((current) => Math.min(current + 1, steps.length - 1));
-  }
-
-  function goBack() {
-    setStepIndex((current) => Math.max(current - 1, 0));
-  }
-
-  function onSubmit() {
+  function onSubmit(values: FormValues) {
     mutation.mutate({
       ...values,
-      birthYear: normalizeBirthYear(values.birthYear),
-      attendanceSlots: values.attendanceType === "PARTIAL" ? values.attendanceSlots : [],
-      carpoolOffer: values.transportationType === "OWN_CAR" && values.carpoolOffer,
-      carpoolNeeded: values.transportationType !== "OWN_CAR" && values.carpoolNeeded,
-      carpoolSeats: values.transportationType === "OWN_CAR" && values.carpoolOffer ? Number(values.carpoolSeats) : null,
+      birthYear: ageGroupToBirthYear(values.ageGroup),
       privacyConsentAgreed: values.privacyConsentAgreed
     });
   }
 
-  function handlePrimaryAction() {
-    if (isLastStep) {
-      onSubmit();
+  const isLastStep = step === STEP_FIELDS.length - 1;
+  const gender = watch("gender");
+
+  async function goNext() {
+    const valid = await trigger(STEP_FIELDS[step]);
+    if (!valid) {
+      setShake(true);
       return;
     }
-
-    goNext();
+    setStep((current) => Math.min(current + 1, STEP_FIELDS.length - 1));
   }
+
+  function goBack() {
+    setStep((current) => Math.max(current - 1, 0));
+  }
+
+  function goHome() {
+    window.location.href = "/";
+  }
+
+  function handleStepKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Enter" && !isLastStep) {
+      event.preventDefault();
+      goNext();
+    }
+  }
+
+  const { onChange: onPhoneChange, ...phoneField } = register("phoneNumber", {
+    required: true,
+    pattern: /^[0-9]{3}-[0-9]{3,4}-[0-9]{4}$/
+  });
 
   return (
     <section className="register-flow">
-      {lookupKey ? (
-        <div className="register-complete" role="status">
-          <p className="eyebrow">Done</p>
-          <h1>신청 완료</h1>
-          <p>이 키는 다시 안 보여요. 지금 저장해두세요.</p>
-          <div className="lookup-key-box">
-            <span>조회 키</span>
-            <strong>{lookupKey}</strong>
+      <div className="register-flow__header">
+        <p className="eyebrow">Registration</p>
+        <p className="muted">필요한 것만, 한 번에 하나씩 물어볼게요.</p>
+      </div>
+
+      {!registered ? (
+        <form
+          className="form-grid wizard"
+          onSubmit={handleSubmit(onSubmit, () => setShake(true))}
+        >
+          <div className="wizard__progress">
+            {STEP_FIELDS.map((field, index) => (
+              <span key={field} className={index <= step ? "wizard__dot wizard__dot--active" : "wizard__dot"} />
+            ))}
           </div>
+
+          <div
+            className={shake ? "wizard__step wizard__step--shake" : "wizard__step"}
+            onKeyDown={handleStepKeyDown}
+            onAnimationEnd={() => setShake(false)}
+          >
+            {step === 0 ? (
+              <label className="flow-field flow-field--lg">
+                <span>이름</span>
+                <input {...register("name", { required: true })} autoComplete="name" placeholder="홍길동" autoFocus />
+              </label>
+            ) : null}
+
+            {step === 1 ? (
+              <label className="flow-field flow-field--lg">
+                <span>전화번호</span>
+                <input
+                  {...phoneField}
+                  onChange={(event) => {
+                    event.target.value = formatPhoneNumber(event.target.value);
+                    onPhoneChange(event);
+                  }}
+                  inputMode="tel"
+                  placeholder="01012345678"
+                  autoFocus
+                />
+              </label>
+            ) : null}
+
+            {step === 2 ? (
+              <div className="flow-field flow-field--lg">
+                <span>성별</span>
+                <div className="segmented" role="radiogroup" aria-label="성별">
+                  <span
+                    className={gender ? "segmented__pill segmented__pill--active" : "segmented__pill"}
+                    style={
+                      gender === "MALE"
+                        ? { left: "50%", width: "calc(50% - 0.25rem)" }
+                        : gender === "FEMALE"
+                          ? { left: "0.25rem", width: "calc(50% - 0.25rem)" }
+                          : { left: "50%", width: "2px", transform: "translateX(-1px)" }
+                    }
+                  />
+                  <button
+                    type="button"
+                    className={gender === "FEMALE" ? "segmented__option segmented__option--active" : "segmented__option"}
+                    onClick={() => setValue("gender", "FEMALE", { shouldValidate: true })}
+                  >
+                    여성
+                  </button>
+                  <button
+                    type="button"
+                    className={gender === "MALE" ? "segmented__option segmented__option--active" : "segmented__option"}
+                    onClick={() => setValue("gender", "MALE", { shouldValidate: true })}
+                  >
+                    남성
+                  </button>
+                </div>
+                <input type="hidden" {...register("gender", { required: true })} />
+              </div>
+            ) : null}
+
+            {step === 3 ? (
+              <label className="flow-field flow-field--lg">
+                <span>또래</span>
+                <input
+                  {...register("ageGroup", { required: true, pattern: /^[0-9]{2}$/ })}
+                  inputMode="numeric"
+                  maxLength={2}
+                  placeholder="00"
+                  autoFocus
+                />
+              </label>
+            ) : null}
+
+            {step === 4 ? (
+              <label className="flow-field flow-field--lg">
+                <span>셀</span>
+                <div className="suffix-input">
+                  <input {...register("churchCellDepartment")} placeholder="유성현" autoFocus />
+                  <span className="suffix-input__suffix">셀</span>
+                </div>
+              </label>
+            ) : null}
+
+            {step === 5 ? (
+              <label className="flow-field flow-field--lg">
+                <span>비밀번호 (숫자 6자리)</span>
+                <input
+                  {...register("lookupKey", { required: true, pattern: /^[0-9]{6}$/ })}
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="예: 123456"
+                  autoFocus
+                />
+                {formState.errors.lookupKey ? <span className="field-error">숫자 6자리로 정해주세요.</span> : null}
+              </label>
+            ) : null}
+          </div>
+
+          {isLastStep ? (
+            <label className="check-row">
+              <input {...register("privacyConsentAgreed", { required: true })} type="checkbox" />
+              <span>등록 확인을 위해 개인정보 수집 및 이용에 동의합니다.</span>
+            </label>
+          ) : null}
+
+          <div className="wizard__actions">
+            {step === 0 ? (
+              <button type="button" className="button button--ghost" onClick={goHome}>
+                취소
+              </button>
+            ) : null}
+            {step > 0 ? (
+              <button type="button" className="button button--ghost" onClick={goBack}>
+                이전
+              </button>
+            ) : null}
+            {!isLastStep ? (
+              <button type="button" className="button button--primary" onClick={goNext}>
+                다음
+              </button>
+            ) : (
+              <button className="button button--primary" disabled={mutation.isPending || formState.isSubmitting} type="submit">
+                {mutation.isPending ? "등록 중..." : "이대로 등록"}
+              </button>
+            )}
+          </div>
+        </form>
+      ) : null}
+
+      {mutation.isError ? <StatusMessage message={mutation.error.message} tone="error" /> : null}
+      {registered ? (
+        <div className="completion-card" role="status">
+          <p className="eyebrow">Registered</p>
+          <h2>등록 끝났어요</h2>
+          <p className="muted">방금 정한 비밀번호로 내 등록을 확인할 수 있어요.</p>
           <div className="completion-actions">
             <Link className="button button--primary" to="/public/self-lookup">
-              내 정보 보기
+              내 등록 확인
             </Link>
-            <Link className="button button--secondary" to="/public">
-              홈
+            <Link className="button button--secondary" to="/">
+              처음으로
             </Link>
           </div>
         </div>
-      ) : (
-        <>
-          <div className="register-flow__top">
-            <button className="register-flow__back" disabled={stepIndex === 0 || mutation.isPending} onClick={goBack} type="button">
-              이전
-            </button>
-            <span>{progress}</span>
-          </div>
-
-          <div className="register-progress" aria-hidden="true">
-            <span style={{ width: `${((stepIndex + 1) / steps.length) * 100}%` }} />
-          </div>
-
-          {answeredSteps.length ? (
-            <div className="answer-stack" aria-label="입력한 내용">
-              {answeredSteps.map((step) => (
-                <button className="answer-chip" key={step} onClick={() => setStepIndex(steps.indexOf(step))} type="button">
-                  <span>{getStepLabel(step)}</span>
-                  <strong>{formatStepValue(step, values)}</strong>
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          <div className="register-step" key={currentStep}>
-            {currentStep === "name" ? (
-              <>
-                <p className="eyebrow">Start</p>
-                <h1>이름</h1>
-                <input
-                  autoComplete="name"
-                  autoFocus
-                  className="register-step__input"
-                  enterKeyHint="next"
-                  onChange={(event) => updateValue("name", event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") goNext();
-                  }}
-                  placeholder="유성현"
-                  value={values.name}
-                />
-              </>
-            ) : null}
-
-            {currentStep === "gender" ? (
-              <>
-                <p className="eyebrow">Gender</p>
-                <h1>성별</h1>
-                <div className="choice-grid">
-                  <ChoiceButton selected={values.gender === "FEMALE"} onClick={() => updateValue("gender", "FEMALE")}>
-                    여성
-                  </ChoiceButton>
-                  <ChoiceButton selected={values.gender === "MALE"} onClick={() => updateValue("gender", "MALE")}>
-                    남성
-                  </ChoiceButton>
-                </div>
-              </>
-            ) : null}
-
-            {currentStep === "birthYear" ? (
-              <>
-                <p className="eyebrow">Age</p>
-                <h1>또래</h1>
-                <input
-                  autoFocus
-                  className="register-step__input"
-                  enterKeyHint="next"
-                  inputMode="numeric"
-                  maxLength={4}
-                  onChange={(event) => updateValue("birthYear", event.target.value.replace(/\D/g, ""))}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") goNext();
-                  }}
-                  placeholder="99"
-                  value={values.birthYear}
-                />
-              </>
-            ) : null}
-
-            {currentStep === "phoneNumber" ? (
-              <>
-                <p className="eyebrow">Phone</p>
-                <h1>연락처</h1>
-                <input
-                  autoFocus
-                  autoComplete="tel"
-                  className="register-step__input"
-                  enterKeyHint="next"
-                  inputMode="tel"
-                  onChange={(event) => updateValue("phoneNumber", event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") goNext();
-                  }}
-                  placeholder="010-1234-5678"
-                  value={values.phoneNumber}
-                />
-              </>
-            ) : null}
-
-            {currentStep === "churchCellDepartment" ? (
-              <>
-                <p className="eyebrow">Cell</p>
-                <h1>셀</h1>
-                <p className="register-step__hint">모르면 비워두고 넘어가도 돼요.</p>
-                <input
-                  autoFocus
-                  className="register-step__input"
-                  enterKeyHint="next"
-                  onChange={(event) => updateValue("churchCellDepartment", event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") goNext();
-                  }}
-                  placeholder="OOO"
-                  value={values.churchCellDepartment}
-                />
-              </>
-            ) : null}
-
-            {currentStep === "attendanceType" ? (
-              <>
-                <p className="eyebrow">Stay</p>
-                <h1>참석 형태</h1>
-                <div className="choice-grid">
-                  <ChoiceButton selected={values.attendanceType === "FULL"} onClick={() => updateValue("attendanceType", "FULL")}>
-                    전체참석
-                  </ChoiceButton>
-                  <ChoiceButton selected={values.attendanceType === "PARTIAL"} onClick={() => updateValue("attendanceType", "PARTIAL")}>
-                    부분참석
-                  </ChoiceButton>
-                </div>
-              </>
-            ) : null}
-
-            {currentStep === "attendanceSlots" ? (
-              <>
-                <p className="eyebrow">When</p>
-                <h1>언제 참석해요?</h1>
-                <div className="slot-grid">
-                  {attendanceSlotOptions.map((option) => (
-                    <button
-                      className={values.attendanceSlots.includes(option.value) ? "slot-chip slot-chip--selected" : "slot-chip"}
-                      key={option.value}
-                      onClick={() => toggleAttendanceSlot(option.value)}
-                      type="button"
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </>
-            ) : null}
-
-            {currentStep === "transportationType" ? (
-              <>
-                <p className="eyebrow">Move</p>
-                <h1>어떻게 와요?</h1>
-                <div className="choice-grid choice-grid--stack">
-                  <ChoiceButton selected={values.transportationType === "OWN_CAR"} onClick={() => updateValue("transportationType", "OWN_CAR")}>
-                    자차
-                  </ChoiceButton>
-                  <ChoiceButton
-                    selected={values.transportationType === "PUBLIC_TRANSPORT"}
-                    onClick={() => updateValue("transportationType", "PUBLIC_TRANSPORT")}
-                  >
-                    대중교통
-                  </ChoiceButton>
-                  <ChoiceButton selected={values.transportationType === "UNDECIDED"} onClick={() => updateValue("transportationType", "UNDECIDED")}>
-                    아직 미정
-                  </ChoiceButton>
-                </div>
-              </>
-            ) : null}
-
-            {currentStep === "carpoolNeeded" ? (
-              <>
-                <p className="eyebrow">Carpool</p>
-                <h1>카풀 필요해요?</h1>
-                <div className="choice-grid">
-                  <ChoiceButton selected={values.carpoolNeeded} onClick={() => updateValue("carpoolNeeded", true)}>
-                    필요해요
-                  </ChoiceButton>
-                  <ChoiceButton selected={!values.carpoolNeeded} onClick={() => updateValue("carpoolNeeded", false)}>
-                    괜찮아요
-                  </ChoiceButton>
-                </div>
-              </>
-            ) : null}
-
-            {currentStep === "carpoolOffer" ? (
-              <>
-                <p className="eyebrow">Carpool</p>
-                <h1>태워줄 수 있어요?</h1>
-                <div className="choice-grid">
-                  <ChoiceButton selected={values.carpoolOffer} onClick={() => updateValue("carpoolOffer", true)}>
-                    가능해요
-                  </ChoiceButton>
-                  <ChoiceButton selected={!values.carpoolOffer} onClick={() => updateValue("carpoolOffer", false)}>
-                    어려워요
-                  </ChoiceButton>
-                </div>
-              </>
-            ) : null}
-
-            {currentStep === "carpoolSeats" ? (
-              <>
-                <p className="eyebrow">Seats</p>
-                <h1>몇 명 가능해요?</h1>
-                <input
-                  autoFocus
-                  className="register-step__input"
-                  enterKeyHint="next"
-                  inputMode="numeric"
-                  maxLength={2}
-                  onChange={(event) => updateValue("carpoolSeats", event.target.value.replace(/\D/g, ""))}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") goNext();
-                  }}
-                  placeholder="3"
-                  value={values.carpoolSeats}
-                />
-              </>
-            ) : null}
-
-            {currentStep === "transportationNote" ? (
-              <>
-                <p className="eyebrow">Memo</p>
-                <h1>출발 위치</h1>
-                <p className="register-step__hint">카풀이나 픽업 참고용이에요. 비워도 돼요.</p>
-                <input
-                  autoFocus
-                  className="register-step__input"
-                  enterKeyHint="next"
-                  onChange={(event) => updateValue("transportationNote", event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") goNext();
-                  }}
-                  placeholder="교회, OO역 근처"
-                  value={values.transportationNote}
-                />
-              </>
-            ) : null}
-
-            {currentStep === "privacyConsentAgreed" ? (
-              <>
-                <p className="eyebrow">Last</p>
-                <h1>마지막이에요</h1>
-                <button
-                  className={values.privacyConsentAgreed ? "consent-card consent-card--checked" : "consent-card"}
-                  onClick={() => updateValue("privacyConsentAgreed", !values.privacyConsentAgreed)}
-                  type="button"
-                >
-                  <strong>개인정보 수집 및 이용 동의</strong>
-                  <span>수련회 등록과 연락을 위해 사용할게요.</span>
-                </button>
-              </>
-            ) : null}
-          </div>
-
-          {mutation.isError ? <StatusMessage message={mutation.error.message} tone="error" /> : null}
-
-          <button
-            className="register-flow__primary"
-            disabled={!isStepReady(currentStep) || mutation.isPending}
-            onClick={handlePrimaryAction}
-            type="button"
-          >
-            {mutation.isPending ? "신청 중..." : isLastStep ? "신청 완료하기" : "다음"}
-          </button>
-        </>
-      )}
+      ) : null}
     </section>
   );
-}
-
-function ChoiceButton({ children, selected, onClick }: { children: string; selected: boolean; onClick: () => void }) {
-  return (
-    <button className={selected ? "choice-card choice-card--selected" : "choice-card"} onClick={onClick} type="button">
-      {children}
-    </button>
-  );
-}
-
-function buildSteps(values: FormValues): StepId[] {
-  const steps: StepId[] = ["name", "gender", "birthYear", "phoneNumber", "churchCellDepartment", "attendanceType"];
-
-  if (values.attendanceType === "PARTIAL") {
-    steps.push("attendanceSlots");
-  }
-
-  steps.push("transportationType");
-
-  if (values.transportationType === "OWN_CAR") {
-    steps.push("carpoolOffer");
-    if (values.carpoolOffer) {
-      steps.push("carpoolSeats");
-    }
-  } else {
-    steps.push("carpoolNeeded");
-  }
-
-  steps.push("transportationNote", "privacyConsentAgreed");
-  return steps;
-}
-
-function formatStepValue(step: StepId, values: FormValues) {
-  if (step === "gender") {
-    return values.gender === "FEMALE" ? "여성" : "남성";
-  }
-
-  if (step === "attendanceType") {
-    return attendanceTypeLabels[values.attendanceType];
-  }
-
-  if (step === "attendanceSlots") {
-    return values.attendanceSlots.map((slot) => attendanceSlotOptions.find((option) => option.value === slot)?.label).join(", ");
-  }
-
-  if (step === "transportationType") {
-    return transportationTypeLabels[values.transportationType];
-  }
-
-  if (step === "carpoolNeeded") {
-    return values.carpoolNeeded ? "희망" : "필요 없음";
-  }
-
-  if (step === "carpoolOffer") {
-    return values.carpoolOffer ? "가능" : "어려움";
-  }
-
-  if (step === "carpoolSeats") {
-    return `${values.carpoolSeats}명`;
-  }
-
-  if (step === "privacyConsentAgreed") {
-    return values.privacyConsentAgreed ? "동의 완료" : "";
-  }
-
-  if (step === "churchCellDepartment") {
-    return values.churchCellDepartment?.trim() || "나중에 확인";
-  }
-
-  if (step === "transportationNote") {
-    return values.transportationNote?.trim() || "없음";
-  }
-
-  return String(values[step]).trim();
-}
-
-function getStepLabel(step: StepId) {
-  const labels: Record<StepId, string> = {
-    name: "이름",
-    gender: "성별",
-    birthYear: "또래",
-    phoneNumber: "연락처",
-    churchCellDepartment: "셀",
-    attendanceType: "참석",
-    attendanceSlots: "시간",
-    transportationType: "이동",
-    carpoolNeeded: "카풀",
-    carpoolOffer: "카풀",
-    carpoolSeats: "좌석",
-    transportationNote: "출발",
-    privacyConsentAgreed: "동의"
-  };
-
-  return labels[step];
-}
-
-function normalizeBirthYear(value: string) {
-  const digits = value.replace(/\D/g, "");
-
-  if (digits.length === 2) {
-    const year = Number(digits);
-    return year <= 15 ? 2000 + year : 1900 + year;
-  }
-
-  return Number(digits);
 }

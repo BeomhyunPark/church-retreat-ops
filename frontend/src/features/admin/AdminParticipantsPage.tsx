@@ -25,11 +25,7 @@ export function AdminParticipantsPage() {
         item.churchCellName,
         item.churchCellDepartment,
         item.middleGroupName,
-        item.retreatGroupName,
-        attendanceLabel(item.attendanceType),
-        item.attendanceSlots.map(attendanceSlotLabel).join(" "),
-        transportationLabel(item.transportationType),
-        item.transportationNote
+        item.retreatGroupName
       ]
         .filter(Boolean)
         .join(" ")
@@ -109,8 +105,6 @@ export function AdminParticipantsPage() {
               <th>연락처</th>
               <th>상태</th>
               <th>참가비</th>
-              <th>참석</th>
-              <th>이동</th>
               <th>공동체</th>
               <th>수련회 조</th>
             </tr>
@@ -136,17 +130,6 @@ export function AdminParticipantsPage() {
                     {item.feePaid ? "납부" : "미납"}
                   </span>
                 </td>
-                <td>
-                  {attendanceLabel(item.attendanceType)}
-                  {item.attendanceType === "PARTIAL" ? (
-                    <span className="table-note">{item.attendanceSlots.map(attendanceSlotLabel).join(", ") || "시간 미입력"}</span>
-                  ) : null}
-                </td>
-                <td>
-                  {transportationLabel(item.transportationType)}
-                  {item.carpoolNeeded ? <span className="table-note">카풀 희망</span> : null}
-                  {item.carpoolOffer ? <span className="table-note">카풀 가능 {item.carpoolSeats ?? 0}명</span> : null}
-                </td>
                 <td>{item.churchCellName ?? item.churchCellDepartment ?? "-"}</td>
                 <td>{item.retreatGroupName ?? "-"}</td>
               </tr>
@@ -163,30 +146,4 @@ export function AdminParticipantsPage() {
       </div>
     </section>
   );
-}
-
-function attendanceLabel(value: "FULL" | "PARTIAL") {
-  return value === "FULL" ? "전체참석" : "부분참석";
-}
-
-function transportationLabel(value: "OWN_CAR" | "PUBLIC_TRANSPORT" | "UNDECIDED") {
-  if (value === "OWN_CAR") return "자차";
-  if (value === "PUBLIC_TRANSPORT") return "대중교통";
-  return "미정";
-}
-
-function attendanceSlotLabel(value: string) {
-  const labels: Record<string, string> = {
-    DAY1_MORNING: "첫째날 오전",
-    DAY1_AFTERNOON: "첫째날 오후",
-    DAY1_GATHERING: "첫째날 집회",
-    DAY2_MORNING: "둘째날 오전",
-    DAY2_AFTERNOON: "둘째날 오후",
-    DAY2_GATHERING: "둘째날 집회",
-    DAY3_MORNING: "셋째날 오전",
-    DAY3_AFTERNOON: "셋째날 오후",
-    DAY3_GATHERING: "셋째날 집회"
-  };
-
-  return labels[value] ?? value;
 }

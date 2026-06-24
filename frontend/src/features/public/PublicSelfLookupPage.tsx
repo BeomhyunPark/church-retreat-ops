@@ -1,108 +1,122 @@
+import { useState, type KeyboardEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { lookupRegistration, type RegistrationSelfLookupPayload } from "./publicApi";
 import { StatusMessage } from "../../shared/ui/StatusMessage";
 
+const STEP_FIELDS: Array<keyof RegistrationSelfLookupPayload> = ["name", "lookupKey"];
+
 export function PublicSelfLookupPage() {
-  const { register, handleSubmit } = useForm<RegistrationSelfLookupPayload>();
+  const [step, setStep] = useState(0);
+  const [shake, setShake] = useState(false);
+  const { register, handleSubmit, trigger, formState } = useForm<RegistrationSelfLookupPayload>();
   const mutation = useMutation({ mutationFn: lookupRegistration });
-  const registrationStatus = mutation.data?.status === "REGISTERED" ? "등록 완료" : mutation.data?.status;
+
+  const isLastStep = step === STEP_FIELDS.length - 1;
+
+  async function goNext() {
+    const valid = await trigger(STEP_FIELDS[step]);
+    if (!valid) {
+      setShake(true);
+      return;
+    }
+    setStep((current) => Math.min(current + 1, STEP_FIELDS.length - 1));
+  }
+
+  function goBack() {
+    setStep((current) => Math.max(current - 1, 0));
+  }
+
+  function goHome() {
+    window.location.href = "/";
+  }
+
+  function handleStepKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Enter" && !isLastStep) {
+      event.preventDefault();
+      goNext();
+    }
+  }
 
   return (
-    <section className="panel">
-      <div className="section-heading">
+    <section className="register-flow">
+      <div className="register-flow__header">
         <p className="eyebrow">My Registration</p>
         <h1>내 등록 조회</h1>
-        <p className="muted">등록할 때 받은 조회 키와 전화번호 끝 4자리로 본인 등록 정보를 확인합니다.</p>
+        <p className="muted">등록할 때 정한 비밀번호로 본인 등록 정보를 확인합니다.</p>
       </div>
-      <form className="form-grid" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
-        <label>
-          이름
-          <input {...register("name", { required: true })} autoComplete="name" placeholder="홍길동" />
-        </label>
-        <label>
-          전화번호 끝 4자리
-          <input
-            {...register("phoneLastFour", { required: true, minLength: 4, maxLength: 4 })}
-            inputMode="numeric"
-            placeholder="5678"
-          />
-        </label>
-        <label>
-          조회 키
-          <input {...register("lookupKey", { required: true })} autoComplete="off" placeholder="등록 완료 시 받은 조회 키" />
-        </label>
-        <button className="button button--primary" disabled={mutation.isPending} type="submit">
-          조회하기
-        </button>
+
+      <form
+        className="form-grid wizard"
+        onSubmit={handleSubmit((values) => mutation.mutate(values), () => setShake(true))}
+      >
+        <div className="wizard__progress">
+          {STEP_FIELDS.map((field, index) => (
+            <span key={field} className={index <= step ? "wizard__dot wizard__dot--active" : "wizard__dot"} />
+          ))}
+        </div>
+
+        <div
+          className={shake ? "wizard__step wizard__step--shake" : "wizard__step"}
+          onKeyDown={handleStepKeyDown}
+          onAnimationEnd={() => setShake(false)}
+        >
+          {step === 0 ? (
+            <label className="flow-field flow-field--lg">
+              <span>이름</span>
+              <input {...register("name", { required: true })} autoComplete="name" placeholder="홍길동" autoFocus />
+            </label>
+          ) : null}
+
+          {step === 1 ? (
+            <label className="flow-field flow-field--lg">
+              <span>비밀번호 (숫자 6자리)</span>
+              <input
+                {...register("lookupKey", { required: true, pattern: /^[0-9]{6}$/ })}
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="123456"
+                autoFocus
+              />
+              {formState.errors.lookupKey ? <span className="field-error">숫자 6자리로 입력해주세요.</span> : null}
+            </label>
+          ) : null}
+        </div>
+
+        <div className="wizard__actions">
+          {step === 0 ? (
+              <button type="button" className="button button--ghost" onClick={goHome}>
+                취소
+              </button>
+            ) : null}
+          {step > 0 ? (
+            <button type="button" className="button button--ghost" onClick={goBack}>
+              이전
+            </button>
+          ) : null}
+          {!isLastStep ? (
+            <button type="button" className="button button--primary" onClick={goNext}>
+              다음
+            </button>
+          ) : (
+            <button className="button button--primary" disabled={mutation.isPending} type="submit">
+              {mutation.isPending ? "조회 중..." : "조회하기"}
+            </button>
+          )}
+        </div>
       </form>
 
       {mutation.isError ? <StatusMessage message={mutation.error.message} tone="error" /> : null}
       {mutation.data ? (
         <div className="result-card">
-          <div className="result-card__header">
-            <span>
-              <small>참가자</small>
-              <strong>{mutation.data.name}</strong>
-            </span>
-            <span className={mutation.data.feePaid ? "status-pill status-pill--success" : "status-pill status-pill--warning"}>
-              {mutation.data.feePaid ? "참가비 납부 완료" : "참가비 확인 필요"}
-            </span>
-          </div>
-          <dl className="summary-list">
-            <div>
-              <dt>전화번호</dt>
-              <dd>{mutation.data.phoneNumber}</dd>
-            </div>
-            <div>
-              <dt>등록 상태</dt>
-              <dd>{registrationStatus}</dd>
-            </div>
-            <div>
-              <dt>셀</dt>
-              <dd>{mutation.data.churchCellDepartment ?? "미입력"}</dd>
-            </div>
-            <div>
-              <dt>참석</dt>
-              <dd>
-                {mutation.data.attendanceType === "FULL"
-                  ? "전체참석"
-                  : `부분참석 · ${mutation.data.attendanceSlots.map(attendanceSlotLabel).join(", ") || "시간 미입력"}`}
-              </dd>
-            </div>
-            <div>
-              <dt>이동</dt>
-              <dd>
-                {transportationLabel(mutation.data.transportationType)}
-                {mutation.data.carpoolNeeded ? " · 카풀 희망" : ""}
-                {mutation.data.carpoolOffer ? ` · 카풀 가능 ${mutation.data.carpoolSeats ?? 0}명` : ""}
-              </dd>
-            </div>
-          </dl>
+          <strong>{mutation.data.name}</strong>
+          <span>{mutation.data.phoneNumber}</span>
+          <span className={mutation.data.feePaid ? "status-pill status-pill--success" : "status-pill status-pill--warning"}>
+            {mutation.data.feePaid ? "참가비 납부 완료" : "참가비 확인 필요"}
+          </span>
+          <span>등록 상태: {mutation.data.status === "REGISTERED" ? "등록 완료" : mutation.data.status}</span>
         </div>
       ) : null}
     </section>
   );
-}
-
-function transportationLabel(value: "OWN_CAR" | "PUBLIC_TRANSPORT" | "UNDECIDED") {
-  if (value === "OWN_CAR") return "자차";
-  if (value === "PUBLIC_TRANSPORT") return "대중교통";
-  return "미정";
-}
-
-function attendanceSlotLabel(value: string) {
-  const labels: Record<string, string> = {
-    DAY1_MORNING: "첫째날 오전",
-    DAY1_AFTERNOON: "첫째날 오후",
-    DAY1_GATHERING: "첫째날 집회",
-    DAY2_MORNING: "둘째날 오전",
-    DAY2_AFTERNOON: "둘째날 오후",
-    DAY2_GATHERING: "둘째날 집회",
-    DAY3_MORNING: "셋째날 오전",
-    DAY3_AFTERNOON: "셋째날 오후",
-    DAY3_GATHERING: "셋째날 집회"
-  };
-
-  return labels[value] ?? value;
 }
