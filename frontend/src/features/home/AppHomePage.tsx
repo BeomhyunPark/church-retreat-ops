@@ -1,22 +1,18 @@
 import { Link } from "react-router-dom";
 import { StatusMessage } from "../../shared/ui/StatusMessage";
-import { brandInitials, useAppIdentity } from "../../shared/identity/appIdentity";
+import { useAppIdentity } from "../../shared/identity/appIdentity";
+import { BrandHeader } from "../../shared/layout/BrandHeader";
+import { AdminIcon } from "../../shared/ui/icons";
 
 export function AppHomePage() {
-  const { identity, isLoading, isError, error } = useAppIdentity();
+  const { identity, isError, error } = useAppIdentity();
 
   return (
     <main className="app-home">
       <header className="app-home__top">
-        <div className="app-home__brand">
-          <span className="brand-mark">{isLoading ? "" : brandInitials(identity.organizationName)}</span>
-          <div>
-            <p className="eyebrow">{isLoading ? "불러오는 중..." : identity.organizationName}</p>
-            <strong>{isLoading ? "" : identity.appName}</strong>
-          </div>
-        </div>
-        <Link className="text-link" to="/admin/login">
-          관리자
+        <BrandHeader />
+        <Link className="icon-link" to="/admin/login" aria-label="관리자">
+          <AdminIcon />
         </Link>
       </header>
 
@@ -32,12 +28,14 @@ export function AppHomePage() {
           <p className="eyebrow">Retreat is loading</p>
           <h1>{identity.eventName}</h1>
           <p>등록은 빠르게, 확인은 간단하게. 시작부터 현장까지 한 번에 이어집니다.</p>
-          <Link className="button button--primary" to="/public/register">
-            참가자 시작
-          </Link>
-          <Link className="text-link text-link--quiet" to="/public/self-lookup">
-            이미 등록했다면 확인하기
-          </Link>
+          <div className="app-home__actions">
+            <Link className="button button--primary" to="/public/register">
+              수련회 등록
+            </Link>
+            <Link className="button button--secondary" to="/public/self-lookup">
+              내 정보 조회
+            </Link>
+          </div>
         </div>
 
         <aside className="home-pass" aria-label={`${identity.eventName} 앱 입장 카드`}>

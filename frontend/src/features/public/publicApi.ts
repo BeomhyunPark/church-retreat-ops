@@ -7,16 +7,6 @@ export type RegistrationCreatePayload = {
   phoneNumber: string;
   churchCellDepartment?: string;
   privacyConsentAgreed: boolean;
-};
-
-export type RegistrationCreateResponse = {
-  registrationId: number;
-  lookupKey: string;
-};
-
-export type RegistrationSelfLookupPayload = {
-  name: string;
-  phoneLastFour: string;
   lookupKey: string;
 };
 
@@ -29,6 +19,16 @@ export type RegistrationResponse = {
   churchCellDepartment?: string | null;
   feePaid: boolean;
   status: string;
+};
+
+export type RegistrationCreateResponse = {
+  resultType: "CREATED" | "OVERWRITTEN";
+  registration: RegistrationResponse;
+};
+
+export type RegistrationSelfLookupPayload = {
+  name: string;
+  lookupKey: string;
 };
 
 export function createRegistration(payload: RegistrationCreatePayload) {

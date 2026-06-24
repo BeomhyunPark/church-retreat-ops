@@ -50,6 +50,7 @@ class GmcRetreatApplicationTests {
 
     private static final String SENSITIVE_LOOKUP_JSON_FIELD = "lookup" + "Key" + "Hash";
     private static final String SENSITIVE_LOOKUP_DB_FIELD = "lookup_key" + "_hash";
+    private static final String DEFAULT_LOOKUP_KEY = "123456";
     private static final String SENSITIVE_TOKEN_JSON_FIELD = "token" + "Hash";
     private static final String SENSITIVE_TOKEN_DB_FIELD = "token_" + "hash";
 
@@ -466,37 +467,30 @@ class GmcRetreatApplicationTests {
     }
 
     @Test
-    void registrationCreationSucceedsAndReturnsLookupKeyOnce() throws Exception {
+    void registrationCreationSucceedsAndNeverEchoesBackTheChosenLookupKey() throws Exception {
         MvcResult result = createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true);
 
         String responseBody = result.getResponse().getContentAsString();
         JsonNode response = objectMapper.readTree(responseBody);
-        String lookupKey = response.path("data").path("lookupKey").asText();
 
         assertThat(response.path("success").asBoolean()).isTrue();
         assertThat(response.path("data").path("resultType").asText()).isEqualTo("CREATED");
         assertThat(response.path("data").path("registration").path("name").asText()).isEqualTo("Grace Kim");
-        assertThat(lookupKey).isNotBlank();
-        assertThat(countOccurrences(responseBody, lookupKey)).isEqualTo(1);
+        assertThat(countOccurrences(responseBody, DEFAULT_LOOKUP_KEY)).isEqualTo(0);
     }
 
     @Test
     void databaseStoresBcryptLookupHashInsteadOfPlaintextLookupKey() throws Exception {
-        JsonNode response = objectMapper.readTree(
-                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
-                        .getResponse()
-                        .getContentAsString()
-        );
-        String lookupKey = response.path("data").path("lookupKey").asText();
+        createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true);
 
         String lookupHash = jdbcTemplate.queryForObject(
                 "SELECT " + SENSITIVE_LOOKUP_DB_FIELD + " FROM registrations WHERE name = 'Grace Kim'",
                 String.class
         );
 
-        assertThat(lookupHash).isNotEqualTo(lookupKey);
+        assertThat(lookupHash).isNotEqualTo(DEFAULT_LOOKUP_KEY);
         assertThat(lookupHash).startsWith("$2");
-        assertThat(passwordEncoder.matches(lookupKey, lookupHash)).isTrue();
+        assertThat(passwordEncoder.matches(DEFAULT_LOOKUP_KEY, lookupHash)).isTrue();
     }
 
     @Test
@@ -552,8 +546,7 @@ class GmcRetreatApplicationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "name", "Grace Kim",
-                                "phoneLastFour", "5678",
-                                "lookupKey", created.path("data").path("lookupKey").asText()
+                                "lookupKey", DEFAULT_LOOKUP_KEY
                         ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
@@ -569,8 +562,7 @@ class GmcRetreatApplicationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "name", "Grace Kim",
-                                "phoneLastFour", "5678",
-                                "lookupKey", "wrong-key"
+                                "lookupKey", "999999"
                         ))))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false))
@@ -587,7 +579,7 @@ class GmcRetreatApplicationTests {
 
         mockMvc.perform(put("/api/registrations/self")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(selfUpdateRequest(created.path("data").path("lookupKey").asText(), "010-9999-0000")))
+                        .content(selfUpdateRequest(DEFAULT_LOOKUP_KEY, "010-9999-0000")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.phoneNumber").value("010****0000"))
@@ -612,7 +604,7 @@ class GmcRetreatApplicationTests {
         try {
             mockMvc.perform(put("/api/registrations/self")
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(selfUpdateRequest(created.path("data").path("lookupKey").asText(), "010-9999-0000")))
+                            .content(selfUpdateRequest(DEFAULT_LOOKUP_KEY, "010-9999-0000")))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.success").value(false))
                     .andExpect(jsonPath("$.error.code").value("REGISTRATION_EDIT_CLOSED"));
@@ -651,7 +643,6 @@ class GmcRetreatApplicationTests {
                         .getResponse()
                         .getContentAsString()
         );
-        String lookupKey = created.path("data").path("lookupKey").asText();
         Long registrationId = created.path("data").path("registration").path("id").asLong();
         String accessToken = loginAndGetAccessToken();
 
@@ -659,15 +650,14 @@ class GmcRetreatApplicationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "name", "Grace Kim",
-                                "phoneLastFour", "5678",
-                                "lookupKey", lookupKey
+                                "lookupKey", DEFAULT_LOOKUP_KEY
                         ))))
                 .andExpect(status().isOk())
                 .andReturn();
 
         MvcResult updateResult = mockMvc.perform(put("/api/registrations/self")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(selfUpdateRequest(lookupKey, "010-9999-0000")))
+                        .content(selfUpdateRequest(DEFAULT_LOOKUP_KEY, "010-9999-0000")))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -2209,7 +2199,6 @@ class GmcRetreatApplicationTests {
                         .getContentAsString()
         );
         Long firstParticipantId = firstCreated.path("data").path("registration").path("id").asLong();
-        String firstLookupKey = firstCreated.path("data").path("lookupKey").asText();
         JsonNode secondCreated = objectMapper.readTree(
                 createRegistration("Self Fee Two", "010-9999-1357", "Young Adults", true)
                         .getResponse()
@@ -2227,8 +2216,7 @@ class GmcRetreatApplicationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "name", "Self Fee One",
-                                "phoneLastFour", "2468",
-                                "lookupKey", firstLookupKey
+                                "lookupKey", DEFAULT_LOOKUP_KEY
                         ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(firstParticipantId))
@@ -2468,7 +2456,8 @@ class GmcRetreatApplicationTests {
                 "birthYear", 1991,
                 "phoneNumber", phoneNumber,
                 "churchCellDepartment", churchCellDepartment,
-                "privacyConsentAgreed", privacyConsentAgreed
+                "privacyConsentAgreed", privacyConsentAgreed,
+                "lookupKey", DEFAULT_LOOKUP_KEY
         ));
     }
 

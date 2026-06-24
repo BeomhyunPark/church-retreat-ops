@@ -12,7 +12,7 @@ import jakarta.validation.constraints.Size;
 public record RegistrationSelfUpdateRequest(
         @NotBlank @Size(max = 50) String name,
         @NotBlank @Pattern(regexp = "^[0-9]{4}$") String phoneLastFour,
-        @NotBlank String lookupKey,
+        @NotBlank @Pattern(regexp = "^[0-9]{6}$") String lookupKey,
         @Valid @NotNull Update update
 ) {
     public record Update(

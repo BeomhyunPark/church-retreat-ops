@@ -44,8 +44,6 @@ import org.springframework.util.StringUtils;
 @Service
 public class RegistrationService {
 
-    private static final String LOOKUP_KEY_NOTICE =
-            "This lookup key is shown only once. Please save it safely.";
     private static final String DETAIL_VIEW = "DETAIL_VIEW";
     private static final String HISTORY_VIEW = "HISTORY_VIEW";
 
@@ -54,7 +52,6 @@ public class RegistrationService {
     private final RegistrationPrivacyAccessLogMapper privacyAccessLogMapper;
     private final FeeMapper feeMapper;
     private final CommunityService communityService;
-    private final LookupKeyGenerator lookupKeyGenerator;
     private final PasswordEncoder passwordEncoder;
     private final RegistrationProperties registrationProperties;
     private final ObjectMapper objectMapper;
@@ -65,7 +62,6 @@ public class RegistrationService {
             RegistrationPrivacyAccessLogMapper privacyAccessLogMapper,
             FeeMapper feeMapper,
             CommunityService communityService,
-            LookupKeyGenerator lookupKeyGenerator,
             PasswordEncoder passwordEncoder,
             RegistrationProperties registrationProperties,
             ObjectMapper objectMapper
@@ -75,7 +71,6 @@ public class RegistrationService {
         this.privacyAccessLogMapper = privacyAccessLogMapper;
         this.feeMapper = feeMapper;
         this.communityService = communityService;
-        this.lookupKeyGenerator = lookupKeyGenerator;
         this.passwordEncoder = passwordEncoder;
         this.registrationProperties = registrationProperties;
         this.objectMapper = objectMapper;
@@ -87,8 +82,7 @@ public class RegistrationService {
         String normalizedName = normalizeName(request.name());
         String phoneNumber = PhoneNumberNormalizer.normalize(request.phoneNumber());
         String phoneLastFour = PhoneNumberNormalizer.lastFour(phoneNumber);
-        String lookupKey = lookupKeyGenerator.generate();
-        String lookupKeyHash = passwordEncoder.encode(lookupKey);
+        String lookupKeyHash = passwordEncoder.encode(request.lookupKey());
         String churchCellDepartment = normalizeOptional(request.churchCellDepartment());
 
         Registration existing = registrationMapper.findActiveByNormalizedNameAndPhoneNumber(normalizedName, phoneNumber)
@@ -114,9 +108,7 @@ public class RegistrationService {
             insertHistory(created.id(), RegistrationHistoryChangeType.CREATED, null, snapshot(created));
             return new RegistrationCreateResponse(
                     ResultType.CREATED,
-                    RegistrationResponse.from(created),
-                    lookupKey,
-                    LOOKUP_KEY_NOTICE
+                    RegistrationResponse.from(created)
             );
         }
 
@@ -138,15 +130,13 @@ public class RegistrationService {
         insertHistory(updated.id(), RegistrationHistoryChangeType.OVERWRITTEN, previousSnapshot, snapshot(updated));
         return new RegistrationCreateResponse(
                 ResultType.OVERWRITTEN,
-                RegistrationResponse.from(updated),
-                lookupKey,
-                LOOKUP_KEY_NOTICE
+                RegistrationResponse.from(updated)
         );
     }
 
     @Transactional(readOnly = true)
     public RegistrationResponse selfLookup(RegistrationSelfLookupRequest request) {
-        return RegistrationResponse.from(authenticateParticipant(request.name(), request.phoneLastFour(), request.lookupKey()));
+        return RegistrationResponse.from(authenticateParticipantByName(request.name(), request.lookupKey()));
     }
 
     @Transactional
@@ -329,6 +319,15 @@ public class RegistrationService {
     private Registration authenticateParticipant(String name, String phoneLastFour, String lookupKey) {
         String normalizedName = normalizeName(name);
         return registrationMapper.findActiveByNormalizedNameAndPhoneLastFour(normalizedName, phoneLastFour)
+                .stream()
+                .filter(registration -> passwordEncoder.matches(lookupKey, registration.lookupKeyHash()))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(ErrorCode.REGISTRATION_LOOKUP_FAILED));
+    }
+
+    private Registration authenticateParticipantByName(String name, String lookupKey) {
+        String normalizedName = normalizeName(name);
+        return registrationMapper.findActiveByNormalizedName(normalizedName)
                 .stream()
                 .filter(registration -> passwordEncoder.matches(lookupKey, registration.lookupKeyHash()))
                 .findFirst()
