@@ -13,6 +13,7 @@ import com.gmc.retreat.registration.domain.RegistrationActorType;
 import com.gmc.retreat.registration.domain.RegistrationHistoryChangeType;
 import com.gmc.retreat.registration.domain.RegistrationStatus;
 import com.gmc.retreat.registration.domain.TransportationMethod;
+import com.gmc.retreat.registration.domain.WorshipBusRideSlot;
 import com.gmc.retreat.registration.dto.AdminParticipantChurchCellUpdateRequest;
 import com.gmc.retreat.registration.dto.AdminRegistrationFeePaidUpdateRequest;
 import com.gmc.retreat.registration.dto.AdminRegistrationManagementUpdateRequest;
@@ -36,6 +37,7 @@ import com.gmc.retreat.registration.mapper.RegistrationMapper.RegistrationSelfUp
 import com.gmc.retreat.registration.mapper.RegistrationPrivacyAccessLogMapper;
 import com.gmc.retreat.registration.mapper.RegistrationPrivacyAccessLogMapper.RegistrationPrivacyAccessLogInsert;
 import com.gmc.retreat.security.auth.AdminPrincipal;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -88,20 +90,26 @@ public class RegistrationService {
         String churchCellDepartment = normalizeOptional(request.churchCellDepartment());
         validateAttendanceSurvey(
                 request.attendanceType(),
+                request.plannedArrivalAt(),
+                request.plannedDepartureAt(),
                 request.inboundTransportationMethod(),
                 request.inboundCarpoolAvailable(),
                 request.inboundCarpoolSeats(),
                 request.inboundCarpoolArea(),
+                request.inboundCarpoolRouteArea(),
                 request.inboundCarpoolNote(),
                 request.inboundCarpoolPreferredArea(),
                 request.inboundCarpoolPreferredNote(),
+                request.inboundWorshipBusRideSlot(),
                 request.outboundTransportationMethod(),
                 request.outboundCarpoolAvailable(),
                 request.outboundCarpoolSeats(),
                 request.outboundCarpoolArea(),
+                request.outboundCarpoolRouteArea(),
                 request.outboundCarpoolNote(),
                 request.outboundCarpoolPreferredArea(),
-                request.outboundCarpoolPreferredNote()
+                request.outboundCarpoolPreferredNote(),
+                request.outboundWorshipBusRideSlot()
         );
         AttendanceFields attendanceFields = resolveAttendanceFields(request.attendanceType(), request);
 
@@ -122,6 +130,9 @@ public class RegistrationService {
                     false,
                     RegistrationStatus.REGISTERED,
                     request.attendanceType(),
+                    request.plannedArrivalAt(),
+                    request.plannedDepartureAt(),
+                    normalizeOptional(request.partialAttendanceNote()),
                     attendanceFields.lodgingNight1(),
                     attendanceFields.lodgingNight2(),
                     attendanceFields.attendDay1Morning(),
@@ -136,16 +147,20 @@ public class RegistrationService {
                     request.inboundCarpoolAvailable(),
                     request.inboundCarpoolSeats(),
                     request.inboundCarpoolArea(),
+                    request.inboundCarpoolRouteArea(),
                     request.inboundCarpoolNote(),
                     request.inboundCarpoolPreferredArea(),
                     request.inboundCarpoolPreferredNote(),
+                    request.inboundWorshipBusRideSlot(),
                     request.outboundTransportationMethod(),
                     request.outboundCarpoolAvailable(),
                     request.outboundCarpoolSeats(),
                     request.outboundCarpoolArea(),
+                    request.outboundCarpoolRouteArea(),
                     request.outboundCarpoolNote(),
                     request.outboundCarpoolPreferredArea(),
-                    request.outboundCarpoolPreferredNote()
+                    request.outboundCarpoolPreferredNote(),
+                    request.outboundWorshipBusRideSlot()
             );
             registrationMapper.insert(insert);
             Registration created = registrationMapper.findById(insert.getId())
@@ -170,6 +185,9 @@ public class RegistrationService {
                 lookupKeyHash,
                 true,
                 request.attendanceType(),
+                request.plannedArrivalAt(),
+                request.plannedDepartureAt(),
+                normalizeOptional(request.partialAttendanceNote()),
                 attendanceFields.lodgingNight1(),
                 attendanceFields.lodgingNight2(),
                 attendanceFields.attendDay1Morning(),
@@ -184,16 +202,20 @@ public class RegistrationService {
                 request.inboundCarpoolAvailable(),
                 request.inboundCarpoolSeats(),
                 request.inboundCarpoolArea(),
+                request.inboundCarpoolRouteArea(),
                 request.inboundCarpoolNote(),
                 request.inboundCarpoolPreferredArea(),
                 request.inboundCarpoolPreferredNote(),
+                request.inboundWorshipBusRideSlot(),
                 request.outboundTransportationMethod(),
                 request.outboundCarpoolAvailable(),
                 request.outboundCarpoolSeats(),
                 request.outboundCarpoolArea(),
+                request.outboundCarpoolRouteArea(),
                 request.outboundCarpoolNote(),
                 request.outboundCarpoolPreferredArea(),
-                request.outboundCarpoolPreferredNote()
+                request.outboundCarpoolPreferredNote(),
+                request.outboundWorshipBusRideSlot()
         ));
         Registration updated = registrationMapper.findById(existing.id())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
@@ -229,20 +251,26 @@ public class RegistrationService {
 
         validateAttendanceSurvey(
                 request.update().attendanceType(),
+                request.update().plannedArrivalAt(),
+                request.update().plannedDepartureAt(),
                 request.update().inboundTransportationMethod(),
                 request.update().inboundCarpoolAvailable(),
                 request.update().inboundCarpoolSeats(),
                 request.update().inboundCarpoolArea(),
+                request.update().inboundCarpoolRouteArea(),
                 request.update().inboundCarpoolNote(),
                 request.update().inboundCarpoolPreferredArea(),
                 request.update().inboundCarpoolPreferredNote(),
+                request.update().inboundWorshipBusRideSlot(),
                 request.update().outboundTransportationMethod(),
                 request.update().outboundCarpoolAvailable(),
                 request.update().outboundCarpoolSeats(),
                 request.update().outboundCarpoolArea(),
+                request.update().outboundCarpoolRouteArea(),
                 request.update().outboundCarpoolNote(),
                 request.update().outboundCarpoolPreferredArea(),
-                request.update().outboundCarpoolPreferredNote()
+                request.update().outboundCarpoolPreferredNote(),
+                request.update().outboundWorshipBusRideSlot()
         );
         AttendanceFields attendanceFields = resolveAttendanceFields(request.update().attendanceType(), request.update());
 
@@ -255,6 +283,9 @@ public class RegistrationService {
                 newPhoneLastFour,
                 normalizeOptional(request.update().churchCellDepartment()),
                 request.update().attendanceType(),
+                request.update().plannedArrivalAt(),
+                request.update().plannedDepartureAt(),
+                normalizeOptional(request.update().partialAttendanceNote()),
                 attendanceFields.lodgingNight1(),
                 attendanceFields.lodgingNight2(),
                 attendanceFields.attendDay1Morning(),
@@ -269,16 +300,20 @@ public class RegistrationService {
                 request.update().inboundCarpoolAvailable(),
                 request.update().inboundCarpoolSeats(),
                 request.update().inboundCarpoolArea(),
+                request.update().inboundCarpoolRouteArea(),
                 request.update().inboundCarpoolNote(),
                 request.update().inboundCarpoolPreferredArea(),
                 request.update().inboundCarpoolPreferredNote(),
+                request.update().inboundWorshipBusRideSlot(),
                 request.update().outboundTransportationMethod(),
                 request.update().outboundCarpoolAvailable(),
                 request.update().outboundCarpoolSeats(),
                 request.update().outboundCarpoolArea(),
+                request.update().outboundCarpoolRouteArea(),
                 request.update().outboundCarpoolNote(),
                 request.update().outboundCarpoolPreferredArea(),
-                request.update().outboundCarpoolPreferredNote()
+                request.update().outboundCarpoolPreferredNote(),
+                request.update().outboundWorshipBusRideSlot()
         ));
         Registration updated = registrationMapper.findById(registration.id())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
@@ -303,7 +338,12 @@ public class RegistrationService {
         requireRole(admin, AdminRole.STAFF);
         Registration registration = registrationMapper.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.REGISTRATION_NOT_FOUND));
-        insertPrivacyAccessLog(registration.id(), admin.id(), DETAIL_VIEW, "phone_number");
+        insertPrivacyAccessLog(
+                registration.id(),
+                admin.id(),
+                DETAIL_VIEW,
+                "phone_number,transportation_carpool_fields"
+        );
         return AdminRegistrationResponse.detail(registration);
     }
 
@@ -450,56 +490,125 @@ public class RegistrationService {
 
     private void validateAttendanceSurvey(
             AttendanceType attendanceType,
+            OffsetDateTime plannedArrivalAt,
+            OffsetDateTime plannedDepartureAt,
             TransportationMethod inboundTransportation,
             Boolean inboundCarpoolAvailable,
             Integer inboundCarpoolSeats,
             String inboundCarpoolArea,
+            String inboundCarpoolRouteArea,
             String inboundCarpoolNote,
             String inboundCarpoolPreferredArea,
             String inboundCarpoolPreferredNote,
+            WorshipBusRideSlot inboundWorshipBusRideSlot,
             TransportationMethod outboundTransportation,
             Boolean outboundCarpoolAvailable,
             Integer outboundCarpoolSeats,
             String outboundCarpoolArea,
+            String outboundCarpoolRouteArea,
             String outboundCarpoolNote,
             String outboundCarpoolPreferredArea,
-            String outboundCarpoolPreferredNote
+            String outboundCarpoolPreferredNote,
+            WorshipBusRideSlot outboundWorshipBusRideSlot
     ) {
-        validateFullAttendanceTransportation(attendanceType, inboundTransportation, outboundTransportation);
+        validateAttendanceTimeRange(attendanceType, plannedArrivalAt, plannedDepartureAt);
+        validateTransportationMethod(attendanceType, inboundTransportation, outboundTransportation);
+        validateWorshipBusSlot(inboundTransportation, inboundWorshipBusRideSlot, true);
+        validateWorshipBusSlot(outboundTransportation, outboundWorshipBusRideSlot, false);
         validateDirectionalCarpool(
                 inboundTransportation, inboundCarpoolAvailable, inboundCarpoolSeats,
-                inboundCarpoolArea, inboundCarpoolNote, inboundCarpoolPreferredArea, inboundCarpoolPreferredNote
+                inboundCarpoolArea, inboundCarpoolRouteArea, inboundCarpoolNote,
+                inboundCarpoolPreferredArea, inboundCarpoolPreferredNote
         );
         validateDirectionalCarpool(
                 outboundTransportation, outboundCarpoolAvailable, outboundCarpoolSeats,
-                outboundCarpoolArea, outboundCarpoolNote, outboundCarpoolPreferredArea, outboundCarpoolPreferredNote
+                outboundCarpoolArea, outboundCarpoolRouteArea, outboundCarpoolNote,
+                outboundCarpoolPreferredArea, outboundCarpoolPreferredNote
         );
     }
 
-    private void validateFullAttendanceTransportation(
+    private void validateAttendanceTimeRange(
+            AttendanceType attendanceType,
+            OffsetDateTime plannedArrivalAt,
+            OffsetDateTime plannedDepartureAt
+    ) {
+        if (attendanceType == AttendanceType.PARTIAL) {
+            if (plannedArrivalAt == null || plannedDepartureAt == null
+                    || !plannedDepartureAt.isAfter(plannedArrivalAt)) {
+                throw new BusinessException(ErrorCode.INVALID_REQUEST);
+            }
+            return;
+        }
+
+        if (plannedArrivalAt != null || plannedDepartureAt != null) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+    }
+
+    private void validateTransportationMethod(
             AttendanceType attendanceType,
             TransportationMethod inboundTransportation,
             TransportationMethod outboundTransportation
     ) {
-        if (attendanceType != AttendanceType.FULL) {
-            return;
-        }
-
-        if (!isFullAttendanceTransportationMethod(inboundTransportation)
-                || !isFullAttendanceTransportationMethod(outboundTransportation)) {
+        if (!isAllowedTransportationMethod(attendanceType, inboundTransportation)
+                || !isAllowedTransportationMethod(attendanceType, outboundTransportation)) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
+
         if ((inboundTransportation == TransportationMethod.OWN_CAR)
                 != (outboundTransportation == TransportationMethod.OWN_CAR)) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
     }
 
-    private boolean isFullAttendanceTransportationMethod(TransportationMethod transportationMethod) {
+    private boolean isAllowedTransportationMethod(
+            AttendanceType attendanceType,
+            TransportationMethod transportationMethod
+    ) {
+        if (attendanceType == AttendanceType.FULL) {
+            return transportationMethod == TransportationMethod.OWN_CAR
+                    || transportationMethod == TransportationMethod.GROUP_BUS
+                    || transportationMethod == TransportationMethod.PUBLIC_TRANSIT
+                    || transportationMethod == TransportationMethod.CARPOOL_NEEDED;
+        }
+
+        if (attendanceType == AttendanceType.WORSHIP_ONLY) {
+            return transportationMethod == TransportationMethod.OWN_CAR
+                    || transportationMethod == TransportationMethod.WORSHIP_SHUTTLE
+                    || transportationMethod == TransportationMethod.PUBLIC_TRANSIT
+                    || transportationMethod == TransportationMethod.CARPOOL_NEEDED
+                    || transportationMethod == TransportationMethod.NOT_DECIDED;
+        }
+
         return transportationMethod == TransportationMethod.OWN_CAR
                 || transportationMethod == TransportationMethod.GROUP_BUS
+                || transportationMethod == TransportationMethod.WORSHIP_SHUTTLE
                 || transportationMethod == TransportationMethod.PUBLIC_TRANSIT
-                || transportationMethod == TransportationMethod.CARPOOL_NEEDED;
+                || transportationMethod == TransportationMethod.CARPOOL_NEEDED
+                || transportationMethod == TransportationMethod.NOT_DECIDED;
+    }
+
+    private void validateWorshipBusSlot(
+            TransportationMethod transportationMethod,
+            WorshipBusRideSlot worshipBusRideSlot,
+            boolean inbound
+    ) {
+        if (transportationMethod != TransportationMethod.WORSHIP_SHUTTLE) {
+            if (worshipBusRideSlot != null) {
+                throw new BusinessException(ErrorCode.INVALID_REQUEST);
+            }
+            return;
+        }
+
+        if (worshipBusRideSlot == null) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+
+        boolean inboundSlot = worshipBusRideSlot == WorshipBusRideSlot.DAY1_BEFORE_WORSHIP
+                || worshipBusRideSlot == WorshipBusRideSlot.DAY2_BEFORE_WORSHIP;
+        if (inbound != inboundSlot) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
     }
 
     private void validateDirectionalCarpool(
@@ -507,6 +616,7 @@ public class RegistrationService {
             Boolean carpoolAvailable,
             Integer carpoolSeats,
             String carpoolArea,
+            String carpoolRouteArea,
             String carpoolNote,
             String carpoolPreferredArea,
             String carpoolPreferredNote
@@ -516,17 +626,24 @@ public class RegistrationService {
                 throw new BusinessException(ErrorCode.INVALID_REQUEST);
             }
             if (Boolean.TRUE.equals(carpoolAvailable)) {
-                if (carpoolSeats == null || !StringUtils.hasText(carpoolArea)) {
+                if (carpoolSeats == null || carpoolSeats < 1 || !StringUtils.hasText(carpoolArea)) {
                     throw new BusinessException(ErrorCode.INVALID_REQUEST);
                 }
-            } else if (carpoolSeats != null || carpoolArea != null || carpoolNote != null) {
+            } else if (carpoolSeats != null
+                    || carpoolArea != null
+                    || carpoolRouteArea != null
+                    || carpoolNote != null) {
                 throw new BusinessException(ErrorCode.INVALID_REQUEST);
             }
             if (carpoolPreferredArea != null || carpoolPreferredNote != null) {
                 throw new BusinessException(ErrorCode.INVALID_REQUEST);
             }
         } else if (direction == TransportationMethod.CARPOOL_NEEDED) {
-            if (carpoolAvailable != null || carpoolSeats != null || carpoolArea != null || carpoolNote != null) {
+            if (carpoolAvailable != null
+                    || carpoolSeats != null
+                    || carpoolArea != null
+                    || carpoolRouteArea != null
+                    || carpoolNote != null) {
                 throw new BusinessException(ErrorCode.INVALID_REQUEST);
             }
             if (!StringUtils.hasText(carpoolPreferredArea)) {
@@ -535,6 +652,7 @@ public class RegistrationService {
         } else if (carpoolAvailable != null
                 || carpoolSeats != null
                 || carpoolArea != null
+                || carpoolRouteArea != null
                 || carpoolNote != null
                 || carpoolPreferredArea != null
                 || carpoolPreferredNote != null) {
@@ -697,6 +815,12 @@ public class RegistrationService {
                     Map.entry("newcomer", registration.newcomer()),
                     Map.entry("careTarget", registration.careTarget()),
                     Map.entry("attendanceType", registration.attendanceType()),
+                    Map.entry("plannedArrivalAt", registration.plannedArrivalAt() == null
+                            ? "" : registration.plannedArrivalAt()),
+                    Map.entry("plannedDepartureAt", registration.plannedDepartureAt() == null
+                            ? "" : registration.plannedDepartureAt()),
+                    Map.entry("partialAttendanceNote", registration.partialAttendanceNote() == null
+                            ? "" : registration.partialAttendanceNote()),
                     Map.entry("lodgingNight1", registration.lodgingNight1()),
                     Map.entry("lodgingNight2", registration.lodgingNight2()),
                     Map.entry("attendDay1Morning", registration.attendDay1Morning()),
@@ -714,12 +838,16 @@ public class RegistrationService {
                             ? "" : registration.inboundCarpoolSeats()),
                     Map.entry("inboundCarpoolArea", registration.inboundCarpoolArea() == null
                             ? "" : registration.inboundCarpoolArea()),
+                    Map.entry("inboundCarpoolRouteArea", registration.inboundCarpoolRouteArea() == null
+                            ? "" : registration.inboundCarpoolRouteArea()),
                     Map.entry("inboundCarpoolNote", registration.inboundCarpoolNote() == null
                             ? "" : registration.inboundCarpoolNote()),
                     Map.entry("inboundCarpoolPreferredArea", registration.inboundCarpoolPreferredArea() == null
                             ? "" : registration.inboundCarpoolPreferredArea()),
                     Map.entry("inboundCarpoolPreferredNote", registration.inboundCarpoolPreferredNote() == null
                             ? "" : registration.inboundCarpoolPreferredNote()),
+                    Map.entry("inboundWorshipBusRideSlot", registration.inboundWorshipBusRideSlot() == null
+                            ? "" : registration.inboundWorshipBusRideSlot()),
                     Map.entry("outboundTransportationMethod", registration.outboundTransportationMethod()),
                     Map.entry("outboundCarpoolAvailable", registration.outboundCarpoolAvailable() == null
                             ? "" : registration.outboundCarpoolAvailable()),
@@ -727,12 +855,16 @@ public class RegistrationService {
                             ? "" : registration.outboundCarpoolSeats()),
                     Map.entry("outboundCarpoolArea", registration.outboundCarpoolArea() == null
                             ? "" : registration.outboundCarpoolArea()),
+                    Map.entry("outboundCarpoolRouteArea", registration.outboundCarpoolRouteArea() == null
+                            ? "" : registration.outboundCarpoolRouteArea()),
                     Map.entry("outboundCarpoolNote", registration.outboundCarpoolNote() == null
                             ? "" : registration.outboundCarpoolNote()),
                     Map.entry("outboundCarpoolPreferredArea", registration.outboundCarpoolPreferredArea() == null
                             ? "" : registration.outboundCarpoolPreferredArea()),
                     Map.entry("outboundCarpoolPreferredNote", registration.outboundCarpoolPreferredNote() == null
-                            ? "" : registration.outboundCarpoolPreferredNote())
+                            ? "" : registration.outboundCarpoolPreferredNote()),
+                    Map.entry("outboundWorshipBusRideSlot", registration.outboundWorshipBusRideSlot() == null
+                            ? "" : registration.outboundWorshipBusRideSlot())
             );
             return objectMapper.writeValueAsString(snapshot);
         } catch (Exception exception) {

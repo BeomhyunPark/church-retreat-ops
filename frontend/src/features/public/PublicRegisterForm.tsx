@@ -10,6 +10,9 @@ import {
   getAttendanceLabel,
   getTransportationLabel,
   getTransportationOptions,
+  getWorshipBusRideSlotLabel,
+  inboundWorshipBusRideSlots,
+  outboundWorshipBusRideSlots,
   validationHelpers,
   type AttendanceType,
   type RegisterFormValues
@@ -55,6 +58,8 @@ export function PublicRegisterForm() {
   const outboundTransportation = useWatch({ control, name: "outboundTransportationMethod" });
   const inboundCarpoolAvailable = useWatch({ control, name: "inboundCarpoolAvailable" });
   const outboundCarpoolAvailable = useWatch({ control, name: "outboundCarpoolAvailable" });
+  const inboundWorshipBusRideSlot = useWatch({ control, name: "inboundWorshipBusRideSlot" });
+  const outboundWorshipBusRideSlot = useWatch({ control, name: "outboundWorshipBusRideSlot" });
   const gender = useWatch({ control, name: "gender" });
 
   const currentSteps = buildRegisterSteps(
@@ -288,15 +293,22 @@ export function PublicRegisterForm() {
                         resetField("inboundCarpoolAvailable");
                         setValue("inboundCarpoolSeats", undefined);
                         resetField("inboundCarpoolArea");
+                        resetField("inboundCarpoolRouteArea");
                         resetField("inboundCarpoolNote");
                         resetField("inboundCarpoolPreferredArea");
                         resetField("inboundCarpoolPreferredNote");
+                        resetField("inboundWorshipBusRideSlot");
                         resetField("outboundCarpoolAvailable");
                         setValue("outboundCarpoolSeats", undefined);
                         resetField("outboundCarpoolArea");
+                        resetField("outboundCarpoolRouteArea");
                         resetField("outboundCarpoolNote");
                         resetField("outboundCarpoolPreferredArea");
                         resetField("outboundCarpoolPreferredNote");
+                        resetField("outboundWorshipBusRideSlot");
+                        resetField("plannedArrivalAt");
+                        resetField("plannedDepartureAt");
+                        resetField("partialAttendanceNote");
                         setValue("lodgingNight1", false);
                         setValue("lodgingNight2", false);
                         // 집회만 선택시 다른 일정은 자동으로 false
@@ -329,6 +341,49 @@ export function PublicRegisterForm() {
               </div>
             ) : null}
 
+            {/* Step: plannedArrivalAt */}
+            {currentSteps[step] === "plannedArrivalAt" ? (
+              <label className="flow-field flow-field--lg">
+                <span>수련회장에 언제 도착할 예정인가요?</span>
+                <input
+                  {...register("plannedArrivalAt", { required: "도착 예정 시간을 입력해주세요." })}
+                  type="datetime-local"
+                  autoFocus
+                />
+                {formState.errors.plannedArrivalAt && <span className="field-error">{formState.errors.plannedArrivalAt.message}</span>}
+              </label>
+            ) : null}
+
+            {/* Step: plannedDepartureAt */}
+            {currentSteps[step] === "plannedDepartureAt" ? (
+              <label className="flow-field flow-field--lg">
+                <span>수련회장에서 언제 출발할 예정인가요?</span>
+                <input
+                  {...register("plannedDepartureAt", {
+                    required: "출발 예정 시간을 입력해주세요."
+                  })}
+                  type="datetime-local"
+                  autoFocus
+                />
+                {formState.errors.plannedDepartureAt && <span className="field-error">{formState.errors.plannedDepartureAt.message}</span>}
+              </label>
+            ) : null}
+
+            {/* Step: partialAttendanceNote */}
+            {currentSteps[step] === "partialAttendanceNote" ? (
+              <label className="flow-field flow-field--lg">
+                <span>운영진이 알아야 할 부분참석 메모가 있나요?</span>
+                <input
+                  {...register("partialAttendanceNote", {
+                    maxLength: { value: 300, message: "300자 이하로 입력해주세요." }
+                  })}
+                  placeholder="예: 둘째 날 오전부터 합류, 집회 후 귀가"
+                  autoFocus
+                />
+                {formState.errors.partialAttendanceNote && <span className="field-error">{formState.errors.partialAttendanceNote.message}</span>}
+              </label>
+            ) : null}
+
             {/* Step: inboundTransportationMethod */}
             {currentSteps[step] === "inboundTransportationMethod" && attendanceType ? (
               <div className="flow-field flow-field--lg">
@@ -351,14 +406,20 @@ export function PublicRegisterForm() {
                           resetField("outboundCarpoolAvailable");
                           setValue("outboundCarpoolSeats", undefined);
                           resetField("outboundCarpoolArea");
+                          resetField("outboundCarpoolRouteArea");
                           resetField("outboundCarpoolNote");
                           resetField("outboundCarpoolPreferredArea");
                           resetField("outboundCarpoolPreferredNote");
+                          resetField("outboundWorshipBusRideSlot");
                         } else {
                           resetField("inboundCarpoolAvailable");
                           setValue("inboundCarpoolSeats", undefined);
                           resetField("inboundCarpoolArea");
+                          resetField("inboundCarpoolRouteArea");
                           resetField("inboundCarpoolNote");
+                          if (method !== "WORSHIP_SHUTTLE") {
+                            resetField("inboundWorshipBusRideSlot");
+                          }
                           if (method !== "CARPOOL_NEEDED") {
                             resetField("inboundCarpoolPreferredArea");
                             resetField("inboundCarpoolPreferredNote");
@@ -370,6 +431,7 @@ export function PublicRegisterForm() {
                           resetField("outboundCarpoolAvailable");
                           setValue("outboundCarpoolSeats", undefined);
                           resetField("outboundCarpoolArea");
+                          resetField("outboundCarpoolRouteArea");
                           resetField("outboundCarpoolNote");
                         }
                       }}
@@ -379,6 +441,26 @@ export function PublicRegisterForm() {
                   ))}
                 </div>
                 <input type="hidden" {...register("inboundTransportationMethod", { required: true })} />
+              </div>
+            ) : null}
+
+            {/* Step: inboundWorshipBusRideSlot */}
+            {currentSteps[step] === "inboundWorshipBusRideSlot" && inboundTransportation === "WORSHIP_SHUTTLE" ? (
+              <div className="flow-field flow-field--lg">
+                <span>어느 집회 차량으로 들어오세요?</span>
+                <div className="option-cards" role="radiogroup" aria-label="가는 집회 차량">
+                  {inboundWorshipBusRideSlots.map((slot) => (
+                    <button
+                      key={slot}
+                      type="button"
+                      className={inboundWorshipBusRideSlot === slot ? "option-card option-card--active" : "option-card"}
+                      onClick={() => setValue("inboundWorshipBusRideSlot", slot, { shouldValidate: true })}
+                    >
+                      {getWorshipBusRideSlotLabel(slot)}
+                    </button>
+                  ))}
+                </div>
+                <input type="hidden" {...register("inboundWorshipBusRideSlot", { required: true })} />
               </div>
             ) : null}
 
@@ -404,6 +486,7 @@ export function PublicRegisterForm() {
                       setValue("inboundCarpoolAvailable", false, { shouldValidate: true });
                       setValue("inboundCarpoolSeats", undefined);
                       resetField("inboundCarpoolArea");
+                      resetField("inboundCarpoolRouteArea");
                       resetField("inboundCarpoolNote");
                     }}
                   >
@@ -463,6 +546,23 @@ export function PublicRegisterForm() {
                     autoFocus
                   />
                   {formState.errors.inboundCarpoolSeats && <span className="field-error">{formState.errors.inboundCarpoolSeats.message}</span>}
+                </label>
+              ) : null
+            ) : null}
+
+            {/* Step: inboundCarpoolRouteArea */}
+            {currentSteps[step] === "inboundCarpoolRouteArea" ? (
+              inboundTransportation === "OWN_CAR" && inboundCarpoolAvailable ? (
+                <label className="flow-field flow-field--lg">
+                  <span>가는 길 경유 가능 지역</span>
+                  <input
+                    {...register("inboundCarpoolRouteArea", {
+                      maxLength: { value: 100, message: "100자 이하로 입력해주세요." }
+                    })}
+                    placeholder="예: 잠실 경유 가능, 교회 출발"
+                    autoFocus
+                  />
+                  {formState.errors.inboundCarpoolRouteArea && <span className="field-error">{formState.errors.inboundCarpoolRouteArea.message}</span>}
                 </label>
               ) : null
             ) : null}
@@ -543,6 +643,9 @@ export function PublicRegisterForm() {
                             resetField("outboundCarpoolPreferredArea");
                             resetField("outboundCarpoolPreferredNote");
                           }
+                          if (method !== "WORSHIP_SHUTTLE") {
+                            resetField("outboundWorshipBusRideSlot");
+                          }
                         }}
                       >
                         {getTransportationLabel(method)}
@@ -550,6 +653,26 @@ export function PublicRegisterForm() {
                     ))}
                 </div>
                 <input type="hidden" {...register("outboundTransportationMethod", { required: true })} />
+              </div>
+            ) : null}
+
+            {/* Step: outboundWorshipBusRideSlot */}
+            {currentSteps[step] === "outboundWorshipBusRideSlot" && outboundTransportation === "WORSHIP_SHUTTLE" ? (
+              <div className="flow-field flow-field--lg">
+                <span>어느 집회 차량으로 돌아가세요?</span>
+                <div className="option-cards" role="radiogroup" aria-label="오는 집회 차량">
+                  {outboundWorshipBusRideSlots.map((slot) => (
+                    <button
+                      key={slot}
+                      type="button"
+                      className={outboundWorshipBusRideSlot === slot ? "option-card option-card--active" : "option-card"}
+                      onClick={() => setValue("outboundWorshipBusRideSlot", slot, { shouldValidate: true })}
+                    >
+                      {getWorshipBusRideSlotLabel(slot)}
+                    </button>
+                  ))}
+                </div>
+                <input type="hidden" {...register("outboundWorshipBusRideSlot", { required: true })} />
               </div>
             ) : null}
 
@@ -575,6 +698,7 @@ export function PublicRegisterForm() {
                       setValue("outboundCarpoolAvailable", false, { shouldValidate: true });
                       setValue("outboundCarpoolSeats", undefined);
                       resetField("outboundCarpoolArea");
+                      resetField("outboundCarpoolRouteArea");
                       resetField("outboundCarpoolNote");
                     }}
                   >
@@ -635,6 +759,23 @@ export function PublicRegisterForm() {
                     autoFocus
                   />
                   {formState.errors.outboundCarpoolArea && <span className="field-error">{formState.errors.outboundCarpoolArea.message}</span>}
+                </label>
+              ) : null
+            ) : null}
+
+            {/* Step: outboundCarpoolRouteArea */}
+            {currentSteps[step] === "outboundCarpoolRouteArea" ? (
+              outboundTransportation === "OWN_CAR" && outboundCarpoolAvailable ? (
+                <label className="flow-field flow-field--lg">
+                  <span>오는 길 경유 가능 지역</span>
+                  <input
+                    {...register("outboundCarpoolRouteArea", {
+                      maxLength: { value: 100, message: "100자 이하로 입력해주세요." }
+                    })}
+                    placeholder="예: 강남/양재 쪽 하차 가능"
+                    autoFocus
+                  />
+                  {formState.errors.outboundCarpoolRouteArea && <span className="field-error">{formState.errors.outboundCarpoolRouteArea.message}</span>}
                 </label>
               ) : null
             ) : null}

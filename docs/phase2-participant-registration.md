@@ -28,11 +28,21 @@ Phase 2는 참가자가 관리자 계정 없이 수련회 등록을 제출하고
   - 전체참석(`FULL`)의 참가자 신청/수정 플로우에서는 `OWN_CAR`, `GROUP_BUS`, `PUBLIC_TRANSIT`, `CARPOOL_NEEDED`만 허용합니다.
   - 전체참석에서 자차(`OWN_CAR`)는 왕복 세트로만 허용합니다. `OWN_CAR -> GROUP_BUS`, `GROUP_BUS -> OWN_CAR`처럼 한쪽 방향에만 자차가 들어가는 조합은 `INVALID_REQUEST`로 실패합니다.
   - `GROUP_BUS`, `PUBLIC_TRANSIT`, `CARPOOL_NEEDED`끼리는 방향별 조합을 허용합니다.
-  - `PARTIAL`, `WORSHIP_ONLY`의 기존 이동 방식 검증은 유지합니다.
+  - 부분참석(`PARTIAL`)은 `OWN_CAR`, `GROUP_BUS`, `WORSHIP_SHUTTLE`, `PUBLIC_TRANSIT`, `CARPOOL_NEEDED`, `NOT_DECIDED`를 허용합니다.
+  - 집회만참석(`WORSHIP_ONLY`)은 `OWN_CAR`, `WORSHIP_SHUTTLE`, `PUBLIC_TRANSIT`, `CARPOOL_NEEDED`, `NOT_DECIDED`를 허용합니다. 전체 일정용 `GROUP_BUS`는 허용하지 않습니다.
+  - 모든 참석 유형에서 자차(`OWN_CAR`)는 왕복 세트로만 허용합니다.
   - 이 조합 규칙은 DB 제약이 아니라 `RegistrationService`의 `validateAttendanceSurvey`에서 검증하며, 위반 시 `INVALID_REQUEST`로 실패합니다.
+- `plannedArrivalAt` / `plannedDepartureAt`: 부분참석(`PARTIAL`)의 수련회장 도착/출발 예정 시각입니다.
+  - 부분참석에서는 둘 다 필수이며, 출발 예정 시각은 도착 예정 시각보다 늦어야 합니다.
+  - 전체참석과 집회만참석에서는 받지 않습니다.
+- `partialAttendanceNote`: 부분참석 운영 메모입니다. 선택 입력이며 최대 300자입니다.
+- `WORSHIP_SHUTTLE`은 집회 차량입니다. 전체 일정용 `GROUP_BUS`와 다른 이동수단이며, 부분참석자와 집회만참석자가 사용할 수 있습니다.
+  - 가는 방향이 `WORSHIP_SHUTTLE`이면 `inboundWorshipBusRideSlot`이 필수이고, `DAY1_BEFORE_WORSHIP` 또는 `DAY2_BEFORE_WORSHIP`만 허용합니다.
+  - 오는 방향이 `WORSHIP_SHUTTLE`이면 `outboundWorshipBusRideSlot`이 필수이고, `DAY1_AFTER_WORSHIP` 또는 `DAY2_AFTER_WORSHIP`만 허용합니다.
 - `inboundCarpoolAvailable` / `outboundCarpoolAvailable`: 카풀 제공 가능 여부입니다. `OWN_CAR` 방향에서만 의미가 있고, 카풀 희망과는 별도 개념입니다.
   - 제공 가능이 `true`이면 해당 방향의 `carpoolSeats`(1~10)와 `carpoolArea`가 필수입니다.
-  - 제공 가능이 `false`이면 좌석 수, 제공 지역, 제공 메모는 비워야 합니다.
+  - `inboundCarpoolRouteArea` / `outboundCarpoolRouteArea`는 경유 가능 지역 또는 운행 메모용 지역 필드입니다.
+  - 제공 가능이 `false`이면 좌석 수, 제공 지역, 경유 지역, 제공 메모는 비워야 합니다.
 - `inboundCarpoolPreferredArea` / `outboundCarpoolPreferredArea`: 카풀 희망자의 탑승/하차 희망 지역입니다. 해당 방향의 이동 방식이 `CARPOOL_NEEDED`일 때 필수입니다.
   - 정확한 자택 주소를 강제하지 않습니다. 역명, 동네, 교회, 주요 건물처럼 운영진이 매칭할 수 있는 수준의 지역 정보를 받습니다.
 - `inboundCarpoolNote`, `outboundCarpoolNote`, `inboundCarpoolPreferredNote`, `outboundCarpoolPreferredNote`: 방향별 카풀 제공/희망 메모입니다. 선택 입력이며 최대 200자입니다.
@@ -42,7 +52,7 @@ Phase 2는 참가자가 관리자 계정 없이 수련회 등록을 제출하고
   - `WORSHIP_ONLY`: 일정 체크박스는 요청 값을 그대로 저장하지만, 숙박 두 항목은 항상 `false`로 강제합니다.
 - 이 정규화는 `RegistrationService`의 `resolveAttendanceFields`에서 처리하며, 등록 생성/덮어쓰기/본인 수정 경로 모두에 동일하게 적용됩니다.
 - 참석 조사 값은 `registration_histories`의 스냅샷에도 포함되어 변경 이력을 추적할 수 있습니다.
-- 관리자 화면에서 이 데이터를 조회/집계하는 기능은 아직 없습니다(다음 단계에서 다룰 예정).
+- 관리자 상세 조회와 변경 이력에서는 이 데이터를 확인할 수 있습니다. 전화번호와 카풀 위치/메모는 민감 정보이므로 관리자 JWT가 필요하고, 상세/이력 조회 시 기존 개인정보 접근 로그를 남깁니다.
 
 ## 개인 조회 키 정책
 

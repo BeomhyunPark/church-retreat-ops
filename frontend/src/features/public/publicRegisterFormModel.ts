@@ -1,4 +1,4 @@
-import type { RegistrationCreatePayload, TransportationMethod } from "./publicApi";
+import type { RegistrationCreatePayload, TransportationMethod, WorshipBusRideSlot } from "./publicApi";
 
 export type AttendanceType = "FULL" | "PARTIAL" | "WORSHIP_ONLY";
 
@@ -11,6 +11,9 @@ export type RegisterFormValues = {
   privacyConsentAgreed: boolean;
   lookupKey: string;
   attendanceType: AttendanceType;
+  plannedArrivalAt?: string;
+  plannedDepartureAt?: string;
+  partialAttendanceNote?: string;
   lodgingNight1?: boolean;
   lodgingNight2?: boolean;
   attendDay1Morning?: boolean;
@@ -26,15 +29,19 @@ export type RegisterFormValues = {
   inboundCarpoolAvailable?: boolean;
   inboundCarpoolSeats?: number;
   inboundCarpoolArea?: string;
+  inboundCarpoolRouteArea?: string;
   inboundCarpoolNote?: string;
   inboundCarpoolPreferredArea?: string;
   inboundCarpoolPreferredNote?: string;
+  inboundWorshipBusRideSlot?: WorshipBusRideSlot;
   outboundCarpoolArea?: string;
+  outboundCarpoolRouteArea?: string;
   outboundCarpoolNote?: string;
   outboundCarpoolAvailable?: boolean;
   outboundCarpoolSeats?: number;
   outboundCarpoolPreferredArea?: string;
   outboundCarpoolPreferredNote?: string;
+  outboundWorshipBusRideSlot?: WorshipBusRideSlot;
 };
 
 export type RegisterStep = keyof RegisterFormValues;
@@ -64,6 +71,9 @@ export function getTransportationOptions(attendanceType: AttendanceType): Transp
   if (attendanceType === "FULL") {
     return ["GROUP_BUS", "OWN_CAR", "PUBLIC_TRANSIT", "CARPOOL_NEEDED"];
   }
+  if (attendanceType === "WORSHIP_ONLY") {
+    return ["WORSHIP_SHUTTLE", "OWN_CAR", "PUBLIC_TRANSIT", "CARPOOL_NEEDED", "NOT_DECIDED"];
+  }
   return ["GROUP_BUS", "WORSHIP_SHUTTLE", "OWN_CAR", "PUBLIC_TRANSIT", "CARPOOL_NEEDED", "NOT_DECIDED"];
 }
 
@@ -78,6 +88,19 @@ export function getTransportationLabel(method: TransportationMethod): string {
   };
   return labels[method];
 }
+
+export function getWorshipBusRideSlotLabel(slot: WorshipBusRideSlot): string {
+  const labels: Record<WorshipBusRideSlot, string> = {
+    DAY1_BEFORE_WORSHIP: "첫째 날 집회 전 교회 -> 수련회장",
+    DAY1_AFTER_WORSHIP: "첫째 날 집회 후 수련회장 -> 교회",
+    DAY2_BEFORE_WORSHIP: "둘째 날 집회 전 교회 -> 수련회장",
+    DAY2_AFTER_WORSHIP: "둘째 날 집회 후 수련회장 -> 교회"
+  };
+  return labels[slot];
+}
+
+export const inboundWorshipBusRideSlots: WorshipBusRideSlot[] = ["DAY1_BEFORE_WORSHIP", "DAY2_BEFORE_WORSHIP"];
+export const outboundWorshipBusRideSlots: WorshipBusRideSlot[] = ["DAY1_AFTER_WORSHIP", "DAY2_AFTER_WORSHIP"];
 
 export function getAttendanceLabel(type: AttendanceType): string {
   const labels: Record<AttendanceType, string> = {
@@ -109,11 +132,11 @@ export function buildRegisterSteps(
     if (inboundTransportation === "OWN_CAR") {
       steps.push("inboundCarpoolAvailable");
       if (inboundCarpoolAvailable === true) {
-        steps.push("inboundCarpoolSeats", "inboundCarpoolArea", "inboundCarpoolNote");
+        steps.push("inboundCarpoolSeats", "inboundCarpoolArea", "inboundCarpoolRouteArea", "inboundCarpoolNote");
       }
       steps.push("outboundCarpoolAvailable");
       if (outboundCarpoolAvailable === true) {
-        steps.push("outboundCarpoolSeats", "outboundCarpoolArea", "outboundCarpoolNote");
+        steps.push("outboundCarpoolSeats", "outboundCarpoolArea", "outboundCarpoolRouteArea", "outboundCarpoolNote");
       }
     } else if (inboundTransportation === "CARPOOL_NEEDED") {
       steps.push("inboundCarpoolPreferredArea", "inboundCarpoolPreferredNote", "outboundTransportationMethod");
@@ -124,36 +147,56 @@ export function buildRegisterSteps(
       steps.push("outboundCarpoolPreferredArea", "outboundCarpoolPreferredNote");
     }
   } else if (attendanceType === "PARTIAL") {
-    steps.push("lodgingNight1", "attendDay1Morning");
+    steps.push("plannedArrivalAt", "plannedDepartureAt", "partialAttendanceNote", "lodgingNight1", "attendDay1Morning");
     steps.push("inboundTransportationMethod");
     if (inboundTransportation === "OWN_CAR") {
       steps.push("inboundCarpoolAvailable");
       if (inboundCarpoolAvailable === true) {
-        steps.push("inboundCarpoolSeats", "inboundCarpoolArea");
+        steps.push("inboundCarpoolSeats", "inboundCarpoolArea", "inboundCarpoolRouteArea", "inboundCarpoolNote");
+      }
+      steps.push("outboundCarpoolAvailable");
+      if (outboundCarpoolAvailable === true) {
+        steps.push("outboundCarpoolSeats", "outboundCarpoolArea", "outboundCarpoolRouteArea", "outboundCarpoolNote");
       }
     } else if (inboundTransportation === "CARPOOL_NEEDED") {
-      steps.push("inboundCarpoolPreferredArea");
+      steps.push("inboundCarpoolPreferredArea", "inboundCarpoolPreferredNote", "outboundTransportationMethod");
+    } else {
+      if (inboundTransportation === "WORSHIP_SHUTTLE") {
+        steps.push("inboundWorshipBusRideSlot");
+      }
+      steps.push("outboundTransportationMethod");
     }
     if (inboundTransportation !== "OWN_CAR") {
-      steps.push("outboundTransportationMethod");
+      if (outboundTransportation === "WORSHIP_SHUTTLE") {
+        steps.push("outboundWorshipBusRideSlot");
+      }
       if (outboundTransportation === "CARPOOL_NEEDED") {
-        steps.push("outboundCarpoolPreferredArea");
+        steps.push("outboundCarpoolPreferredArea", "outboundCarpoolPreferredNote");
       }
     }
   } else if (attendanceType === "WORSHIP_ONLY") {
-    steps.push("inboundTransportationMethod");
+    steps.push("attendDay1Morning", "inboundTransportationMethod");
     if (inboundTransportation === "OWN_CAR") {
       steps.push("inboundCarpoolAvailable");
       if (inboundCarpoolAvailable === true) {
-        steps.push("inboundCarpoolSeats", "inboundCarpoolArea");
+        steps.push("inboundCarpoolSeats", "inboundCarpoolArea", "inboundCarpoolRouteArea", "inboundCarpoolNote");
+      }
+      steps.push("outboundCarpoolAvailable");
+      if (outboundCarpoolAvailable === true) {
+        steps.push("outboundCarpoolSeats", "outboundCarpoolArea", "outboundCarpoolRouteArea", "outboundCarpoolNote");
       }
     } else if (inboundTransportation === "CARPOOL_NEEDED") {
-      steps.push("inboundCarpoolPreferredArea");
-    }
-    if (inboundTransportation !== "OWN_CAR") {
+      steps.push("inboundCarpoolPreferredArea", "inboundCarpoolPreferredNote", "outboundTransportationMethod");
+    } else if (inboundTransportation) {
+      if (inboundTransportation === "WORSHIP_SHUTTLE") {
+        steps.push("inboundWorshipBusRideSlot");
+      }
       steps.push("outboundTransportationMethod");
+      if (outboundTransportation === "WORSHIP_SHUTTLE") {
+        steps.push("outboundWorshipBusRideSlot");
+      }
       if (outboundTransportation === "CARPOOL_NEEDED") {
-        steps.push("outboundCarpoolPreferredArea");
+        steps.push("outboundCarpoolPreferredArea", "outboundCarpoolPreferredNote");
       }
     }
   }
@@ -171,11 +214,6 @@ export function buildRegistrationPayload(values: RegisterFormValues): Registrati
 
   if (values.inboundTransportationMethod === "OWN_CAR") {
     payload.outboundTransportationMethod = "OWN_CAR";
-    if (values.attendanceType !== "FULL") {
-      payload.outboundCarpoolAvailable = values.inboundCarpoolAvailable;
-      payload.outboundCarpoolSeats = values.inboundCarpoolSeats;
-      payload.outboundCarpoolArea = values.inboundCarpoolArea;
-    }
   }
 
   for (const direction of ["inbound", "outbound"] as const) {
@@ -184,11 +222,15 @@ export function buildRegistrationPayload(values: RegisterFormValues): Registrati
       delete payload[`${direction}CarpoolAvailable`];
       delete payload[`${direction}CarpoolSeats`];
       delete payload[`${direction}CarpoolArea`];
+      delete payload[`${direction}CarpoolRouteArea`];
       delete payload[`${direction}CarpoolNote`];
     }
     if (method !== "CARPOOL_NEEDED") {
       delete payload[`${direction}CarpoolPreferredArea`];
       delete payload[`${direction}CarpoolPreferredNote`];
+    }
+    if (method !== "WORSHIP_SHUTTLE") {
+      delete payload[`${direction}WorshipBusRideSlot`];
     }
   }
 
@@ -205,6 +247,15 @@ export function buildRegistrationPayload(values: RegisterFormValues): Registrati
     delete payload.attendDay3Afternoon;
   }
 
+  if (values.attendanceType !== "PARTIAL") {
+    delete payload.plannedArrivalAt;
+    delete payload.plannedDepartureAt;
+    delete payload.partialAttendanceNote;
+  } else {
+    payload.plannedArrivalAt = toOffsetDateTime(values.plannedArrivalAt);
+    payload.plannedDepartureAt = toOffsetDateTime(values.plannedDepartureAt);
+  }
+
   return payload;
 }
 
@@ -214,4 +265,11 @@ function expandTwoDigitBirthYear(birthYear: number) {
   return enteredTwoDigitYear <= currentTwoDigitYear
     ? 2000 + enteredTwoDigitYear
     : 1900 + enteredTwoDigitYear;
+}
+
+function toOffsetDateTime(value?: string) {
+  if (!value) {
+    return value;
+  }
+  return new Date(value).toISOString();
 }

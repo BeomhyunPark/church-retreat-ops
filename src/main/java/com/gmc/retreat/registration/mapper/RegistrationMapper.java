@@ -5,6 +5,7 @@ import com.gmc.retreat.registration.domain.Gender;
 import com.gmc.retreat.registration.domain.Registration;
 import com.gmc.retreat.registration.domain.RegistrationStatus;
 import com.gmc.retreat.registration.domain.TransportationMethod;
+import com.gmc.retreat.registration.domain.WorshipBusRideSlot;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -28,14 +29,17 @@ public interface RegistrationMapper {
                    r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
                    r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at,
                    r.attendance_type,
+                   r.planned_arrival_at, r.planned_departure_at, r.partial_attendance_note,
                    r.lodging_night1, r.lodging_night2,
                    r.attend_day1_morning, r.attend_day1_afternoon, r.attend_day1_worship,
                    r.attend_day2_morning, r.attend_day2_afternoon, r.attend_day2_worship,
                    r.attend_day3_morning, r.attend_day3_afternoon,
                    r.inbound_transportation_method, r.inbound_carpool_available, r.inbound_carpool_seats,
-                   r.inbound_carpool_area, r.inbound_carpool_note, r.inbound_carpool_preferred_area, r.inbound_carpool_preferred_note,
+                   r.inbound_carpool_area, r.inbound_carpool_route_area, r.inbound_carpool_note,
+                   r.inbound_carpool_preferred_area, r.inbound_carpool_preferred_note, r.inbound_worship_bus_ride_slot,
                    r.outbound_transportation_method, r.outbound_carpool_available, r.outbound_carpool_seats,
-                   r.outbound_carpool_area, r.outbound_carpool_note, r.outbound_carpool_preferred_area, r.outbound_carpool_preferred_note
+                   r.outbound_carpool_area, r.outbound_carpool_route_area, r.outbound_carpool_note,
+                   r.outbound_carpool_preferred_area, r.outbound_carpool_preferred_note, r.outbound_worship_bus_ride_slot
             FROM registrations r
             LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
             LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
@@ -69,6 +73,9 @@ public interface RegistrationMapper {
             @Arg(column = "created_at", javaType = OffsetDateTime.class),
             @Arg(column = "updated_at", javaType = OffsetDateTime.class),
             @Arg(column = "attendance_type", javaType = AttendanceType.class),
+            @Arg(column = "planned_arrival_at", javaType = OffsetDateTime.class),
+            @Arg(column = "planned_departure_at", javaType = OffsetDateTime.class),
+            @Arg(column = "partial_attendance_note", javaType = String.class),
             @Arg(column = "lodging_night1", javaType = Boolean.class),
             @Arg(column = "lodging_night2", javaType = Boolean.class),
             @Arg(column = "attend_day1_morning", javaType = Boolean.class),
@@ -83,16 +90,20 @@ public interface RegistrationMapper {
             @Arg(column = "inbound_carpool_available", javaType = Boolean.class),
             @Arg(column = "inbound_carpool_seats", javaType = Integer.class),
             @Arg(column = "inbound_carpool_area", javaType = String.class),
+            @Arg(column = "inbound_carpool_route_area", javaType = String.class),
             @Arg(column = "inbound_carpool_note", javaType = String.class),
             @Arg(column = "inbound_carpool_preferred_area", javaType = String.class),
             @Arg(column = "inbound_carpool_preferred_note", javaType = String.class),
+            @Arg(column = "inbound_worship_bus_ride_slot", javaType = WorshipBusRideSlot.class),
             @Arg(column = "outbound_transportation_method", javaType = TransportationMethod.class),
             @Arg(column = "outbound_carpool_available", javaType = Boolean.class),
             @Arg(column = "outbound_carpool_seats", javaType = Integer.class),
             @Arg(column = "outbound_carpool_area", javaType = String.class),
+            @Arg(column = "outbound_carpool_route_area", javaType = String.class),
             @Arg(column = "outbound_carpool_note", javaType = String.class),
             @Arg(column = "outbound_carpool_preferred_area", javaType = String.class),
-            @Arg(column = "outbound_carpool_preferred_note", javaType = String.class)
+            @Arg(column = "outbound_carpool_preferred_note", javaType = String.class),
+            @Arg(column = "outbound_worship_bus_ride_slot", javaType = WorshipBusRideSlot.class)
     })
     Optional<Registration> findById(@Param("id") Long id);
 
@@ -104,14 +115,17 @@ public interface RegistrationMapper {
                    r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
                    r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at,
                    r.attendance_type,
+                   r.planned_arrival_at, r.planned_departure_at, r.partial_attendance_note,
                    r.lodging_night1, r.lodging_night2,
                    r.attend_day1_morning, r.attend_day1_afternoon, r.attend_day1_worship,
                    r.attend_day2_morning, r.attend_day2_afternoon, r.attend_day2_worship,
                    r.attend_day3_morning, r.attend_day3_afternoon,
                    r.inbound_transportation_method, r.inbound_carpool_available, r.inbound_carpool_seats,
-                   r.inbound_carpool_area, r.inbound_carpool_note, r.inbound_carpool_preferred_area, r.inbound_carpool_preferred_note,
+                   r.inbound_carpool_area, r.inbound_carpool_route_area, r.inbound_carpool_note,
+                   r.inbound_carpool_preferred_area, r.inbound_carpool_preferred_note, r.inbound_worship_bus_ride_slot,
                    r.outbound_transportation_method, r.outbound_carpool_available, r.outbound_carpool_seats,
-                   r.outbound_carpool_area, r.outbound_carpool_note, r.outbound_carpool_preferred_area, r.outbound_carpool_preferred_note
+                   r.outbound_carpool_area, r.outbound_carpool_route_area, r.outbound_carpool_note,
+                   r.outbound_carpool_preferred_area, r.outbound_carpool_preferred_note, r.outbound_worship_bus_ride_slot
             FROM registrations r
             LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
             LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
@@ -147,6 +161,9 @@ public interface RegistrationMapper {
             @Arg(column = "created_at", javaType = OffsetDateTime.class),
             @Arg(column = "updated_at", javaType = OffsetDateTime.class),
             @Arg(column = "attendance_type", javaType = AttendanceType.class),
+            @Arg(column = "planned_arrival_at", javaType = OffsetDateTime.class),
+            @Arg(column = "planned_departure_at", javaType = OffsetDateTime.class),
+            @Arg(column = "partial_attendance_note", javaType = String.class),
             @Arg(column = "lodging_night1", javaType = Boolean.class),
             @Arg(column = "lodging_night2", javaType = Boolean.class),
             @Arg(column = "attend_day1_morning", javaType = Boolean.class),
@@ -161,16 +178,20 @@ public interface RegistrationMapper {
             @Arg(column = "inbound_carpool_available", javaType = Boolean.class),
             @Arg(column = "inbound_carpool_seats", javaType = Integer.class),
             @Arg(column = "inbound_carpool_area", javaType = String.class),
+            @Arg(column = "inbound_carpool_route_area", javaType = String.class),
             @Arg(column = "inbound_carpool_note", javaType = String.class),
             @Arg(column = "inbound_carpool_preferred_area", javaType = String.class),
             @Arg(column = "inbound_carpool_preferred_note", javaType = String.class),
+            @Arg(column = "inbound_worship_bus_ride_slot", javaType = WorshipBusRideSlot.class),
             @Arg(column = "outbound_transportation_method", javaType = TransportationMethod.class),
             @Arg(column = "outbound_carpool_available", javaType = Boolean.class),
             @Arg(column = "outbound_carpool_seats", javaType = Integer.class),
             @Arg(column = "outbound_carpool_area", javaType = String.class),
+            @Arg(column = "outbound_carpool_route_area", javaType = String.class),
             @Arg(column = "outbound_carpool_note", javaType = String.class),
             @Arg(column = "outbound_carpool_preferred_area", javaType = String.class),
-            @Arg(column = "outbound_carpool_preferred_note", javaType = String.class)
+            @Arg(column = "outbound_carpool_preferred_note", javaType = String.class),
+            @Arg(column = "outbound_worship_bus_ride_slot", javaType = WorshipBusRideSlot.class)
     })
     Optional<Registration> findActiveByNormalizedNameAndPhoneNumber(
             @Param("normalizedName") String normalizedName,
@@ -185,14 +206,17 @@ public interface RegistrationMapper {
                    r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
                    r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at,
                    r.attendance_type,
+                   r.planned_arrival_at, r.planned_departure_at, r.partial_attendance_note,
                    r.lodging_night1, r.lodging_night2,
                    r.attend_day1_morning, r.attend_day1_afternoon, r.attend_day1_worship,
                    r.attend_day2_morning, r.attend_day2_afternoon, r.attend_day2_worship,
                    r.attend_day3_morning, r.attend_day3_afternoon,
                    r.inbound_transportation_method, r.inbound_carpool_available, r.inbound_carpool_seats,
-                   r.inbound_carpool_area, r.inbound_carpool_note, r.inbound_carpool_preferred_area, r.inbound_carpool_preferred_note,
+                   r.inbound_carpool_area, r.inbound_carpool_route_area, r.inbound_carpool_note,
+                   r.inbound_carpool_preferred_area, r.inbound_carpool_preferred_note, r.inbound_worship_bus_ride_slot,
                    r.outbound_transportation_method, r.outbound_carpool_available, r.outbound_carpool_seats,
-                   r.outbound_carpool_area, r.outbound_carpool_note, r.outbound_carpool_preferred_area, r.outbound_carpool_preferred_note
+                   r.outbound_carpool_area, r.outbound_carpool_route_area, r.outbound_carpool_note,
+                   r.outbound_carpool_preferred_area, r.outbound_carpool_preferred_note, r.outbound_worship_bus_ride_slot
             FROM registrations r
             LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
             LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
@@ -229,6 +253,9 @@ public interface RegistrationMapper {
             @Arg(column = "created_at", javaType = OffsetDateTime.class),
             @Arg(column = "updated_at", javaType = OffsetDateTime.class),
             @Arg(column = "attendance_type", javaType = AttendanceType.class),
+            @Arg(column = "planned_arrival_at", javaType = OffsetDateTime.class),
+            @Arg(column = "planned_departure_at", javaType = OffsetDateTime.class),
+            @Arg(column = "partial_attendance_note", javaType = String.class),
             @Arg(column = "lodging_night1", javaType = Boolean.class),
             @Arg(column = "lodging_night2", javaType = Boolean.class),
             @Arg(column = "attend_day1_morning", javaType = Boolean.class),
@@ -243,16 +270,20 @@ public interface RegistrationMapper {
             @Arg(column = "inbound_carpool_available", javaType = Boolean.class),
             @Arg(column = "inbound_carpool_seats", javaType = Integer.class),
             @Arg(column = "inbound_carpool_area", javaType = String.class),
+            @Arg(column = "inbound_carpool_route_area", javaType = String.class),
             @Arg(column = "inbound_carpool_note", javaType = String.class),
             @Arg(column = "inbound_carpool_preferred_area", javaType = String.class),
             @Arg(column = "inbound_carpool_preferred_note", javaType = String.class),
+            @Arg(column = "inbound_worship_bus_ride_slot", javaType = WorshipBusRideSlot.class),
             @Arg(column = "outbound_transportation_method", javaType = TransportationMethod.class),
             @Arg(column = "outbound_carpool_available", javaType = Boolean.class),
             @Arg(column = "outbound_carpool_seats", javaType = Integer.class),
             @Arg(column = "outbound_carpool_area", javaType = String.class),
+            @Arg(column = "outbound_carpool_route_area", javaType = String.class),
             @Arg(column = "outbound_carpool_note", javaType = String.class),
             @Arg(column = "outbound_carpool_preferred_area", javaType = String.class),
-            @Arg(column = "outbound_carpool_preferred_note", javaType = String.class)
+            @Arg(column = "outbound_carpool_preferred_note", javaType = String.class),
+            @Arg(column = "outbound_worship_bus_ride_slot", javaType = WorshipBusRideSlot.class)
     })
     List<Registration> findActiveByNormalizedNameAndPhoneLastFour(
             @Param("normalizedName") String normalizedName,
@@ -267,14 +298,17 @@ public interface RegistrationMapper {
                    r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
                    r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at,
                    r.attendance_type,
+                   r.planned_arrival_at, r.planned_departure_at, r.partial_attendance_note,
                    r.lodging_night1, r.lodging_night2,
                    r.attend_day1_morning, r.attend_day1_afternoon, r.attend_day1_worship,
                    r.attend_day2_morning, r.attend_day2_afternoon, r.attend_day2_worship,
                    r.attend_day3_morning, r.attend_day3_afternoon,
                    r.inbound_transportation_method, r.inbound_carpool_available, r.inbound_carpool_seats,
-                   r.inbound_carpool_area, r.inbound_carpool_note, r.inbound_carpool_preferred_area, r.inbound_carpool_preferred_note,
+                   r.inbound_carpool_area, r.inbound_carpool_route_area, r.inbound_carpool_note,
+                   r.inbound_carpool_preferred_area, r.inbound_carpool_preferred_note, r.inbound_worship_bus_ride_slot,
                    r.outbound_transportation_method, r.outbound_carpool_available, r.outbound_carpool_seats,
-                   r.outbound_carpool_area, r.outbound_carpool_note, r.outbound_carpool_preferred_area, r.outbound_carpool_preferred_note
+                   r.outbound_carpool_area, r.outbound_carpool_route_area, r.outbound_carpool_note,
+                   r.outbound_carpool_preferred_area, r.outbound_carpool_preferred_note, r.outbound_worship_bus_ride_slot
             FROM registrations r
             LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
             LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
@@ -310,6 +344,9 @@ public interface RegistrationMapper {
             @Arg(column = "created_at", javaType = OffsetDateTime.class),
             @Arg(column = "updated_at", javaType = OffsetDateTime.class),
             @Arg(column = "attendance_type", javaType = AttendanceType.class),
+            @Arg(column = "planned_arrival_at", javaType = OffsetDateTime.class),
+            @Arg(column = "planned_departure_at", javaType = OffsetDateTime.class),
+            @Arg(column = "partial_attendance_note", javaType = String.class),
             @Arg(column = "lodging_night1", javaType = Boolean.class),
             @Arg(column = "lodging_night2", javaType = Boolean.class),
             @Arg(column = "attend_day1_morning", javaType = Boolean.class),
@@ -324,16 +361,20 @@ public interface RegistrationMapper {
             @Arg(column = "inbound_carpool_available", javaType = Boolean.class),
             @Arg(column = "inbound_carpool_seats", javaType = Integer.class),
             @Arg(column = "inbound_carpool_area", javaType = String.class),
+            @Arg(column = "inbound_carpool_route_area", javaType = String.class),
             @Arg(column = "inbound_carpool_note", javaType = String.class),
             @Arg(column = "inbound_carpool_preferred_area", javaType = String.class),
             @Arg(column = "inbound_carpool_preferred_note", javaType = String.class),
+            @Arg(column = "inbound_worship_bus_ride_slot", javaType = WorshipBusRideSlot.class),
             @Arg(column = "outbound_transportation_method", javaType = TransportationMethod.class),
             @Arg(column = "outbound_carpool_available", javaType = Boolean.class),
             @Arg(column = "outbound_carpool_seats", javaType = Integer.class),
             @Arg(column = "outbound_carpool_area", javaType = String.class),
+            @Arg(column = "outbound_carpool_route_area", javaType = String.class),
             @Arg(column = "outbound_carpool_note", javaType = String.class),
             @Arg(column = "outbound_carpool_preferred_area", javaType = String.class),
-            @Arg(column = "outbound_carpool_preferred_note", javaType = String.class)
+            @Arg(column = "outbound_carpool_preferred_note", javaType = String.class),
+            @Arg(column = "outbound_worship_bus_ride_slot", javaType = WorshipBusRideSlot.class)
     })
     List<Registration> findActiveByNormalizedName(@Param("normalizedName") String normalizedName);
 
@@ -345,14 +386,17 @@ public interface RegistrationMapper {
                    r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
                    r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at,
                    r.attendance_type,
+                   r.planned_arrival_at, r.planned_departure_at, r.partial_attendance_note,
                    r.lodging_night1, r.lodging_night2,
                    r.attend_day1_morning, r.attend_day1_afternoon, r.attend_day1_worship,
                    r.attend_day2_morning, r.attend_day2_afternoon, r.attend_day2_worship,
                    r.attend_day3_morning, r.attend_day3_afternoon,
                    r.inbound_transportation_method, r.inbound_carpool_available, r.inbound_carpool_seats,
-                   r.inbound_carpool_area, r.inbound_carpool_note, r.inbound_carpool_preferred_area, r.inbound_carpool_preferred_note,
+                   r.inbound_carpool_area, r.inbound_carpool_route_area, r.inbound_carpool_note,
+                   r.inbound_carpool_preferred_area, r.inbound_carpool_preferred_note, r.inbound_worship_bus_ride_slot,
                    r.outbound_transportation_method, r.outbound_carpool_available, r.outbound_carpool_seats,
-                   r.outbound_carpool_area, r.outbound_carpool_note, r.outbound_carpool_preferred_area, r.outbound_carpool_preferred_note
+                   r.outbound_carpool_area, r.outbound_carpool_route_area, r.outbound_carpool_note,
+                   r.outbound_carpool_preferred_area, r.outbound_carpool_preferred_note, r.outbound_worship_bus_ride_slot
             FROM registrations r
             LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
             LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
@@ -388,6 +432,9 @@ public interface RegistrationMapper {
             @Arg(column = "created_at", javaType = OffsetDateTime.class),
             @Arg(column = "updated_at", javaType = OffsetDateTime.class),
             @Arg(column = "attendance_type", javaType = AttendanceType.class),
+            @Arg(column = "planned_arrival_at", javaType = OffsetDateTime.class),
+            @Arg(column = "planned_departure_at", javaType = OffsetDateTime.class),
+            @Arg(column = "partial_attendance_note", javaType = String.class),
             @Arg(column = "lodging_night1", javaType = Boolean.class),
             @Arg(column = "lodging_night2", javaType = Boolean.class),
             @Arg(column = "attend_day1_morning", javaType = Boolean.class),
@@ -402,16 +449,20 @@ public interface RegistrationMapper {
             @Arg(column = "inbound_carpool_available", javaType = Boolean.class),
             @Arg(column = "inbound_carpool_seats", javaType = Integer.class),
             @Arg(column = "inbound_carpool_area", javaType = String.class),
+            @Arg(column = "inbound_carpool_route_area", javaType = String.class),
             @Arg(column = "inbound_carpool_note", javaType = String.class),
             @Arg(column = "inbound_carpool_preferred_area", javaType = String.class),
             @Arg(column = "inbound_carpool_preferred_note", javaType = String.class),
+            @Arg(column = "inbound_worship_bus_ride_slot", javaType = WorshipBusRideSlot.class),
             @Arg(column = "outbound_transportation_method", javaType = TransportationMethod.class),
             @Arg(column = "outbound_carpool_available", javaType = Boolean.class),
             @Arg(column = "outbound_carpool_seats", javaType = Integer.class),
             @Arg(column = "outbound_carpool_area", javaType = String.class),
+            @Arg(column = "outbound_carpool_route_area", javaType = String.class),
             @Arg(column = "outbound_carpool_note", javaType = String.class),
             @Arg(column = "outbound_carpool_preferred_area", javaType = String.class),
-            @Arg(column = "outbound_carpool_preferred_note", javaType = String.class)
+            @Arg(column = "outbound_carpool_preferred_note", javaType = String.class),
+            @Arg(column = "outbound_worship_bus_ride_slot", javaType = WorshipBusRideSlot.class)
     })
     List<Registration> findPage(@Param("limit") int limit, @Param("offset") int offset);
 
@@ -423,27 +474,33 @@ public interface RegistrationMapper {
                 name, normalized_name, gender, birth_year, phone_number, phone_last_four,
                 church_cell_department, lookup_key_hash, privacy_consent_agreed, fee_paid, status,
                 attendance_type,
+                planned_arrival_at, planned_departure_at, partial_attendance_note,
                 lodging_night1, lodging_night2,
                 attend_day1_morning, attend_day1_afternoon, attend_day1_worship,
                 attend_day2_morning, attend_day2_afternoon, attend_day2_worship,
                 attend_day3_morning, attend_day3_afternoon,
                 inbound_transportation_method, inbound_carpool_available, inbound_carpool_seats,
-                inbound_carpool_area, inbound_carpool_note, inbound_carpool_preferred_area, inbound_carpool_preferred_note,
+                inbound_carpool_area, inbound_carpool_route_area, inbound_carpool_note,
+                inbound_carpool_preferred_area, inbound_carpool_preferred_note, inbound_worship_bus_ride_slot,
                 outbound_transportation_method, outbound_carpool_available, outbound_carpool_seats,
-                outbound_carpool_area, outbound_carpool_note, outbound_carpool_preferred_area, outbound_carpool_preferred_note
+                outbound_carpool_area, outbound_carpool_route_area, outbound_carpool_note,
+                outbound_carpool_preferred_area, outbound_carpool_preferred_note, outbound_worship_bus_ride_slot
             )
             VALUES (
                 #{name}, #{normalizedName}, #{gender}, #{birthYear}, #{phoneNumber}, #{phoneLastFour},
                 #{churchCellDepartment}, #{lookupKeyHash}, #{privacyConsentAgreed}, #{feePaid}, #{status},
                 #{attendanceType},
+                #{plannedArrivalAt}, #{plannedDepartureAt}, #{partialAttendanceNote},
                 #{lodgingNight1}, #{lodgingNight2},
                 #{attendDay1Morning}, #{attendDay1Afternoon}, #{attendDay1Worship},
                 #{attendDay2Morning}, #{attendDay2Afternoon}, #{attendDay2Worship},
                 #{attendDay3Morning}, #{attendDay3Afternoon},
                 #{inboundTransportationMethod}, #{inboundCarpoolAvailable}, #{inboundCarpoolSeats},
-                #{inboundCarpoolArea}, #{inboundCarpoolNote}, #{inboundCarpoolPreferredArea}, #{inboundCarpoolPreferredNote},
+                #{inboundCarpoolArea}, #{inboundCarpoolRouteArea}, #{inboundCarpoolNote},
+                #{inboundCarpoolPreferredArea}, #{inboundCarpoolPreferredNote}, #{inboundWorshipBusRideSlot},
                 #{outboundTransportationMethod}, #{outboundCarpoolAvailable}, #{outboundCarpoolSeats},
-                #{outboundCarpoolArea}, #{outboundCarpoolNote}, #{outboundCarpoolPreferredArea}, #{outboundCarpoolPreferredNote}
+                #{outboundCarpoolArea}, #{outboundCarpoolRouteArea}, #{outboundCarpoolNote},
+                #{outboundCarpoolPreferredArea}, #{outboundCarpoolPreferredNote}, #{outboundWorshipBusRideSlot}
             )
             """)
     @Options(useGeneratedKeys = true, keyProperty = "id")
@@ -461,6 +518,9 @@ public interface RegistrationMapper {
                 lookup_key_hash = #{lookupKeyHash},
                 privacy_consent_agreed = #{privacyConsentAgreed},
                 attendance_type = #{attendanceType},
+                planned_arrival_at = #{plannedArrivalAt},
+                planned_departure_at = #{plannedDepartureAt},
+                partial_attendance_note = #{partialAttendanceNote},
                 lodging_night1 = #{lodgingNight1},
                 lodging_night2 = #{lodgingNight2},
                 attend_day1_morning = #{attendDay1Morning},
@@ -475,16 +535,20 @@ public interface RegistrationMapper {
                 inbound_carpool_available = #{inboundCarpoolAvailable},
                 inbound_carpool_seats = #{inboundCarpoolSeats},
                 inbound_carpool_area = #{inboundCarpoolArea},
+                inbound_carpool_route_area = #{inboundCarpoolRouteArea},
                 inbound_carpool_note = #{inboundCarpoolNote},
                 inbound_carpool_preferred_area = #{inboundCarpoolPreferredArea},
                 inbound_carpool_preferred_note = #{inboundCarpoolPreferredNote},
+                inbound_worship_bus_ride_slot = #{inboundWorshipBusRideSlot},
                 outbound_transportation_method = #{outboundTransportationMethod},
                 outbound_carpool_available = #{outboundCarpoolAvailable},
                 outbound_carpool_seats = #{outboundCarpoolSeats},
                 outbound_carpool_area = #{outboundCarpoolArea},
+                outbound_carpool_route_area = #{outboundCarpoolRouteArea},
                 outbound_carpool_note = #{outboundCarpoolNote},
                 outbound_carpool_preferred_area = #{outboundCarpoolPreferredArea},
                 outbound_carpool_preferred_note = #{outboundCarpoolPreferredNote},
+                outbound_worship_bus_ride_slot = #{outboundWorshipBusRideSlot},
                 updated_at = now()
             WHERE id = #{id}
             """)
@@ -498,6 +562,9 @@ public interface RegistrationMapper {
                 phone_last_four = #{phoneLastFour},
                 church_cell_department = #{churchCellDepartment},
                 attendance_type = #{attendanceType},
+                planned_arrival_at = #{plannedArrivalAt},
+                planned_departure_at = #{plannedDepartureAt},
+                partial_attendance_note = #{partialAttendanceNote},
                 lodging_night1 = #{lodgingNight1},
                 lodging_night2 = #{lodgingNight2},
                 attend_day1_morning = #{attendDay1Morning},
@@ -512,16 +579,20 @@ public interface RegistrationMapper {
                 inbound_carpool_available = #{inboundCarpoolAvailable},
                 inbound_carpool_seats = #{inboundCarpoolSeats},
                 inbound_carpool_area = #{inboundCarpoolArea},
+                inbound_carpool_route_area = #{inboundCarpoolRouteArea},
                 inbound_carpool_note = #{inboundCarpoolNote},
                 inbound_carpool_preferred_area = #{inboundCarpoolPreferredArea},
                 inbound_carpool_preferred_note = #{inboundCarpoolPreferredNote},
+                inbound_worship_bus_ride_slot = #{inboundWorshipBusRideSlot},
                 outbound_transportation_method = #{outboundTransportationMethod},
                 outbound_carpool_available = #{outboundCarpoolAvailable},
                 outbound_carpool_seats = #{outboundCarpoolSeats},
                 outbound_carpool_area = #{outboundCarpoolArea},
+                outbound_carpool_route_area = #{outboundCarpoolRouteArea},
                 outbound_carpool_note = #{outboundCarpoolNote},
                 outbound_carpool_preferred_area = #{outboundCarpoolPreferredArea},
                 outbound_carpool_preferred_note = #{outboundCarpoolPreferredNote},
+                outbound_worship_bus_ride_slot = #{outboundWorshipBusRideSlot},
                 updated_at = now()
             WHERE id = #{id}
             """)
@@ -575,6 +646,9 @@ public interface RegistrationMapper {
         private final Boolean feePaid;
         private final RegistrationStatus status;
         private final AttendanceType attendanceType;
+        private final OffsetDateTime plannedArrivalAt;
+        private final OffsetDateTime plannedDepartureAt;
+        private final String partialAttendanceNote;
         private final Boolean lodgingNight1;
         private final Boolean lodgingNight2;
         private final Boolean attendDay1Morning;
@@ -589,16 +663,20 @@ public interface RegistrationMapper {
         private final Boolean inboundCarpoolAvailable;
         private final Integer inboundCarpoolSeats;
         private final String inboundCarpoolArea;
+        private final String inboundCarpoolRouteArea;
         private final String inboundCarpoolNote;
         private final String inboundCarpoolPreferredArea;
         private final String inboundCarpoolPreferredNote;
+        private final WorshipBusRideSlot inboundWorshipBusRideSlot;
         private final TransportationMethod outboundTransportationMethod;
         private final Boolean outboundCarpoolAvailable;
         private final Integer outboundCarpoolSeats;
         private final String outboundCarpoolArea;
+        private final String outboundCarpoolRouteArea;
         private final String outboundCarpoolNote;
         private final String outboundCarpoolPreferredArea;
         private final String outboundCarpoolPreferredNote;
+        private final WorshipBusRideSlot outboundWorshipBusRideSlot;
 
         public RegistrationInsert(
                 String name,
@@ -613,6 +691,9 @@ public interface RegistrationMapper {
                 Boolean feePaid,
                 RegistrationStatus status,
                 AttendanceType attendanceType,
+                OffsetDateTime plannedArrivalAt,
+                OffsetDateTime plannedDepartureAt,
+                String partialAttendanceNote,
                 Boolean lodgingNight1,
                 Boolean lodgingNight2,
                 Boolean attendDay1Morning,
@@ -627,16 +708,20 @@ public interface RegistrationMapper {
                 Boolean inboundCarpoolAvailable,
                 Integer inboundCarpoolSeats,
                 String inboundCarpoolArea,
+                String inboundCarpoolRouteArea,
                 String inboundCarpoolNote,
                 String inboundCarpoolPreferredArea,
                 String inboundCarpoolPreferredNote,
+                WorshipBusRideSlot inboundWorshipBusRideSlot,
                 TransportationMethod outboundTransportationMethod,
                 Boolean outboundCarpoolAvailable,
                 Integer outboundCarpoolSeats,
                 String outboundCarpoolArea,
+                String outboundCarpoolRouteArea,
                 String outboundCarpoolNote,
                 String outboundCarpoolPreferredArea,
-                String outboundCarpoolPreferredNote
+                String outboundCarpoolPreferredNote,
+                WorshipBusRideSlot outboundWorshipBusRideSlot
         ) {
             this.name = name;
             this.normalizedName = normalizedName;
@@ -650,6 +735,9 @@ public interface RegistrationMapper {
             this.feePaid = feePaid;
             this.status = status;
             this.attendanceType = attendanceType;
+            this.plannedArrivalAt = plannedArrivalAt;
+            this.plannedDepartureAt = plannedDepartureAt;
+            this.partialAttendanceNote = partialAttendanceNote;
             this.lodgingNight1 = lodgingNight1;
             this.lodgingNight2 = lodgingNight2;
             this.attendDay1Morning = attendDay1Morning;
@@ -664,16 +752,20 @@ public interface RegistrationMapper {
             this.inboundCarpoolAvailable = inboundCarpoolAvailable;
             this.inboundCarpoolSeats = inboundCarpoolSeats;
             this.inboundCarpoolArea = inboundCarpoolArea;
+            this.inboundCarpoolRouteArea = inboundCarpoolRouteArea;
             this.inboundCarpoolNote = inboundCarpoolNote;
             this.inboundCarpoolPreferredArea = inboundCarpoolPreferredArea;
             this.inboundCarpoolPreferredNote = inboundCarpoolPreferredNote;
+            this.inboundWorshipBusRideSlot = inboundWorshipBusRideSlot;
             this.outboundTransportationMethod = outboundTransportationMethod;
             this.outboundCarpoolAvailable = outboundCarpoolAvailable;
             this.outboundCarpoolSeats = outboundCarpoolSeats;
             this.outboundCarpoolArea = outboundCarpoolArea;
+            this.outboundCarpoolRouteArea = outboundCarpoolRouteArea;
             this.outboundCarpoolNote = outboundCarpoolNote;
             this.outboundCarpoolPreferredArea = outboundCarpoolPreferredArea;
             this.outboundCarpoolPreferredNote = outboundCarpoolPreferredNote;
+            this.outboundWorshipBusRideSlot = outboundWorshipBusRideSlot;
         }
 
         public Long getId() {
@@ -730,6 +822,18 @@ public interface RegistrationMapper {
 
         public AttendanceType getAttendanceType() {
             return attendanceType;
+        }
+
+        public OffsetDateTime getPlannedArrivalAt() {
+            return plannedArrivalAt;
+        }
+
+        public OffsetDateTime getPlannedDepartureAt() {
+            return plannedDepartureAt;
+        }
+
+        public String getPartialAttendanceNote() {
+            return partialAttendanceNote;
         }
 
 
@@ -791,6 +895,10 @@ public interface RegistrationMapper {
             return inboundCarpoolArea;
         }
 
+        public String getInboundCarpoolRouteArea() {
+            return inboundCarpoolRouteArea;
+        }
+
         public String getInboundCarpoolNote() {
             return inboundCarpoolNote;
         }
@@ -801,6 +909,10 @@ public interface RegistrationMapper {
 
         public String getInboundCarpoolPreferredNote() {
             return inboundCarpoolPreferredNote;
+        }
+
+        public WorshipBusRideSlot getInboundWorshipBusRideSlot() {
+            return inboundWorshipBusRideSlot;
         }
 
         public TransportationMethod getOutboundTransportationMethod() {
@@ -819,6 +931,10 @@ public interface RegistrationMapper {
             return outboundCarpoolArea;
         }
 
+        public String getOutboundCarpoolRouteArea() {
+            return outboundCarpoolRouteArea;
+        }
+
         public String getOutboundCarpoolNote() {
             return outboundCarpoolNote;
         }
@@ -829,6 +945,10 @@ public interface RegistrationMapper {
 
         public String getOutboundCarpoolPreferredNote() {
             return outboundCarpoolPreferredNote;
+        }
+
+        public WorshipBusRideSlot getOutboundWorshipBusRideSlot() {
+            return outboundWorshipBusRideSlot;
         }
     }
 
@@ -844,6 +964,9 @@ public interface RegistrationMapper {
             String lookupKeyHash,
             Boolean privacyConsentAgreed,
             AttendanceType attendanceType,
+            OffsetDateTime plannedArrivalAt,
+            OffsetDateTime plannedDepartureAt,
+            String partialAttendanceNote,
             Boolean lodgingNight1,
             Boolean lodgingNight2,
             Boolean attendDay1Morning,
@@ -858,16 +981,20 @@ public interface RegistrationMapper {
             Boolean inboundCarpoolAvailable,
             Integer inboundCarpoolSeats,
             String inboundCarpoolArea,
+            String inboundCarpoolRouteArea,
             String inboundCarpoolNote,
             String inboundCarpoolPreferredArea,
             String inboundCarpoolPreferredNote,
+            WorshipBusRideSlot inboundWorshipBusRideSlot,
             TransportationMethod outboundTransportationMethod,
             Boolean outboundCarpoolAvailable,
             Integer outboundCarpoolSeats,
             String outboundCarpoolArea,
+            String outboundCarpoolRouteArea,
             String outboundCarpoolNote,
             String outboundCarpoolPreferredArea,
-            String outboundCarpoolPreferredNote
+            String outboundCarpoolPreferredNote,
+            WorshipBusRideSlot outboundWorshipBusRideSlot
     ) {
     }
 
@@ -879,6 +1006,9 @@ public interface RegistrationMapper {
             String phoneLastFour,
             String churchCellDepartment,
             AttendanceType attendanceType,
+            OffsetDateTime plannedArrivalAt,
+            OffsetDateTime plannedDepartureAt,
+            String partialAttendanceNote,
             Boolean lodgingNight1,
             Boolean lodgingNight2,
             Boolean attendDay1Morning,
@@ -893,16 +1023,20 @@ public interface RegistrationMapper {
             Boolean inboundCarpoolAvailable,
             Integer inboundCarpoolSeats,
             String inboundCarpoolArea,
+            String inboundCarpoolRouteArea,
             String inboundCarpoolNote,
             String inboundCarpoolPreferredArea,
             String inboundCarpoolPreferredNote,
+            WorshipBusRideSlot inboundWorshipBusRideSlot,
             TransportationMethod outboundTransportationMethod,
             Boolean outboundCarpoolAvailable,
             Integer outboundCarpoolSeats,
             String outboundCarpoolArea,
+            String outboundCarpoolRouteArea,
             String outboundCarpoolNote,
             String outboundCarpoolPreferredArea,
-            String outboundCarpoolPreferredNote
+            String outboundCarpoolPreferredNote,
+            WorshipBusRideSlot outboundWorshipBusRideSlot
     ) {
     }
 
