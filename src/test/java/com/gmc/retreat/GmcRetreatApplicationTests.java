@@ -1170,6 +1170,78 @@ class GmcRetreatApplicationTests {
     }
 
     @Test
+    void adminRegistrationListSupportsOperationalFiltersAndMaskedRosterFields() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long checkedParticipantId = createParticipant("Alpha Checked", "010-1111-1234");
+        Long taggedParticipantId = createParticipant("Beta Pending", "010-2222-5678");
+        JsonNode partialCreated = objectMapper.readTree(
+                createRegistration("Gamma Partial", "010-3333-9012", Map.of(
+                        "attendanceType", "PARTIAL",
+                        "lodgingNight1", true,
+                        "lodgingNight2", false,
+                        "inboundTransportationMethod", "CARPOOL_NEEDED",
+                        "inboundCarpoolPreferredArea", "Downtown",
+                        "outboundTransportationMethod", "PUBLIC_TRANSIT"
+                )).getResponse().getContentAsString()
+        );
+        Long partialParticipantId = partialCreated.path("data").path("registration").path("id").asLong();
+
+        mockMvc.perform(post("/api/admin/check-ins/" + checkedParticipantId)
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk());
+        mockMvc.perform(patch("/api/admin/registrations/" + checkedParticipantId + "/fee-paid")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("feePaid", true))))
+                .andExpect(status().isOk());
+        mockMvc.perform(patch("/api/admin/registrations/" + taggedParticipantId + "/management")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "adminMemo", "Follow up",
+                                "newcomer", true,
+                                "careTarget", false
+                        ))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/admin/registrations")
+                        .param("keyword", "Alpha")
+                        .param("checkedIn", "true")
+                        .param("feePaid", "true")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.content[0].id").value(checkedParticipantId))
+                .andExpect(jsonPath("$.data.content[0].checkedIn").value(true))
+                .andExpect(jsonPath("$.data.content[0].phoneNumber").value("010****1234"))
+                .andExpect(jsonPath("$.data.content[0].phoneNumber").value(org.hamcrest.Matchers.not("01011111234")));
+
+        mockMvc.perform(get("/api/admin/registrations")
+                        .param("keyword", "Beta")
+                        .param("checkedIn", "false")
+                        .param("newcomer", "true")
+                        .param("retreatGroupAssigned", "false")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.content[0].id").value(taggedParticipantId))
+                .andExpect(jsonPath("$.data.content[0].checkedIn").value(false))
+                .andExpect(jsonPath("$.data.content[0].newcomer").value(true));
+
+        mockMvc.perform(get("/api/admin/registrations")
+                        .param("keyword", "Gamma")
+                        .param("attendanceType", "PARTIAL")
+                        .param("transportationNeed", "CARPOOL_NEEDED")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.content[0].id").value(partialParticipantId))
+                .andExpect(jsonPath("$.data.content[0].attendanceType").value("PARTIAL"))
+                .andExpect(jsonPath("$.data.content[0].lodgingNight1").value(true))
+                .andExpect(jsonPath("$.data.content[0].plannedArrivalAt").value(org.hamcrest.Matchers.nullValue()));
+    }
+
+    @Test
     void chairCanUpdateFeeStatusMemoAndCareTags() throws Exception {
         JsonNode created = objectMapper.readTree(
                 createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)

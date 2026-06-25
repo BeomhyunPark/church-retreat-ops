@@ -1,6 +1,8 @@
 package com.gmc.retreat.registration.controller;
 
 import com.gmc.retreat.api.ApiResponse;
+import com.gmc.retreat.registration.domain.AttendanceType;
+import com.gmc.retreat.registration.domain.RegistrationStatus;
 import com.gmc.retreat.registration.dto.AdminRegistrationFeePaidUpdateRequest;
 import com.gmc.retreat.registration.dto.AdminRegistrationManagementUpdateRequest;
 import com.gmc.retreat.registration.dto.AdminRegistrationResponse;
@@ -33,10 +35,36 @@ public class AdminRegistrationController {
     @GetMapping
     public ApiResponse<PageResponse<AdminRegistrationResponse>> list(
             @AuthenticationPrincipal AdminPrincipal admin,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) RegistrationStatus status,
+            @RequestParam(required = false) Boolean feePaid,
+            @RequestParam(required = false) Boolean newcomer,
+            @RequestParam(required = false) Boolean careTarget,
+            @RequestParam(required = false) Boolean checkedIn,
+            @RequestParam(required = false) Boolean retreatGroupAssigned,
+            @RequestParam(required = false) Boolean churchCellAssigned,
+            @RequestParam(required = false) AttendanceType attendanceType,
+            @RequestParam(required = false) String transportationNeed,
+            @RequestParam(defaultValue = "created_desc") String sort,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        return ApiResponse.success(registrationService.findRegistrations(admin, page, size));
+        return ApiResponse.success(registrationService.findRegistrations(
+                admin,
+                keyword,
+                status,
+                feePaid,
+                newcomer,
+                careTarget,
+                checkedIn,
+                retreatGroupAssigned,
+                churchCellAssigned,
+                attendanceType,
+                transportationNeed,
+                sort,
+                page,
+                size
+        ));
     }
 
     @GetMapping("/{id}")

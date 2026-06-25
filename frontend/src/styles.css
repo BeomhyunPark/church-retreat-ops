@@ -1071,6 +1071,47 @@ h2 {
   padding: 1rem;
 }
 
+.filter-panel--participants {
+  grid-template-columns: minmax(320px, 1.6fr) repeat(4, minmax(128px, 0.8fr)) minmax(128px, 0.8fr);
+}
+
+.ops-toolbar {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.preset-chip {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 700;
+  min-height: 36px;
+  padding: 0 0.8rem;
+}
+
+.preset-chip:hover,
+.preset-chip--active {
+  background: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+  color: #fff;
+}
+
+.participant-search {
+  align-items: end;
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: minmax(220px, 1fr) auto;
+}
+
 .filter-panel label {
   color: #344054;
   display: grid;
@@ -1120,6 +1161,10 @@ h2 {
   font-size: 0.95rem;
 }
 
+.filter-clear {
+  min-height: 44px;
+}
+
 .metric-grid {
   display: grid;
   gap: 1rem;
@@ -1151,10 +1196,32 @@ h2 {
   overflow-x: auto;
 }
 
+.participant-table-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
 table {
   border-collapse: collapse;
   min-width: 900px;
   width: 100%;
+}
+
+.participant-table {
+  min-width: 1120px;
+}
+
+.participant-table th:first-child,
+.participant-table td:first-child {
+  background: var(--color-surface);
+  left: 0;
+  position: sticky;
+  z-index: 1;
+}
+
+.participant-name-cell {
+  min-width: 180px;
 }
 
 th,
@@ -1179,6 +1246,57 @@ th {
   display: block;
   font-size: 0.78rem;
   margin-top: 0.2rem;
+}
+
+.cell-primary {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.status-stack {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  max-width: 190px;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.35rem;
+}
+
+.mini-tag {
+  background: #e8f3ea;
+  border-radius: 999px;
+  color: var(--color-primary-dark);
+  display: inline-flex;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+}
+
+.mini-tag--warning {
+  background: #fff4df;
+  color: var(--color-warning);
+}
+
+.pagination-bar {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.pagination-bar span {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+  min-width: 72px;
+  text-align: center;
 }
 
 .table-link {

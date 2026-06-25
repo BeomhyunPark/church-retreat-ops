@@ -27,7 +27,8 @@ public interface RegistrationMapper {
                    mg.id AS middle_group_id, mg.name AS middle_group_name,
                    rg.id AS retreat_group_id, rg.name AS retreat_group_name, rgm.leader AS retreat_group_leader,
                    r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
-                   r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at,
+                   r.status, r.admin_memo, r.newcomer, r.care_target,
+                   COALESCE(ci.checked_in, FALSE) AS checked_in, r.created_at, r.updated_at,
                    r.attendance_type,
                    r.planned_arrival_at, r.planned_departure_at, r.partial_attendance_note,
                    r.lodging_night1, r.lodging_night2,
@@ -45,6 +46,7 @@ public interface RegistrationMapper {
             LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
             LEFT JOIN retreat_group_members rgm ON rgm.registration_id = r.id
             LEFT JOIN retreat_groups rg ON rg.id = rgm.retreat_group_id
+            LEFT JOIN retreat_check_ins ci ON ci.participant_id = r.id
             WHERE r.id = #{id}
             """)
     @ConstructorArgs({
@@ -70,6 +72,7 @@ public interface RegistrationMapper {
             @Arg(column = "admin_memo", javaType = String.class),
             @Arg(column = "newcomer", javaType = Boolean.class),
             @Arg(column = "care_target", javaType = Boolean.class),
+            @Arg(column = "checked_in", javaType = Boolean.class),
             @Arg(column = "created_at", javaType = OffsetDateTime.class),
             @Arg(column = "updated_at", javaType = OffsetDateTime.class),
             @Arg(column = "attendance_type", javaType = AttendanceType.class),
@@ -113,7 +116,8 @@ public interface RegistrationMapper {
                    mg.id AS middle_group_id, mg.name AS middle_group_name,
                    rg.id AS retreat_group_id, rg.name AS retreat_group_name, rgm.leader AS retreat_group_leader,
                    r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
-                   r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at,
+                   r.status, r.admin_memo, r.newcomer, r.care_target,
+                   COALESCE(ci.checked_in, FALSE) AS checked_in, r.created_at, r.updated_at,
                    r.attendance_type,
                    r.planned_arrival_at, r.planned_departure_at, r.partial_attendance_note,
                    r.lodging_night1, r.lodging_night2,
@@ -131,6 +135,7 @@ public interface RegistrationMapper {
             LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
             LEFT JOIN retreat_group_members rgm ON rgm.registration_id = r.id
             LEFT JOIN retreat_groups rg ON rg.id = rgm.retreat_group_id
+            LEFT JOIN retreat_check_ins ci ON ci.participant_id = r.id
             WHERE r.normalized_name = #{normalizedName}
               AND r.phone_number = #{phoneNumber}
               AND r.status = 'REGISTERED'
@@ -158,6 +163,7 @@ public interface RegistrationMapper {
             @Arg(column = "admin_memo", javaType = String.class),
             @Arg(column = "newcomer", javaType = Boolean.class),
             @Arg(column = "care_target", javaType = Boolean.class),
+            @Arg(column = "checked_in", javaType = Boolean.class),
             @Arg(column = "created_at", javaType = OffsetDateTime.class),
             @Arg(column = "updated_at", javaType = OffsetDateTime.class),
             @Arg(column = "attendance_type", javaType = AttendanceType.class),
@@ -204,7 +210,8 @@ public interface RegistrationMapper {
                    mg.id AS middle_group_id, mg.name AS middle_group_name,
                    rg.id AS retreat_group_id, rg.name AS retreat_group_name, rgm.leader AS retreat_group_leader,
                    r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
-                   r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at,
+                   r.status, r.admin_memo, r.newcomer, r.care_target,
+                   COALESCE(ci.checked_in, FALSE) AS checked_in, r.created_at, r.updated_at,
                    r.attendance_type,
                    r.planned_arrival_at, r.planned_departure_at, r.partial_attendance_note,
                    r.lodging_night1, r.lodging_night2,
@@ -222,6 +229,7 @@ public interface RegistrationMapper {
             LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
             LEFT JOIN retreat_group_members rgm ON rgm.registration_id = r.id
             LEFT JOIN retreat_groups rg ON rg.id = rgm.retreat_group_id
+            LEFT JOIN retreat_check_ins ci ON ci.participant_id = r.id
             WHERE r.normalized_name = #{normalizedName}
               AND r.phone_last_four = #{phoneLastFour}
               AND r.status = 'REGISTERED'
@@ -250,6 +258,7 @@ public interface RegistrationMapper {
             @Arg(column = "admin_memo", javaType = String.class),
             @Arg(column = "newcomer", javaType = Boolean.class),
             @Arg(column = "care_target", javaType = Boolean.class),
+            @Arg(column = "checked_in", javaType = Boolean.class),
             @Arg(column = "created_at", javaType = OffsetDateTime.class),
             @Arg(column = "updated_at", javaType = OffsetDateTime.class),
             @Arg(column = "attendance_type", javaType = AttendanceType.class),
@@ -296,7 +305,8 @@ public interface RegistrationMapper {
                    mg.id AS middle_group_id, mg.name AS middle_group_name,
                    rg.id AS retreat_group_id, rg.name AS retreat_group_name, rgm.leader AS retreat_group_leader,
                    r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
-                   r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at,
+                   r.status, r.admin_memo, r.newcomer, r.care_target,
+                   COALESCE(ci.checked_in, FALSE) AS checked_in, r.created_at, r.updated_at,
                    r.attendance_type,
                    r.planned_arrival_at, r.planned_departure_at, r.partial_attendance_note,
                    r.lodging_night1, r.lodging_night2,
@@ -314,6 +324,7 @@ public interface RegistrationMapper {
             LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
             LEFT JOIN retreat_group_members rgm ON rgm.registration_id = r.id
             LEFT JOIN retreat_groups rg ON rg.id = rgm.retreat_group_id
+            LEFT JOIN retreat_check_ins ci ON ci.participant_id = r.id
             WHERE r.normalized_name = #{normalizedName}
               AND r.status = 'REGISTERED'
             ORDER BY r.id ASC
@@ -341,6 +352,7 @@ public interface RegistrationMapper {
             @Arg(column = "admin_memo", javaType = String.class),
             @Arg(column = "newcomer", javaType = Boolean.class),
             @Arg(column = "care_target", javaType = Boolean.class),
+            @Arg(column = "checked_in", javaType = Boolean.class),
             @Arg(column = "created_at", javaType = OffsetDateTime.class),
             @Arg(column = "updated_at", javaType = OffsetDateTime.class),
             @Arg(column = "attendance_type", javaType = AttendanceType.class),
@@ -379,12 +391,14 @@ public interface RegistrationMapper {
     List<Registration> findActiveByNormalizedName(@Param("normalizedName") String normalizedName);
 
     @Select("""
+            <script>
             SELECT r.id, r.name, r.normalized_name, r.gender, r.birth_year, r.phone_number, r.phone_last_four,
                    r.church_cell_department, r.church_cell_id, cc.name AS church_cell_name,
                    mg.id AS middle_group_id, mg.name AS middle_group_name,
                    rg.id AS retreat_group_id, rg.name AS retreat_group_name, rgm.leader AS retreat_group_leader,
                    r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
-                   r.status, r.admin_memo, r.newcomer, r.care_target, r.created_at, r.updated_at,
+                   r.status, r.admin_memo, r.newcomer, r.care_target,
+                   COALESCE(ci.checked_in, FALSE) AS checked_in, r.created_at, r.updated_at,
                    r.attendance_type,
                    r.planned_arrival_at, r.planned_departure_at, r.partial_attendance_note,
                    r.lodging_night1, r.lodging_night2,
@@ -402,9 +416,81 @@ public interface RegistrationMapper {
             LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
             LEFT JOIN retreat_group_members rgm ON rgm.registration_id = r.id
             LEFT JOIN retreat_groups rg ON rg.id = rgm.retreat_group_id
-            ORDER BY r.created_at DESC, r.id DESC
+            LEFT JOIN retreat_check_ins ci ON ci.participant_id = r.id
+            <where>
+                <if test="keyword != null and keyword != ''">
+                    AND (
+                        lower(r.name) LIKE lower(concat('%', #{keyword}, '%'))
+                        OR r.phone_last_four = #{keyword}
+                        OR lower(r.church_cell_department) LIKE lower(concat('%', #{keyword}, '%'))
+                        OR lower(cc.name) LIKE lower(concat('%', #{keyword}, '%'))
+                        OR lower(mg.name) LIKE lower(concat('%', #{keyword}, '%'))
+                        OR lower(rg.name) LIKE lower(concat('%', #{keyword}, '%'))
+                    )
+                </if>
+                <if test="status != null">
+                    AND r.status = #{status}
+                </if>
+                <if test="feePaid != null">
+                    AND r.fee_paid = #{feePaid}
+                </if>
+                <if test="newcomer != null">
+                    AND r.newcomer = #{newcomer}
+                </if>
+                <if test="careTarget != null">
+                    AND r.care_target = #{careTarget}
+                </if>
+                <if test="checkedIn != null">
+                    AND COALESCE(ci.checked_in, FALSE) = #{checkedIn}
+                </if>
+                <if test="retreatGroupAssigned != null and retreatGroupAssigned">
+                    AND rg.id IS NOT NULL
+                </if>
+                <if test="retreatGroupAssigned != null and !retreatGroupAssigned">
+                    AND rg.id IS NULL
+                </if>
+                <if test="churchCellAssigned != null and churchCellAssigned">
+                    AND r.church_cell_id IS NOT NULL
+                </if>
+                <if test="churchCellAssigned != null and !churchCellAssigned">
+                    AND r.church_cell_id IS NULL
+                </if>
+                <if test="attendanceType != null">
+                    AND r.attendance_type = #{attendanceType}
+                </if>
+                <if test="transportationNeed != null and transportationNeed == 'CARPOOL_NEEDED'">
+                    AND (
+                        r.inbound_transportation_method = 'CARPOOL_NEEDED'
+                        OR r.outbound_transportation_method = 'CARPOOL_NEEDED'
+                    )
+                </if>
+                <if test="transportationNeed != null and transportationNeed == 'CARPOOL_AVAILABLE'">
+                    AND (
+                        r.inbound_carpool_available = TRUE
+                        OR r.outbound_carpool_available = TRUE
+                    )
+                </if>
+            </where>
+            <choose>
+                <when test="sort == 'name_asc'">
+                    ORDER BY r.name ASC, r.id ASC
+                </when>
+                <when test="sort == 'fee_unpaid_first'">
+                    ORDER BY r.fee_paid ASC, r.created_at DESC, r.id DESC
+                </when>
+                <when test="sort == 'check_in_pending_first'">
+                    ORDER BY COALESCE(ci.checked_in, FALSE) ASC, r.created_at DESC, r.id DESC
+                </when>
+                <when test="sort == 'group_asc'">
+                    ORDER BY rg.display_order ASC NULLS LAST, rg.name ASC NULLS LAST, r.name ASC, r.id ASC
+                </when>
+                <otherwise>
+                    ORDER BY r.created_at DESC, r.id DESC
+                </otherwise>
+            </choose>
             LIMIT #{limit}
             OFFSET #{offset}
+            </script>
             """)
     @ConstructorArgs({
             @Arg(column = "id", javaType = Long.class),
@@ -429,6 +515,7 @@ public interface RegistrationMapper {
             @Arg(column = "admin_memo", javaType = String.class),
             @Arg(column = "newcomer", javaType = Boolean.class),
             @Arg(column = "care_target", javaType = Boolean.class),
+            @Arg(column = "checked_in", javaType = Boolean.class),
             @Arg(column = "created_at", javaType = OffsetDateTime.class),
             @Arg(column = "updated_at", javaType = OffsetDateTime.class),
             @Arg(column = "attendance_type", javaType = AttendanceType.class),
@@ -464,10 +551,99 @@ public interface RegistrationMapper {
             @Arg(column = "outbound_carpool_preferred_note", javaType = String.class),
             @Arg(column = "outbound_worship_bus_ride_slot", javaType = WorshipBusRideSlot.class)
     })
-    List<Registration> findPage(@Param("limit") int limit, @Param("offset") int offset);
+    List<Registration> findPage(
+            @Param("keyword") String keyword,
+            @Param("status") RegistrationStatus status,
+            @Param("feePaid") Boolean feePaid,
+            @Param("newcomer") Boolean newcomer,
+            @Param("careTarget") Boolean careTarget,
+            @Param("checkedIn") Boolean checkedIn,
+            @Param("retreatGroupAssigned") Boolean retreatGroupAssigned,
+            @Param("churchCellAssigned") Boolean churchCellAssigned,
+            @Param("attendanceType") AttendanceType attendanceType,
+            @Param("transportationNeed") String transportationNeed,
+            @Param("sort") String sort,
+            @Param("limit") int limit,
+            @Param("offset") int offset
+    );
 
-    @Select("SELECT COUNT(*) FROM registrations")
-    long countAll();
+    @Select("""
+            <script>
+            SELECT COUNT(*)
+            FROM registrations r
+            LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
+            LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
+            LEFT JOIN retreat_group_members rgm ON rgm.registration_id = r.id
+            LEFT JOIN retreat_groups rg ON rg.id = rgm.retreat_group_id
+            LEFT JOIN retreat_check_ins ci ON ci.participant_id = r.id
+            <where>
+                <if test="keyword != null and keyword != ''">
+                    AND (
+                        lower(r.name) LIKE lower(concat('%', #{keyword}, '%'))
+                        OR r.phone_last_four = #{keyword}
+                        OR lower(r.church_cell_department) LIKE lower(concat('%', #{keyword}, '%'))
+                        OR lower(cc.name) LIKE lower(concat('%', #{keyword}, '%'))
+                        OR lower(mg.name) LIKE lower(concat('%', #{keyword}, '%'))
+                        OR lower(rg.name) LIKE lower(concat('%', #{keyword}, '%'))
+                    )
+                </if>
+                <if test="status != null">
+                    AND r.status = #{status}
+                </if>
+                <if test="feePaid != null">
+                    AND r.fee_paid = #{feePaid}
+                </if>
+                <if test="newcomer != null">
+                    AND r.newcomer = #{newcomer}
+                </if>
+                <if test="careTarget != null">
+                    AND r.care_target = #{careTarget}
+                </if>
+                <if test="checkedIn != null">
+                    AND COALESCE(ci.checked_in, FALSE) = #{checkedIn}
+                </if>
+                <if test="retreatGroupAssigned != null and retreatGroupAssigned">
+                    AND rg.id IS NOT NULL
+                </if>
+                <if test="retreatGroupAssigned != null and !retreatGroupAssigned">
+                    AND rg.id IS NULL
+                </if>
+                <if test="churchCellAssigned != null and churchCellAssigned">
+                    AND r.church_cell_id IS NOT NULL
+                </if>
+                <if test="churchCellAssigned != null and !churchCellAssigned">
+                    AND r.church_cell_id IS NULL
+                </if>
+                <if test="attendanceType != null">
+                    AND r.attendance_type = #{attendanceType}
+                </if>
+                <if test="transportationNeed != null and transportationNeed == 'CARPOOL_NEEDED'">
+                    AND (
+                        r.inbound_transportation_method = 'CARPOOL_NEEDED'
+                        OR r.outbound_transportation_method = 'CARPOOL_NEEDED'
+                    )
+                </if>
+                <if test="transportationNeed != null and transportationNeed == 'CARPOOL_AVAILABLE'">
+                    AND (
+                        r.inbound_carpool_available = TRUE
+                        OR r.outbound_carpool_available = TRUE
+                    )
+                </if>
+            </where>
+            </script>
+            """)
+    long countAll(
+            @Param("keyword") String keyword,
+            @Param("status") RegistrationStatus status,
+            @Param("feePaid") Boolean feePaid,
+            @Param("newcomer") Boolean newcomer,
+            @Param("careTarget") Boolean careTarget,
+            @Param("checkedIn") Boolean checkedIn,
+            @Param("retreatGroupAssigned") Boolean retreatGroupAssigned,
+            @Param("churchCellAssigned") Boolean churchCellAssigned,
+            @Param("attendanceType") AttendanceType attendanceType,
+            @Param("transportationNeed") String transportationNeed
+    );
 
     @Insert("""
             INSERT INTO registrations (

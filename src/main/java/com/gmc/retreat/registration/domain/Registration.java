@@ -25,6 +25,7 @@ public record Registration(
         String adminMemo,
         Boolean newcomer,
         Boolean careTarget,
+        Boolean checkedIn,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
         AttendanceType attendanceType,

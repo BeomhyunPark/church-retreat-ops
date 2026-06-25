@@ -322,15 +322,59 @@ public class RegistrationService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<AdminRegistrationResponse> findRegistrations(AdminPrincipal admin, int page, int size) {
+    public PageResponse<AdminRegistrationResponse> findRegistrations(
+            AdminPrincipal admin,
+            String keyword,
+            RegistrationStatus status,
+            Boolean feePaid,
+            Boolean newcomer,
+            Boolean careTarget,
+            Boolean checkedIn,
+            Boolean retreatGroupAssigned,
+            Boolean churchCellAssigned,
+            AttendanceType attendanceType,
+            String transportationNeed,
+            String sort,
+            int page,
+            int size
+    ) {
         requireRole(admin, AdminRole.STAFF);
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 100);
-        List<AdminRegistrationResponse> content = registrationMapper.findPage(safeSize, safePage * safeSize)
+        String normalizedKeyword = normalizeOptional(keyword);
+        String normalizedTransportationNeed = normalizeTransportationNeed(transportationNeed);
+        String normalizedSort = normalizeRegistrationListSort(sort);
+        List<AdminRegistrationResponse> content = registrationMapper.findPage(
+                        normalizedKeyword,
+                        status,
+                        feePaid,
+                        newcomer,
+                        careTarget,
+                        checkedIn,
+                        retreatGroupAssigned,
+                        churchCellAssigned,
+                        attendanceType,
+                        normalizedTransportationNeed,
+                        normalizedSort,
+                        safeSize,
+                        safePage * safeSize
+                )
                 .stream()
                 .map(AdminRegistrationResponse::listItem)
                 .toList();
-        return PageResponse.of(content, safePage, safeSize, registrationMapper.countAll());
+        long totalElements = registrationMapper.countAll(
+                normalizedKeyword,
+                status,
+                feePaid,
+                newcomer,
+                careTarget,
+                checkedIn,
+                retreatGroupAssigned,
+                churchCellAssigned,
+                attendanceType,
+                normalizedTransportationNeed
+        );
+        return PageResponse.of(content, safePage, safeSize, totalElements);
     }
 
     @Transactional
@@ -888,6 +932,28 @@ public class RegistrationService {
             return null;
         }
         return value.trim();
+    }
+
+    private String normalizeTransportationNeed(String value) {
+        String normalized = normalizeOptional(value);
+        if (normalized == null) {
+            return null;
+        }
+        if ("CARPOOL_NEEDED".equals(normalized) || "CARPOOL_AVAILABLE".equals(normalized)) {
+            return normalized;
+        }
+        throw new BusinessException(ErrorCode.INVALID_REQUEST);
+    }
+
+    private String normalizeRegistrationListSort(String value) {
+        String normalized = normalizeOptional(value);
+        if (normalized == null) {
+            return "created_desc";
+        }
+        return switch (normalized) {
+            case "created_desc", "name_asc", "fee_unpaid_first", "check_in_pending_first", "group_asc" -> normalized;
+            default -> throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        };
     }
 
     private String normalizeFeeReason(Boolean feePaid, String value) {

@@ -96,7 +96,7 @@ export function AdminParticipantDetailPage() {
               />
             </DetailCard>
             <DetailCard title="참석 방식">
-              <DetailRow label="참석 유형" value={participant.attendanceType === "FULL" ? "전체 참석" : "부분 참석"} />
+              <DetailRow label="참석 유형" value={formatAttendance(participant.attendanceType)} />
               {participant.attendanceType === "PARTIAL" && (
                 <>
                   <DetailRow label="예정 도착 시간" value={participant.plannedArrivalAt ? formatDateTime(participant.plannedArrivalAt) : "-"} />
@@ -195,6 +195,7 @@ function FeeManagementSection({
       setShowReasonInput(false);
       setReason("");
       void queryClient.invalidateQueries({ queryKey: ["admin", "registrations", participantId] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "registrations"] });
       void queryClient.invalidateQueries({ queryKey: ["admin", "fees", participantId, "events"] });
     }
   });
@@ -280,7 +281,9 @@ function FeeManagementSection({
 
       <div style={{ marginTop: "1.5rem" }}>
         <h3 style={{ fontSize: "0.9rem", color: "var(--color-muted)", marginBottom: "1rem" }}>변경 이력</h3>
-        {feeEventsQuery.isLoading ? (
+        {feeEventsQuery.isError ? (
+          <StatusMessage message={feeEventsQuery.error.message} tone="error" />
+        ) : feeEventsQuery.isLoading ? (
           <p className="muted">로드 중...</p>
         ) : !feeEventsQuery.data?.length ? (
           <p className="muted">변경 이력이 없습니다.</p>
@@ -327,6 +330,8 @@ function CheckInManagementSection({
     mutationFn: () => manuallyCheckIn(participantId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["admin", "check-ins", participantId] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "registrations"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "check-ins", "roster"] });
     }
   });
 
@@ -336,6 +341,8 @@ function CheckInManagementSection({
       setShowCancelReason(false);
       setCancelReason("");
       void queryClient.invalidateQueries({ queryKey: ["admin", "check-ins", participantId] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "registrations"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "check-ins", "roster"] });
     }
   });
 
@@ -361,7 +368,9 @@ function CheckInManagementSection({
   return (
     <section className="panel">
       <h2>체크인 관리</h2>
-      {checkInQuery.isLoading ? (
+      {checkInQuery.isError ? (
+        <StatusMessage message={checkInQuery.error.message} tone="error" />
+      ) : checkInQuery.isLoading ? (
         <p className="muted">로드 중...</p>
       ) : (
         <>
@@ -453,7 +462,9 @@ function HistoriesSection({ historiesQuery }: { historiesQuery: any }) {
   return (
     <section className="panel">
       <h2>변경 이력</h2>
-      {historiesQuery.isLoading ? (
+      {historiesQuery.isError ? (
+        <StatusMessage message={historiesQuery.error.message} tone="error" />
+      ) : historiesQuery.isLoading ? (
         <p className="muted">로드 중...</p>
       ) : !historiesQuery.data?.length ? (
         <p className="muted">변경 이력이 없습니다.</p>
@@ -503,6 +514,19 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString();
+}
+
+function formatAttendance(value: string) {
+  switch (value) {
+    case "FULL":
+      return "전체 참석";
+    case "PARTIAL":
+      return "부분 참석";
+    case "WORSHIP_ONLY":
+      return "예배만";
+    default:
+      return value;
+  }
 }
 
 function formatTransportation(method: string | null): string {

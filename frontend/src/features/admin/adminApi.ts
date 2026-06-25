@@ -63,6 +63,8 @@ export type AdminRegistration = {
   birthYear: number;
   phoneNumber: string;
   churchCellDepartment?: string | null;
+  churchCellId?: number | null;
+  middleGroupId?: number | null;
   middleGroupName?: string | null;
   churchCellName?: string | null;
   retreatGroupId?: number | null;
@@ -73,7 +75,8 @@ export type AdminRegistration = {
   adminMemo?: string | null;
   newcomer: boolean;
   careTarget: boolean;
-  attendanceType: "FULL" | "PARTIAL";
+  checkedIn: boolean;
+  attendanceType: "FULL" | "PARTIAL" | "WORSHIP_ONLY";
   plannedArrivalAt?: string | null;
   plannedDepartureAt?: string | null;
   partialAttendanceNote?: string | null;
@@ -107,6 +110,22 @@ export type AdminRegistration = {
   outboundWorshipBusRideSlot?: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type AdminRegistrationFilters = {
+  page?: number;
+  size?: number;
+  keyword?: string;
+  status?: "REGISTERED" | "CANCELLED";
+  feePaid?: boolean;
+  newcomer?: boolean;
+  careTarget?: boolean;
+  checkedIn?: boolean;
+  retreatGroupAssigned?: boolean;
+  churchCellAssigned?: boolean;
+  attendanceType?: "FULL" | "PARTIAL" | "WORSHIP_ONLY";
+  transportationNeed?: "CARPOOL_NEEDED" | "CARPOOL_AVAILABLE";
+  sort?: "created_desc" | "name_asc" | "fee_unpaid_first" | "check_in_pending_first" | "group_asc";
 };
 
 export type FeeRosterItem = {
@@ -316,8 +335,55 @@ export function getAdminProfile() {
   return apiRequest<AdminProfile>("/admin/auth/me", { auth: true });
 }
 
-export function getAdminRegistrations(size = 20) {
-  return apiRequest<PageResponse<AdminRegistration>>(`/admin/registrations?page=0&size=${size}`, { auth: true });
+export function getAdminRegistrations(filtersOrSize: AdminRegistrationFilters | number = {}) {
+  const filters = typeof filtersOrSize === "number" ? { size: filtersOrSize } : filtersOrSize;
+  const params = new URLSearchParams({
+    page: String(filters.page ?? 0),
+    size: String(filters.size ?? 20),
+    sort: filters.sort ?? "created_desc"
+  });
+
+  if (filters.keyword?.trim()) {
+    params.set("keyword", filters.keyword.trim());
+  }
+
+  if (filters.status) {
+    params.set("status", filters.status);
+  }
+
+  if (filters.feePaid !== undefined) {
+    params.set("feePaid", String(filters.feePaid));
+  }
+
+  if (filters.newcomer !== undefined) {
+    params.set("newcomer", String(filters.newcomer));
+  }
+
+  if (filters.careTarget !== undefined) {
+    params.set("careTarget", String(filters.careTarget));
+  }
+
+  if (filters.checkedIn !== undefined) {
+    params.set("checkedIn", String(filters.checkedIn));
+  }
+
+  if (filters.retreatGroupAssigned !== undefined) {
+    params.set("retreatGroupAssigned", String(filters.retreatGroupAssigned));
+  }
+
+  if (filters.churchCellAssigned !== undefined) {
+    params.set("churchCellAssigned", String(filters.churchCellAssigned));
+  }
+
+  if (filters.attendanceType) {
+    params.set("attendanceType", filters.attendanceType);
+  }
+
+  if (filters.transportationNeed) {
+    params.set("transportationNeed", filters.transportationNeed);
+  }
+
+  return apiRequest<PageResponse<AdminRegistration>>(`/admin/registrations?${params.toString()}`, { auth: true });
 }
 
 export function getAdminRegistration(id: number) {

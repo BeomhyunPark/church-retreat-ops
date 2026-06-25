@@ -47,6 +47,19 @@ GET /api/admin/registrations/{id}
 GET /api/admin/registrations/{id}/histories
 ```
 
+`GET /api/admin/registrations`는 운영 명단 관리를 위해 아래 쿼리 파라미터를 지원합니다.
+
+- `keyword`: 이름, 휴대폰 끝 4자리, 자유 입력 셀, 교회 셀, 중그룹, 수련회 조 검색
+- `status`: `REGISTERED`, `CANCELLED`
+- `feePaid`, `newcomer`, `careTarget`, `checkedIn`
+- `retreatGroupAssigned`, `churchCellAssigned`
+- `attendanceType`: `FULL`, `PARTIAL`, `WORSHIP_ONLY`
+- `transportationNeed`: `CARPOOL_NEEDED`, `CARPOOL_AVAILABLE`
+- `sort`: `created_desc`, `name_asc`, `fee_unpaid_first`, `check_in_pending_first`, `group_asc`
+- `page`, `size`
+
+목록 응답은 체크인 여부와 참석/숙박 요약 필드를 포함하지만, 전화번호와 교통 세부 민감 정보는 마스킹 또는 생략합니다.
+
 관리 변경 API:
 
 ```text
@@ -73,7 +86,7 @@ PATCH /api/admin/registrations/{id}/management
 
 현재 로그 대상:
 
-- 상세 조회: `DETAIL_VIEW`, `sensitive_fields=phone_number`
+- 상세 조회: `DETAIL_VIEW`, `sensitive_fields=phone_number,transportation_carpool_fields`
 - 이력 조회: `HISTORY_VIEW`, `sensitive_fields=history_snapshots`
 
 목록 API는 전화번호를 마스킹해서 반환하므로 상세 전화번호 접근 로그 대상이 아닙니다.
@@ -155,5 +168,4 @@ curl -s http://localhost:8080/api/admin/registrations/1/histories \
 - 공지
 - 일정
 - QR 체크인
-- 프론트엔드 또는 React UI
 - 참가자용 관리자 권한 또는 참가자 로그인 계정
