@@ -92,12 +92,16 @@ public class RegistrationService {
                 request.inboundCarpoolAvailable(),
                 request.inboundCarpoolSeats(),
                 request.inboundCarpoolArea(),
+                request.inboundCarpoolNote(),
                 request.inboundCarpoolPreferredArea(),
+                request.inboundCarpoolPreferredNote(),
                 request.outboundTransportationMethod(),
                 request.outboundCarpoolAvailable(),
                 request.outboundCarpoolSeats(),
                 request.outboundCarpoolArea(),
-                request.outboundCarpoolPreferredArea()
+                request.outboundCarpoolNote(),
+                request.outboundCarpoolPreferredArea(),
+                request.outboundCarpoolPreferredNote()
         );
         AttendanceFields attendanceFields = resolveAttendanceFields(request.attendanceType(), request);
 
@@ -132,12 +136,16 @@ public class RegistrationService {
                     request.inboundCarpoolAvailable(),
                     request.inboundCarpoolSeats(),
                     request.inboundCarpoolArea(),
+                    request.inboundCarpoolNote(),
                     request.inboundCarpoolPreferredArea(),
+                    request.inboundCarpoolPreferredNote(),
                     request.outboundTransportationMethod(),
                     request.outboundCarpoolAvailable(),
                     request.outboundCarpoolSeats(),
                     request.outboundCarpoolArea(),
-                    request.outboundCarpoolPreferredArea()
+                    request.outboundCarpoolNote(),
+                    request.outboundCarpoolPreferredArea(),
+                    request.outboundCarpoolPreferredNote()
             );
             registrationMapper.insert(insert);
             Registration created = registrationMapper.findById(insert.getId())
@@ -176,12 +184,16 @@ public class RegistrationService {
                 request.inboundCarpoolAvailable(),
                 request.inboundCarpoolSeats(),
                 request.inboundCarpoolArea(),
+                request.inboundCarpoolNote(),
                 request.inboundCarpoolPreferredArea(),
+                request.inboundCarpoolPreferredNote(),
                 request.outboundTransportationMethod(),
                 request.outboundCarpoolAvailable(),
                 request.outboundCarpoolSeats(),
                 request.outboundCarpoolArea(),
-                request.outboundCarpoolPreferredArea()
+                request.outboundCarpoolNote(),
+                request.outboundCarpoolPreferredArea(),
+                request.outboundCarpoolPreferredNote()
         ));
         Registration updated = registrationMapper.findById(existing.id())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
@@ -221,12 +233,16 @@ public class RegistrationService {
                 request.update().inboundCarpoolAvailable(),
                 request.update().inboundCarpoolSeats(),
                 request.update().inboundCarpoolArea(),
+                request.update().inboundCarpoolNote(),
                 request.update().inboundCarpoolPreferredArea(),
+                request.update().inboundCarpoolPreferredNote(),
                 request.update().outboundTransportationMethod(),
                 request.update().outboundCarpoolAvailable(),
                 request.update().outboundCarpoolSeats(),
                 request.update().outboundCarpoolArea(),
-                request.update().outboundCarpoolPreferredArea()
+                request.update().outboundCarpoolNote(),
+                request.update().outboundCarpoolPreferredArea(),
+                request.update().outboundCarpoolPreferredNote()
         );
         AttendanceFields attendanceFields = resolveAttendanceFields(request.update().attendanceType(), request.update());
 
@@ -253,12 +269,16 @@ public class RegistrationService {
                 request.update().inboundCarpoolAvailable(),
                 request.update().inboundCarpoolSeats(),
                 request.update().inboundCarpoolArea(),
+                request.update().inboundCarpoolNote(),
                 request.update().inboundCarpoolPreferredArea(),
+                request.update().inboundCarpoolPreferredNote(),
                 request.update().outboundTransportationMethod(),
                 request.update().outboundCarpoolAvailable(),
                 request.update().outboundCarpoolSeats(),
                 request.update().outboundCarpoolArea(),
-                request.update().outboundCarpoolPreferredArea()
+                request.update().outboundCarpoolNote(),
+                request.update().outboundCarpoolPreferredArea(),
+                request.update().outboundCarpoolPreferredNote()
         ));
         Registration updated = registrationMapper.findById(registration.id())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
@@ -434,21 +454,52 @@ public class RegistrationService {
             Boolean inboundCarpoolAvailable,
             Integer inboundCarpoolSeats,
             String inboundCarpoolArea,
+            String inboundCarpoolNote,
             String inboundCarpoolPreferredArea,
+            String inboundCarpoolPreferredNote,
             TransportationMethod outboundTransportation,
             Boolean outboundCarpoolAvailable,
             Integer outboundCarpoolSeats,
             String outboundCarpoolArea,
-            String outboundCarpoolPreferredArea
+            String outboundCarpoolNote,
+            String outboundCarpoolPreferredArea,
+            String outboundCarpoolPreferredNote
     ) {
+        validateFullAttendanceTransportation(attendanceType, inboundTransportation, outboundTransportation);
         validateDirectionalCarpool(
                 inboundTransportation, inboundCarpoolAvailable, inboundCarpoolSeats,
-                inboundCarpoolArea, inboundCarpoolPreferredArea
+                inboundCarpoolArea, inboundCarpoolNote, inboundCarpoolPreferredArea, inboundCarpoolPreferredNote
         );
         validateDirectionalCarpool(
                 outboundTransportation, outboundCarpoolAvailable, outboundCarpoolSeats,
-                outboundCarpoolArea, outboundCarpoolPreferredArea
+                outboundCarpoolArea, outboundCarpoolNote, outboundCarpoolPreferredArea, outboundCarpoolPreferredNote
         );
+    }
+
+    private void validateFullAttendanceTransportation(
+            AttendanceType attendanceType,
+            TransportationMethod inboundTransportation,
+            TransportationMethod outboundTransportation
+    ) {
+        if (attendanceType != AttendanceType.FULL) {
+            return;
+        }
+
+        if (!isFullAttendanceTransportationMethod(inboundTransportation)
+                || !isFullAttendanceTransportationMethod(outboundTransportation)) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+        if ((inboundTransportation == TransportationMethod.OWN_CAR)
+                != (outboundTransportation == TransportationMethod.OWN_CAR)) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+    }
+
+    private boolean isFullAttendanceTransportationMethod(TransportationMethod transportationMethod) {
+        return transportationMethod == TransportationMethod.OWN_CAR
+                || transportationMethod == TransportationMethod.GROUP_BUS
+                || transportationMethod == TransportationMethod.PUBLIC_TRANSIT
+                || transportationMethod == TransportationMethod.CARPOOL_NEEDED;
     }
 
     private void validateDirectionalCarpool(
@@ -456,7 +507,9 @@ public class RegistrationService {
             Boolean carpoolAvailable,
             Integer carpoolSeats,
             String carpoolArea,
-            String carpoolPreferredArea
+            String carpoolNote,
+            String carpoolPreferredArea,
+            String carpoolPreferredNote
     ) {
         if (direction == TransportationMethod.OWN_CAR) {
             if (carpoolAvailable == null) {
@@ -466,20 +519,25 @@ public class RegistrationService {
                 if (carpoolSeats == null || !StringUtils.hasText(carpoolArea)) {
                     throw new BusinessException(ErrorCode.INVALID_REQUEST);
                 }
-            } else if (carpoolSeats != null || carpoolArea != null) {
+            } else if (carpoolSeats != null || carpoolArea != null || carpoolNote != null) {
                 throw new BusinessException(ErrorCode.INVALID_REQUEST);
             }
-            if (carpoolPreferredArea != null) {
+            if (carpoolPreferredArea != null || carpoolPreferredNote != null) {
                 throw new BusinessException(ErrorCode.INVALID_REQUEST);
             }
         } else if (direction == TransportationMethod.CARPOOL_NEEDED) {
-            if (carpoolSeats != null || carpoolArea != null) {
+            if (carpoolAvailable != null || carpoolSeats != null || carpoolArea != null || carpoolNote != null) {
                 throw new BusinessException(ErrorCode.INVALID_REQUEST);
             }
             if (!StringUtils.hasText(carpoolPreferredArea)) {
                 throw new BusinessException(ErrorCode.INVALID_REQUEST);
             }
-        } else if (carpoolAvailable != null || carpoolSeats != null || carpoolArea != null || carpoolPreferredArea != null) {
+        } else if (carpoolAvailable != null
+                || carpoolSeats != null
+                || carpoolArea != null
+                || carpoolNote != null
+                || carpoolPreferredArea != null
+                || carpoolPreferredNote != null) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
     }
@@ -656,8 +714,12 @@ public class RegistrationService {
                             ? "" : registration.inboundCarpoolSeats()),
                     Map.entry("inboundCarpoolArea", registration.inboundCarpoolArea() == null
                             ? "" : registration.inboundCarpoolArea()),
+                    Map.entry("inboundCarpoolNote", registration.inboundCarpoolNote() == null
+                            ? "" : registration.inboundCarpoolNote()),
                     Map.entry("inboundCarpoolPreferredArea", registration.inboundCarpoolPreferredArea() == null
                             ? "" : registration.inboundCarpoolPreferredArea()),
+                    Map.entry("inboundCarpoolPreferredNote", registration.inboundCarpoolPreferredNote() == null
+                            ? "" : registration.inboundCarpoolPreferredNote()),
                     Map.entry("outboundTransportationMethod", registration.outboundTransportationMethod()),
                     Map.entry("outboundCarpoolAvailable", registration.outboundCarpoolAvailable() == null
                             ? "" : registration.outboundCarpoolAvailable()),
@@ -665,8 +727,12 @@ public class RegistrationService {
                             ? "" : registration.outboundCarpoolSeats()),
                     Map.entry("outboundCarpoolArea", registration.outboundCarpoolArea() == null
                             ? "" : registration.outboundCarpoolArea()),
+                    Map.entry("outboundCarpoolNote", registration.outboundCarpoolNote() == null
+                            ? "" : registration.outboundCarpoolNote()),
                     Map.entry("outboundCarpoolPreferredArea", registration.outboundCarpoolPreferredArea() == null
-                            ? "" : registration.outboundCarpoolPreferredArea())
+                            ? "" : registration.outboundCarpoolPreferredArea()),
+                    Map.entry("outboundCarpoolPreferredNote", registration.outboundCarpoolPreferredNote() == null
+                            ? "" : registration.outboundCarpoolPreferredNote())
             );
             return objectMapper.writeValueAsString(snapshot);
         } catch (Exception exception) {

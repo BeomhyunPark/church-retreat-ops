@@ -37,12 +37,16 @@ public record RegistrationSelfUpdateRequest(
             Boolean inboundCarpoolAvailable,
             @Min(1) @Max(10) Integer inboundCarpoolSeats,
             @Size(max = 100) String inboundCarpoolArea,
+            @Size(max = 200) String inboundCarpoolNote,
             @Size(max = 100) String inboundCarpoolPreferredArea,
+            @Size(max = 200) String inboundCarpoolPreferredNote,
             @NotNull TransportationMethod outboundTransportationMethod,
             Boolean outboundCarpoolAvailable,
             @Min(1) @Max(10) Integer outboundCarpoolSeats,
             @Size(max = 100) String outboundCarpoolArea,
-            @Size(max = 100) String outboundCarpoolPreferredArea
+            @Size(max = 200) String outboundCarpoolNote,
+            @Size(max = 100) String outboundCarpoolPreferredArea,
+            @Size(max = 200) String outboundCarpoolPreferredNote
     ) {
     }
 }

@@ -36,6 +36,16 @@ type FormValues = {
   outboundTransportationMethod: TransportationMethod;
   inboundCarpoolAvailable?: boolean;
   inboundCarpoolSeats?: number;
+  inboundCarpoolArea?: string;
+  inboundCarpoolNote?: string;
+  inboundCarpoolPreferredArea?: string;
+  inboundCarpoolPreferredNote?: string;
+  outboundCarpoolAvailable?: boolean;
+  outboundCarpoolSeats?: number;
+  outboundCarpoolArea?: string;
+  outboundCarpoolNote?: string;
+  outboundCarpoolPreferredArea?: string;
+  outboundCarpoolPreferredNote?: string;
   lodgingNight1?: boolean;
   lodgingNight2?: boolean;
   attendDay1Morning?: boolean;
@@ -61,7 +71,7 @@ function formatPhoneNumber(value: string) {
 
 function getTransportationOptions(attendanceType: AttendanceType): TransportationMethod[] {
   if (attendanceType === "FULL") {
-    return ["GROUP_BUS", "OWN_CAR"];
+    return ["GROUP_BUS", "OWN_CAR", "PUBLIC_TRANSIT", "CARPOOL_NEEDED"];
   }
   return ["GROUP_BUS", "WORSHIP_SHUTTLE", "OWN_CAR", "PUBLIC_TRANSIT", "CARPOOL_NEEDED", "NOT_DECIDED"];
 }
@@ -91,7 +101,9 @@ function buildSteps(
   isLoaded: boolean,
   attendanceType?: AttendanceType,
   inboundTransportation?: TransportationMethod,
-  inboundCarpoolAvailable?: boolean
+  inboundCarpoolAvailable?: boolean,
+  outboundTransportation?: TransportationMethod,
+  outboundCarpoolAvailable?: boolean
 ): Array<keyof FormValues> {
   // Initial lookup steps
   const lookupSteps: Array<keyof FormValues> = ["name", "phoneLastFour", "lookupKey"];
@@ -116,12 +128,21 @@ function buildSteps(
     if (inboundTransportation === "OWN_CAR") {
       steps.push("inboundCarpoolAvailable");
       if (inboundCarpoolAvailable === true) {
-        steps.push("inboundCarpoolSeats");
+        steps.push("inboundCarpoolSeats", "inboundCarpoolArea", "inboundCarpoolNote");
       }
+      steps.push("outboundCarpoolAvailable");
+      if (outboundCarpoolAvailable === true) {
+        steps.push("outboundCarpoolSeats", "outboundCarpoolArea", "outboundCarpoolNote");
+      }
+    } else if (inboundTransportation === "CARPOOL_NEEDED") {
+      steps.push("inboundCarpoolPreferredArea", "inboundCarpoolPreferredNote", "outboundTransportationMethod");
     } else {
       // Driving yourself there means driving yourself back - outbound is only
       // asked when you didn't bring your own car inbound
       steps.push("outboundTransportationMethod");
+    }
+    if (inboundTransportation !== "OWN_CAR" && outboundTransportation === "CARPOOL_NEEDED") {
+      steps.push("outboundCarpoolPreferredArea", "outboundCarpoolPreferredNote");
     }
   } else if (attendanceType === "PARTIAL") {
     // PARTIAL: 숙박 + 일정 + 교통수단
@@ -130,10 +151,15 @@ function buildSteps(
     if (inboundTransportation === "OWN_CAR") {
       steps.push("inboundCarpoolAvailable");
       if (inboundCarpoolAvailable === true) {
-        steps.push("inboundCarpoolSeats");
+        steps.push("inboundCarpoolSeats", "inboundCarpoolArea");
       }
+    } else if (inboundTransportation === "CARPOOL_NEEDED") {
+      steps.push("inboundCarpoolPreferredArea");
     } else {
       steps.push("outboundTransportationMethod");
+      if (outboundTransportation === "CARPOOL_NEEDED") {
+        steps.push("outboundCarpoolPreferredArea");
+      }
     }
   } else {
     // WORSHIP_ONLY: 집회 차량 또는 자차
@@ -142,10 +168,15 @@ function buildSteps(
     if (inboundTransportation === "OWN_CAR") {
       steps.push("inboundCarpoolAvailable");
       if (inboundCarpoolAvailable === true) {
-        steps.push("inboundCarpoolSeats");
+        steps.push("inboundCarpoolSeats", "inboundCarpoolArea");
       }
+    } else if (inboundTransportation === "CARPOOL_NEEDED") {
+      steps.push("inboundCarpoolPreferredArea");
     } else {
       steps.push("outboundTransportationMethod");
+      if (outboundTransportation === "CARPOOL_NEEDED") {
+        steps.push("outboundCarpoolPreferredArea");
+      }
     }
   }
 
@@ -208,15 +239,38 @@ export function PublicSelfEditPage() {
     // Prefill only the editable fields - others remain as is
     setValue("phoneNumber", data.phoneNumber);
     setValue("phoneLastFour", phoneLastFour);
+    setValue("attendanceType", data.attendanceType);
+    setValue("inboundTransportationMethod", data.inboundTransportationMethod);
+    setValue("outboundTransportationMethod", data.outboundTransportationMethod);
+    setValue("inboundCarpoolAvailable", data.inboundCarpoolAvailable ?? undefined);
+    setValue("inboundCarpoolSeats", data.inboundCarpoolSeats ?? undefined);
+    setValue("inboundCarpoolArea", data.inboundCarpoolArea ?? undefined);
+    setValue("inboundCarpoolNote", data.inboundCarpoolNote ?? undefined);
+    setValue("inboundCarpoolPreferredArea", data.inboundCarpoolPreferredArea ?? undefined);
+    setValue("inboundCarpoolPreferredNote", data.inboundCarpoolPreferredNote ?? undefined);
+    setValue("outboundCarpoolAvailable", data.outboundCarpoolAvailable ?? undefined);
+    setValue("outboundCarpoolSeats", data.outboundCarpoolSeats ?? undefined);
+    setValue("outboundCarpoolArea", data.outboundCarpoolArea ?? undefined);
+    setValue("outboundCarpoolNote", data.outboundCarpoolNote ?? undefined);
+    setValue("outboundCarpoolPreferredArea", data.outboundCarpoolPreferredArea ?? undefined);
+    setValue("outboundCarpoolPreferredNote", data.outboundCarpoolPreferredNote ?? undefined);
   }
 
   const attendanceType = watch("attendanceType");
   const inboundTransportation = watch("inboundTransportationMethod");
   const outboundTransportation = watch("outboundTransportationMethod");
   const inboundCarpoolAvailable = watch("inboundCarpoolAvailable");
+  const outboundCarpoolAvailable = watch("outboundCarpoolAvailable");
   const gender = watch("gender");
 
-  const currentSteps = buildSteps(isLoaded, attendanceType, inboundTransportation, inboundCarpoolAvailable);
+  const currentSteps = buildSteps(
+    isLoaded,
+    attendanceType,
+    inboundTransportation,
+    inboundCarpoolAvailable,
+    outboundTransportation,
+    outboundCarpoolAvailable
+  );
   // attendanceType is never truly the last step: every attendance type leads to
   // at least an inboundTransportationMethod step once chosen, so treat it as
   // not-last even before a choice is made (avoids flipping the action button
@@ -225,9 +279,6 @@ export function PublicSelfEditPage() {
 
 
   function onSubmit(values: FormValues) {
-    // Outbound carpool mirrors inbound: it's the same car making the same trip back
-    const isInboundOwnCar = values.inboundTransportationMethod === "OWN_CAR";
-
     const update: any = {
       gender: values.gender,
       birthYear: values.birthYear,
@@ -238,8 +289,16 @@ export function PublicSelfEditPage() {
       outboundTransportationMethod: values.outboundTransportationMethod,
       inboundCarpoolAvailable: values.inboundCarpoolAvailable,
       inboundCarpoolSeats: values.inboundCarpoolSeats,
-      outboundCarpoolAvailable: isInboundOwnCar ? values.inboundCarpoolAvailable : undefined,
-      outboundCarpoolSeats: isInboundOwnCar ? values.inboundCarpoolSeats : undefined,
+      inboundCarpoolArea: values.inboundCarpoolArea,
+      inboundCarpoolNote: values.inboundCarpoolNote,
+      inboundCarpoolPreferredArea: values.inboundCarpoolPreferredArea,
+      inboundCarpoolPreferredNote: values.inboundCarpoolPreferredNote,
+      outboundCarpoolAvailable: values.outboundCarpoolAvailable,
+      outboundCarpoolSeats: values.outboundCarpoolSeats,
+      outboundCarpoolArea: values.outboundCarpoolArea,
+      outboundCarpoolNote: values.outboundCarpoolNote,
+      outboundCarpoolPreferredArea: values.outboundCarpoolPreferredArea,
+      outboundCarpoolPreferredNote: values.outboundCarpoolPreferredNote,
       lodgingNight1: values.lodgingNight1,
       lodgingNight2: values.lodgingNight2,
       attendDay1Morning: values.attendDay1Morning,
@@ -252,6 +311,15 @@ export function PublicSelfEditPage() {
       attendDay3Afternoon: values.attendDay3Afternoon
     };
 
+    if (values.inboundTransportationMethod === "OWN_CAR") {
+      update.outboundTransportationMethod = "OWN_CAR";
+      if (values.attendanceType !== "FULL") {
+        update.outboundCarpoolAvailable = values.inboundCarpoolAvailable;
+        update.outboundCarpoolSeats = values.inboundCarpoolSeats;
+        update.outboundCarpoolArea = values.inboundCarpoolArea;
+      }
+    }
+
     // Strip carpool fields that don't apply to the final transportation choice for
     // each direction - a leftover value from an earlier choice would otherwise get
     // sent and rejected by the backend
@@ -259,6 +327,12 @@ export function PublicSelfEditPage() {
       if (update[`${direction}TransportationMethod`] !== "OWN_CAR") {
         delete update[`${direction}CarpoolAvailable`];
         delete update[`${direction}CarpoolSeats`];
+        delete update[`${direction}CarpoolArea`];
+        delete update[`${direction}CarpoolNote`];
+      }
+      if (update[`${direction}TransportationMethod`] !== "CARPOOL_NEEDED") {
+        delete update[`${direction}CarpoolPreferredArea`];
+        delete update[`${direction}CarpoolPreferredNote`];
       }
     }
 
@@ -450,8 +524,18 @@ export function PublicSelfEditPage() {
                         // Reset dependent fields when changing attendance type
                         setValue("inboundTransportationMethod", undefined as any);
                         setValue("outboundTransportationMethod", undefined as any);
-                        setValue("inboundCarpoolAvailable", false);
+                        setValue("inboundCarpoolAvailable", undefined);
                         setValue("inboundCarpoolSeats", undefined);
+                        setValue("inboundCarpoolArea", undefined);
+                        setValue("inboundCarpoolNote", undefined);
+                        setValue("inboundCarpoolPreferredArea", undefined);
+                        setValue("inboundCarpoolPreferredNote", undefined);
+                        setValue("outboundCarpoolAvailable", undefined);
+                        setValue("outboundCarpoolSeats", undefined);
+                        setValue("outboundCarpoolArea", undefined);
+                        setValue("outboundCarpoolNote", undefined);
+                        setValue("outboundCarpoolPreferredArea", undefined);
+                        setValue("outboundCarpoolPreferredNote", undefined);
                         setValue("lodgingNight1", false);
                         setValue("lodgingNight2", false);
                         // 집회만 선택시 다른 일정은 자동으로 false
@@ -504,13 +588,29 @@ export function PublicSelfEditPage() {
                         if (method === "OWN_CAR") {
                           // Same car goes back - outbound is decided, no need to ask again
                           setValue("outboundTransportationMethod", "OWN_CAR", { shouldValidate: true });
+                          setValue("outboundCarpoolAvailable", undefined);
+                          setValue("outboundCarpoolSeats", undefined);
+                          setValue("outboundCarpoolArea", undefined);
+                          setValue("outboundCarpoolNote", undefined);
+                          setValue("outboundCarpoolPreferredArea", undefined);
+                          setValue("outboundCarpoolPreferredNote", undefined);
                         } else {
-                          setValue("inboundCarpoolAvailable", false);
+                          setValue("inboundCarpoolAvailable", undefined);
                           setValue("inboundCarpoolSeats", undefined);
+                          setValue("inboundCarpoolArea", undefined);
+                          setValue("inboundCarpoolNote", undefined);
+                          if (method !== "CARPOOL_NEEDED") {
+                            setValue("inboundCarpoolPreferredArea", undefined);
+                            setValue("inboundCarpoolPreferredNote", undefined);
+                          }
                           // Car isn't there for the return trip - clear a stale OWN_CAR pick
                           if (outboundTransportation === "OWN_CAR") {
                             setValue("outboundTransportationMethod", undefined as any);
                           }
+                          setValue("outboundCarpoolAvailable", undefined);
+                          setValue("outboundCarpoolSeats", undefined);
+                          setValue("outboundCarpoolArea", undefined);
+                          setValue("outboundCarpoolNote", undefined);
                         }
                       }}
                     >
@@ -544,6 +644,8 @@ export function PublicSelfEditPage() {
                     onClick={() => {
                       setValue("inboundCarpoolAvailable", false, { shouldValidate: true });
                       setValue("inboundCarpoolSeats", undefined);
+                      setValue("inboundCarpoolArea", undefined);
+                      setValue("inboundCarpoolNote", undefined);
                     }}
                   >
                     아니오
@@ -590,6 +692,77 @@ export function PublicSelfEditPage() {
               ) : null
             ) : null}
 
+            {/* Step: inboundCarpoolArea */}
+            {currentSteps[step] === "inboundCarpoolArea" && isLoaded ? (
+              inboundTransportation === "OWN_CAR" && inboundCarpoolAvailable ? (
+                <label className="flow-field flow-field--lg">
+                  <span>가는 길 출발 가능 지역</span>
+                  <input
+                    {...register("inboundCarpoolArea", {
+                      required: "지역을 입력해주세요.",
+                      maxLength: { value: 100, message: "100자 이하로 입력해주세요." }
+                    })}
+                    placeholder="예: 교회에서 출발, 강남역 근처"
+                    autoFocus
+                  />
+                  {formState.errors.inboundCarpoolArea && <span className="field-error">{formState.errors.inboundCarpoolArea.message}</span>}
+                </label>
+              ) : null
+            ) : null}
+
+            {/* Step: inboundCarpoolNote */}
+            {currentSteps[step] === "inboundCarpoolNote" && isLoaded ? (
+              inboundTransportation === "OWN_CAR" && inboundCarpoolAvailable ? (
+                <label className="flow-field flow-field--lg">
+                  <span>가는 길 경유 가능 지역이나 메모</span>
+                  <input
+                    {...register("inboundCarpoolNote", {
+                      maxLength: { value: 200, message: "200자 이하로 입력해주세요." }
+                    })}
+                    placeholder="예: 잠실 경유 가능, 짐이 많아서 1명만 가능"
+                    autoFocus
+                  />
+                  {formState.errors.inboundCarpoolNote && <span className="field-error">{formState.errors.inboundCarpoolNote.message}</span>}
+                </label>
+              ) : null
+            ) : null}
+
+            {/* Step: inboundCarpoolPreferredArea */}
+            {currentSteps[step] === "inboundCarpoolPreferredArea" && isLoaded ? (
+              inboundTransportation === "CARPOOL_NEEDED" ? (
+                <label className="flow-field flow-field--lg">
+                  <span>가는 길 탑승 희망 지역</span>
+                  <p className="muted">정확한 자택 주소보다는 역명, 동네, 교회, 주요 건물 등으로 입력해 주세요.</p>
+                  <input
+                    {...register("inboundCarpoolPreferredArea", {
+                      required: "지역을 입력해주세요.",
+                      maxLength: { value: 100, message: "100자 이하로 입력해주세요." }
+                    })}
+                    placeholder="예: 강남역 2번 출구 부근"
+                    autoFocus
+                  />
+                  {formState.errors.inboundCarpoolPreferredArea && <span className="field-error">{formState.errors.inboundCarpoolPreferredArea.message}</span>}
+                </label>
+              ) : null
+            ) : null}
+
+            {/* Step: inboundCarpoolPreferredNote */}
+            {currentSteps[step] === "inboundCarpoolPreferredNote" && isLoaded ? (
+              inboundTransportation === "CARPOOL_NEEDED" ? (
+                <label className="flow-field flow-field--lg">
+                  <span>가는 길 탑승 관련 메모</span>
+                  <input
+                    {...register("inboundCarpoolPreferredNote", {
+                      maxLength: { value: 200, message: "200자 이하로 입력해주세요." }
+                    })}
+                    placeholder="예: 퇴근 후 19시 이후 가능"
+                    autoFocus
+                  />
+                  {formState.errors.inboundCarpoolPreferredNote && <span className="field-error">{formState.errors.inboundCarpoolPreferredNote.message}</span>}
+                </label>
+              ) : null
+            ) : null}
+
             {/* Step: outboundTransportationMethod */}
             {currentSteps[step] === "outboundTransportationMethod" && attendanceType && isLoaded ? (
               <div className="flow-field flow-field--lg">
@@ -610,6 +783,10 @@ export function PublicSelfEditPage() {
                         }
                         onClick={() => {
                           setValue("outboundTransportationMethod", method, { shouldValidate: true });
+                          if (method !== "CARPOOL_NEEDED") {
+                            setValue("outboundCarpoolPreferredArea", undefined);
+                            setValue("outboundCarpoolPreferredNote", undefined);
+                          }
                         }}
                       >
                         {getTransportationLabel(method)}
@@ -618,6 +795,145 @@ export function PublicSelfEditPage() {
                 </div>
                 <input type="hidden" {...register("outboundTransportationMethod", { required: true })} />
               </div>
+            ) : null}
+
+            {/* Step: outboundCarpoolAvailable */}
+            {currentSteps[step] === "outboundCarpoolAvailable" && outboundTransportation === "OWN_CAR" && isLoaded ? (
+              <div className="flow-field flow-field--lg">
+                <span>오는 길에도 동승자를 태울 수 있어요?</span>
+                <div className="segmented" role="radiogroup" aria-label="아웃바운드 동승자 여부">
+                  <span
+                    className={outboundCarpoolAvailable !== undefined ? "segmented__pill segmented__pill--active" : "segmented__pill"}
+                    style={
+                      outboundCarpoolAvailable === true
+                        ? { left: "50%", width: "calc(50% - 0.25rem)" }
+                        : outboundCarpoolAvailable === false
+                          ? { left: "0.25rem", width: "calc(50% - 0.25rem)" }
+                          : { left: "50%", width: "2px", transform: "translateX(-1px)" }
+                    }
+                  />
+                  <button
+                    type="button"
+                    className={outboundCarpoolAvailable === false ? "segmented__option segmented__option--active" : "segmented__option"}
+                    onClick={() => {
+                      setValue("outboundCarpoolAvailable", false, { shouldValidate: true });
+                      setValue("outboundCarpoolSeats", undefined);
+                      setValue("outboundCarpoolArea", undefined);
+                      setValue("outboundCarpoolNote", undefined);
+                    }}
+                  >
+                    아니오
+                  </button>
+                  <button
+                    type="button"
+                    className={outboundCarpoolAvailable === true ? "segmented__option segmented__option--active" : "segmented__option"}
+                    onClick={() => setValue("outboundCarpoolAvailable", true, { shouldValidate: true })}
+                  >
+                    네
+                  </button>
+                </div>
+                <input type="hidden" {...register("outboundCarpoolAvailable", { validate: (value) => value !== undefined })} />
+              </div>
+            ) : null}
+
+            {/* Step: outboundCarpoolSeats */}
+            {currentSteps[step] === "outboundCarpoolSeats" && isLoaded ? (
+              outboundTransportation === "OWN_CAR" && outboundCarpoolAvailable ? (
+                <label className="flow-field flow-field--lg">
+                  <span>오는 길은 몇 명까지 가능해요?</span>
+                  <input
+                    {...register("outboundCarpoolSeats", {
+                      required: "동승자 수를 입력해주세요.",
+                      min: { value: 1, message: "최소 1명 이상이어야 합니다." },
+                      max: { value: 10, message: "최대 10명까지 입력 가능합니다." },
+                      validate: (value) => {
+                        const numValue = Number(value);
+                        if (isNaN(numValue)) return "숫자만 입력 가능합니다.";
+                        return true;
+                      }
+                    })}
+                    onChange={(e) => {
+                      const filtered = ValidationHelpers.filterNumeric(e.target.value).slice(0, 2);
+                      e.target.value = filtered;
+                    }}
+                    inputMode="numeric"
+                    placeholder="1"
+                    autoFocus
+                  />
+                  {formState.errors.outboundCarpoolSeats && <span className="field-error">{formState.errors.outboundCarpoolSeats.message}</span>}
+                </label>
+              ) : null
+            ) : null}
+
+            {/* Step: outboundCarpoolArea */}
+            {currentSteps[step] === "outboundCarpoolArea" && isLoaded ? (
+              outboundTransportation === "OWN_CAR" && outboundCarpoolAvailable ? (
+                <label className="flow-field flow-field--lg">
+                  <span>오는 길 도착 가능 지역</span>
+                  <input
+                    {...register("outboundCarpoolArea", {
+                      required: "지역을 입력해주세요.",
+                      maxLength: { value: 100, message: "100자 이하로 입력해주세요." }
+                    })}
+                    placeholder="예: 교회까지 복귀, 서울역 방향 가능"
+                    autoFocus
+                  />
+                  {formState.errors.outboundCarpoolArea && <span className="field-error">{formState.errors.outboundCarpoolArea.message}</span>}
+                </label>
+              ) : null
+            ) : null}
+
+            {/* Step: outboundCarpoolNote */}
+            {currentSteps[step] === "outboundCarpoolNote" && isLoaded ? (
+              outboundTransportation === "OWN_CAR" && outboundCarpoolAvailable ? (
+                <label className="flow-field flow-field--lg">
+                  <span>오는 길 경유 가능 지역이나 메모</span>
+                  <input
+                    {...register("outboundCarpoolNote", {
+                      maxLength: { value: 200, message: "200자 이하로 입력해주세요." }
+                    })}
+                    placeholder="예: 강남/양재 쪽 하차 가능, 중간 하차 가능"
+                    autoFocus
+                  />
+                  {formState.errors.outboundCarpoolNote && <span className="field-error">{formState.errors.outboundCarpoolNote.message}</span>}
+                </label>
+              ) : null
+            ) : null}
+
+            {/* Step: outboundCarpoolPreferredArea */}
+            {currentSteps[step] === "outboundCarpoolPreferredArea" && isLoaded ? (
+              outboundTransportation === "CARPOOL_NEEDED" ? (
+                <label className="flow-field flow-field--lg">
+                  <span>오는 길 하차 희망 지역</span>
+                  <p className="muted">정확한 자택 주소보다는 역명, 동네, 교회, 주요 건물 등으로 입력해 주세요.</p>
+                  <input
+                    {...register("outboundCarpoolPreferredArea", {
+                      required: "지역을 입력해주세요.",
+                      maxLength: { value: 100, message: "100자 이하로 입력해주세요." }
+                    })}
+                    placeholder="예: 잠실역 근처"
+                    autoFocus
+                  />
+                  {formState.errors.outboundCarpoolPreferredArea && <span className="field-error">{formState.errors.outboundCarpoolPreferredArea.message}</span>}
+                </label>
+              ) : null
+            ) : null}
+
+            {/* Step: outboundCarpoolPreferredNote */}
+            {currentSteps[step] === "outboundCarpoolPreferredNote" && isLoaded ? (
+              outboundTransportation === "CARPOOL_NEEDED" ? (
+                <label className="flow-field flow-field--lg">
+                  <span>오는 길 하차 관련 메모</span>
+                  <input
+                    {...register("outboundCarpoolPreferredNote", {
+                      maxLength: { value: 200, message: "200자 이하로 입력해주세요." }
+                    })}
+                    placeholder="예: 교회까지만 와도 괜찮음, 강남 방향이면 중간 하차 가능"
+                    autoFocus
+                  />
+                  {formState.errors.outboundCarpoolPreferredNote && <span className="field-error">{formState.errors.outboundCarpoolPreferredNote.message}</span>}
+                </label>
+              ) : null
             ) : null}
 
             {/* Step: lodgingNight1 and lodgingNight2 */}

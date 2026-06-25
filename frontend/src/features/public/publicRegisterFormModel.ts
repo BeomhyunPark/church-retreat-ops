@@ -26,9 +26,15 @@ export type RegisterFormValues = {
   inboundCarpoolAvailable?: boolean;
   inboundCarpoolSeats?: number;
   inboundCarpoolArea?: string;
+  inboundCarpoolNote?: string;
   inboundCarpoolPreferredArea?: string;
+  inboundCarpoolPreferredNote?: string;
   outboundCarpoolArea?: string;
+  outboundCarpoolNote?: string;
+  outboundCarpoolAvailable?: boolean;
+  outboundCarpoolSeats?: number;
   outboundCarpoolPreferredArea?: string;
+  outboundCarpoolPreferredNote?: string;
 };
 
 export type RegisterStep = keyof RegisterFormValues;
@@ -56,7 +62,7 @@ export function formatPhoneNumber(value: string) {
 
 export function getTransportationOptions(attendanceType: AttendanceType): TransportationMethod[] {
   if (attendanceType === "FULL") {
-    return ["GROUP_BUS", "OWN_CAR"];
+    return ["GROUP_BUS", "OWN_CAR", "PUBLIC_TRANSIT", "CARPOOL_NEEDED"];
   }
   return ["GROUP_BUS", "WORSHIP_SHUTTLE", "OWN_CAR", "PUBLIC_TRANSIT", "CARPOOL_NEEDED", "NOT_DECIDED"];
 }
@@ -86,7 +92,8 @@ export function buildRegisterSteps(
   attendanceType?: AttendanceType,
   inboundTransportation?: TransportationMethod,
   inboundCarpoolAvailable?: boolean,
-  outboundTransportation?: TransportationMethod
+  outboundTransportation?: TransportationMethod,
+  outboundCarpoolAvailable?: boolean
 ): RegisterStep[] {
   const steps: RegisterStep[] = [
     "name",
@@ -102,10 +109,19 @@ export function buildRegisterSteps(
     if (inboundTransportation === "OWN_CAR") {
       steps.push("inboundCarpoolAvailable");
       if (inboundCarpoolAvailable === true) {
-        steps.push("inboundCarpoolSeats", "inboundCarpoolArea");
+        steps.push("inboundCarpoolSeats", "inboundCarpoolArea", "inboundCarpoolNote");
       }
+      steps.push("outboundCarpoolAvailable");
+      if (outboundCarpoolAvailable === true) {
+        steps.push("outboundCarpoolSeats", "outboundCarpoolArea", "outboundCarpoolNote");
+      }
+    } else if (inboundTransportation === "CARPOOL_NEEDED") {
+      steps.push("inboundCarpoolPreferredArea", "inboundCarpoolPreferredNote", "outboundTransportationMethod");
     } else {
       steps.push("outboundTransportationMethod");
+    }
+    if (inboundTransportation !== "OWN_CAR" && outboundTransportation === "CARPOOL_NEEDED") {
+      steps.push("outboundCarpoolPreferredArea", "outboundCarpoolPreferredNote");
     }
   } else if (attendanceType === "PARTIAL") {
     steps.push("lodgingNight1", "attendDay1Morning");
@@ -154,9 +170,12 @@ export function buildRegistrationPayload(values: RegisterFormValues): Registrati
   };
 
   if (values.inboundTransportationMethod === "OWN_CAR") {
-    payload.outboundCarpoolAvailable = values.inboundCarpoolAvailable;
-    payload.outboundCarpoolSeats = values.inboundCarpoolSeats;
-    payload.outboundCarpoolArea = values.inboundCarpoolArea;
+    payload.outboundTransportationMethod = "OWN_CAR";
+    if (values.attendanceType !== "FULL") {
+      payload.outboundCarpoolAvailable = values.inboundCarpoolAvailable;
+      payload.outboundCarpoolSeats = values.inboundCarpoolSeats;
+      payload.outboundCarpoolArea = values.inboundCarpoolArea;
+    }
   }
 
   for (const direction of ["inbound", "outbound"] as const) {
@@ -165,9 +184,11 @@ export function buildRegistrationPayload(values: RegisterFormValues): Registrati
       delete payload[`${direction}CarpoolAvailable`];
       delete payload[`${direction}CarpoolSeats`];
       delete payload[`${direction}CarpoolArea`];
+      delete payload[`${direction}CarpoolNote`];
     }
     if (method !== "CARPOOL_NEEDED") {
       delete payload[`${direction}CarpoolPreferredArea`];
+      delete payload[`${direction}CarpoolPreferredNote`];
     }
   }
 

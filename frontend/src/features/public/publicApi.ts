@@ -16,11 +16,15 @@ export type RegistrationCreatePayload = {
   inboundCarpoolAvailable?: boolean;
   inboundCarpoolSeats?: number;
   inboundCarpoolArea?: string;
+  inboundCarpoolNote?: string;
   inboundCarpoolPreferredArea?: string;
+  inboundCarpoolPreferredNote?: string;
   outboundCarpoolAvailable?: boolean;
   outboundCarpoolSeats?: number;
   outboundCarpoolArea?: string;
+  outboundCarpoolNote?: string;
   outboundCarpoolPreferredArea?: string;
+  outboundCarpoolPreferredNote?: string;
   lodgingNight1?: boolean;
   lodgingNight2?: boolean;
   attendDay1Morning?: boolean;
@@ -42,6 +46,21 @@ export type RegistrationResponse = {
   churchCellDepartment?: string | null;
   feePaid: boolean;
   status: string;
+  attendanceType: "FULL" | "PARTIAL" | "WORSHIP_ONLY";
+  inboundTransportationMethod: TransportationMethod;
+  outboundTransportationMethod: TransportationMethod;
+  inboundCarpoolAvailable?: boolean | null;
+  inboundCarpoolSeats?: number | null;
+  inboundCarpoolArea?: string | null;
+  inboundCarpoolNote?: string | null;
+  inboundCarpoolPreferredArea?: string | null;
+  inboundCarpoolPreferredNote?: string | null;
+  outboundCarpoolAvailable?: boolean | null;
+  outboundCarpoolSeats?: number | null;
+  outboundCarpoolArea?: string | null;
+  outboundCarpoolNote?: string | null;
+  outboundCarpoolPreferredArea?: string | null;
+  outboundCarpoolPreferredNote?: string | null;
 };
 
 export type RegistrationCreateResponse = {
@@ -69,11 +88,15 @@ export type RegistrationSelfUpdatePayload = {
     inboundCarpoolAvailable?: boolean;
     inboundCarpoolSeats?: number;
     inboundCarpoolArea?: string;
+    inboundCarpoolNote?: string;
     inboundCarpoolPreferredArea?: string;
+    inboundCarpoolPreferredNote?: string;
     outboundCarpoolAvailable?: boolean;
     outboundCarpoolSeats?: number;
     outboundCarpoolArea?: string;
+    outboundCarpoolNote?: string;
     outboundCarpoolPreferredArea?: string;
+    outboundCarpoolPreferredNote?: string;
     lodgingNight1?: boolean;
     lodgingNight2?: boolean;
     attendDay1Morning?: boolean;

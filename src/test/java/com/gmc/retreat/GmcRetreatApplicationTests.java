@@ -734,30 +734,144 @@ class GmcRetreatApplicationTests {
         MvcResult missingSeats = createRegistration(
                 "Grace Kim",
                 "010-1234-5678",
-                Map.of("inboundTransportationMethod", "OWN_CAR", "inboundCarpoolAvailable", true, "inboundCarpoolArea", "Gangnam")
+                Map.of(
+                        "inboundTransportationMethod", "OWN_CAR",
+                        "outboundTransportationMethod", "OWN_CAR",
+                        "inboundCarpoolAvailable", true,
+                        "inboundCarpoolArea", "Gangnam",
+                        "outboundCarpoolAvailable", false
+                )
         );
         assertThat(missingSeats.getResponse().getStatus()).isEqualTo(400);
 
         MvcResult outOfRange = createRegistration(
                 "Grace Lee",
                 "010-1234-9999",
-                Map.of("inboundTransportationMethod", "OWN_CAR", "inboundCarpoolAvailable", true, "inboundCarpoolSeats", 20, "inboundCarpoolArea", "Gangnam")
+                Map.of(
+                        "inboundTransportationMethod", "OWN_CAR",
+                        "outboundTransportationMethod", "OWN_CAR",
+                        "inboundCarpoolAvailable", true,
+                        "inboundCarpoolSeats", 20,
+                        "inboundCarpoolArea", "Gangnam",
+                        "outboundCarpoolAvailable", false
+                )
         );
         assertThat(outOfRange.getResponse().getStatus()).isEqualTo(400);
 
         MvcResult missingArea = createRegistration(
                 "Grace Han",
                 "010-1234-7777",
-                Map.of("inboundTransportationMethod", "OWN_CAR", "inboundCarpoolAvailable", true, "inboundCarpoolSeats", 3)
+                Map.of(
+                        "inboundTransportationMethod", "OWN_CAR",
+                        "outboundTransportationMethod", "OWN_CAR",
+                        "inboundCarpoolAvailable", true,
+                        "inboundCarpoolSeats", 3,
+                        "outboundCarpoolAvailable", false
+                )
         );
         assertThat(missingArea.getResponse().getStatus()).isEqualTo(400);
 
         MvcResult valid = createRegistration(
                 "Grace Park",
                 "010-1234-8888",
-                Map.of("inboundTransportationMethod", "OWN_CAR", "inboundCarpoolAvailable", true, "inboundCarpoolSeats", 3, "inboundCarpoolArea", "Gangnam")
+                Map.of(
+                        "inboundTransportationMethod", "OWN_CAR",
+                        "outboundTransportationMethod", "OWN_CAR",
+                        "inboundCarpoolAvailable", true,
+                        "inboundCarpoolSeats", 3,
+                        "inboundCarpoolArea", "Gangnam",
+                        "inboundCarpoolNote", "Can stop by Jamsil",
+                        "outboundCarpoolAvailable", false
+                )
         );
         assertThat(valid.getResponse().getStatus()).isEqualTo(200);
+    }
+
+    @Test
+    void fullAttendanceRejectsOneWayOwnCarCombinations() throws Exception {
+        MvcResult ownCarOutboundBus = createRegistration(
+                "Grace Kim",
+                "010-1234-5678",
+                Map.of(
+                        "inboundTransportationMethod", "OWN_CAR",
+                        "outboundTransportationMethod", "GROUP_BUS",
+                        "inboundCarpoolAvailable", false
+                )
+        );
+        assertThat(ownCarOutboundBus.getResponse().getStatus()).isEqualTo(400);
+
+        MvcResult busOutboundOwnCar = createRegistration(
+                "Grace Lee",
+                "010-1234-9999",
+                Map.of(
+                        "inboundTransportationMethod", "GROUP_BUS",
+                        "outboundTransportationMethod", "OWN_CAR",
+                        "outboundCarpoolAvailable", false
+                )
+        );
+        assertThat(busOutboundOwnCar.getResponse().getStatus()).isEqualTo(400);
+    }
+
+    @Test
+    void fullAttendanceAcceptsSeparatedNonOwnCarTransportation() throws Exception {
+        MvcResult outboundCarpool = createRegistration(
+                "Grace Kim",
+                "010-1234-5678",
+                Map.of(
+                        "inboundTransportationMethod", "GROUP_BUS",
+                        "outboundTransportationMethod", "CARPOOL_NEEDED",
+                        "outboundCarpoolPreferredArea", "Seoul Station",
+                        "outboundCarpoolPreferredNote", "Can get off near church"
+                )
+        );
+        assertThat(outboundCarpool.getResponse().getStatus()).isEqualTo(200);
+
+        MvcResult inboundCarpool = createRegistration(
+                "Grace Lee",
+                "010-1234-9999",
+                Map.of(
+                        "inboundTransportationMethod", "CARPOOL_NEEDED",
+                        "inboundCarpoolPreferredArea", "Gangnam Station",
+                        "inboundCarpoolPreferredNote", "Available after 7pm",
+                        "outboundTransportationMethod", "PUBLIC_TRANSIT"
+                )
+        );
+        assertThat(inboundCarpool.getResponse().getStatus()).isEqualTo(200);
+    }
+
+    @Test
+    void fullAttendanceOwnCarAllowsDirectionalCarpoolOfferDetails() throws Exception {
+        MvcResult result = createRegistration(
+                "Grace Kim",
+                "010-1234-5678",
+                Map.of(
+                        "inboundTransportationMethod", "OWN_CAR",
+                        "outboundTransportationMethod", "OWN_CAR",
+                        "inboundCarpoolAvailable", true,
+                        "inboundCarpoolSeats", 2,
+                        "inboundCarpoolArea", "Church",
+                        "inboundCarpoolNote", "Can stop by Jamsil",
+                        "outboundCarpoolAvailable", true,
+                        "outboundCarpoolSeats", 1,
+                        "outboundCarpoolArea", "Seoul Station",
+                        "outboundCarpoolNote", "Large luggage, one seat only"
+                )
+        );
+        assertThat(result.getResponse().getStatus()).isEqualTo(200);
+
+        Map<String, Object> row = jdbcTemplate.queryForMap(
+                """
+                        SELECT inbound_carpool_seats, inbound_carpool_area, inbound_carpool_note,
+                               outbound_carpool_seats, outbound_carpool_area, outbound_carpool_note
+                        FROM registrations WHERE name = 'Grace Kim'
+                        """
+        );
+        assertThat(row.get("inbound_carpool_seats")).isEqualTo(2);
+        assertThat(row.get("inbound_carpool_area")).isEqualTo("Church");
+        assertThat(row.get("inbound_carpool_note")).isEqualTo("Can stop by Jamsil");
+        assertThat(row.get("outbound_carpool_seats")).isEqualTo(1);
+        assertThat(row.get("outbound_carpool_area")).isEqualTo("Seoul Station");
+        assertThat(row.get("outbound_carpool_note")).isEqualTo("Large luggage, one seat only");
     }
 
     @Test
