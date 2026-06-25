@@ -15,8 +15,12 @@ export type RegistrationCreatePayload = {
   outboundTransportationMethod: TransportationMethod;
   inboundCarpoolAvailable?: boolean;
   inboundCarpoolSeats?: number;
+  inboundCarpoolArea?: string;
+  inboundCarpoolPreferredArea?: string;
   outboundCarpoolAvailable?: boolean;
   outboundCarpoolSeats?: number;
+  outboundCarpoolArea?: string;
+  outboundCarpoolPreferredArea?: string;
   lodgingNight1?: boolean;
   lodgingNight2?: boolean;
   attendDay1Morning?: boolean;
@@ -64,8 +68,12 @@ export type RegistrationSelfUpdatePayload = {
     outboundTransportationMethod: TransportationMethod;
     inboundCarpoolAvailable?: boolean;
     inboundCarpoolSeats?: number;
+    inboundCarpoolArea?: string;
+    inboundCarpoolPreferredArea?: string;
     outboundCarpoolAvailable?: boolean;
     outboundCarpoolSeats?: number;
+    outboundCarpoolArea?: string;
+    outboundCarpoolPreferredArea?: string;
     lodgingNight1?: boolean;
     lodgingNight2?: boolean;
     attendDay1Morning?: boolean;
