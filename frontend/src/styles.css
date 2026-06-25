@@ -573,7 +573,7 @@ h2 {
   font-weight: 700;
 }
 
-.flow-field--lg input {
+.flow-field--lg input:not([type="checkbox"]) {
   border-bottom: 2px solid #176b5b !important;
   font-size: 1.6rem !important;
   height: 56px !important;
@@ -1588,10 +1588,14 @@ th {
 }
 
 .option-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.6rem;
   margin: 0.5rem 0;
+}
+
+.option-card:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
 }
 
 .option-card {
@@ -1600,10 +1604,10 @@ th {
   border-radius: 8px;
   color: var(--color-text);
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   font-weight: 600;
-  min-height: 56px;
-  padding: 1rem 1.25rem;
+  min-height: 48px;
+  padding: 0.7rem 0.85rem;
   text-align: center;
   transition:
     all 200ms ease,
@@ -1627,7 +1631,7 @@ th {
 
 .check-grid {
   display: grid;
-  gap: 1.5rem;
+  gap: 1.1rem;
   grid-template-columns: 1fr;
   padding: 1rem 0;
 }
@@ -1659,6 +1663,65 @@ th {
 }
 
 .check-row input:disabled + span {
+  color: var(--color-muted);
+}
+
+/* Compact toggle-chip variant, used for multi-select schedule/lodging
+   checkboxes instead of a vertical checkbox list (fewer, denser rows) */
+.check-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.check-chip {
+  align-items: center;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 0.4rem;
+  min-height: 40px;
+  padding: 0.5rem 1rem;
+  position: relative;
+  transition: all 200ms ease;
+}
+
+.check-chip:hover {
+  border-color: var(--color-primary);
+}
+
+.check-chip:has(input:checked) {
+  background: linear-gradient(135deg, #f0faf8 0%, #e8f7f3 100%);
+  border-color: var(--color-primary);
+  color: var(--color-primary-dark);
+  font-weight: 700;
+}
+
+.check-chip:has(input:focus-visible) {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.check-chip:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.check-chip input {
+  /* visually hidden but still focusable/clickable via the wrapping label */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.check-chip input:disabled + span {
   color: var(--color-muted);
 }
 

@@ -30,9 +30,13 @@ public record RegistrationResponse(
         TransportationMethod inboundTransportationMethod,
         Boolean inboundCarpoolAvailable,
         Integer inboundCarpoolSeats,
+        String inboundCarpoolArea,
+        String inboundCarpoolPreferredArea,
         TransportationMethod outboundTransportationMethod,
         Boolean outboundCarpoolAvailable,
-        Integer outboundCarpoolSeats
+        Integer outboundCarpoolSeats,
+        String outboundCarpoolArea,
+        String outboundCarpoolPreferredArea
 ) {
     public static RegistrationResponse from(Registration registration) {
         return new RegistrationResponse(
@@ -58,9 +62,13 @@ public record RegistrationResponse(
                 registration.inboundTransportationMethod(),
                 registration.inboundCarpoolAvailable(),
                 registration.inboundCarpoolSeats(),
+                registration.inboundCarpoolArea(),
+                registration.inboundCarpoolPreferredArea(),
                 registration.outboundTransportationMethod(),
                 registration.outboundCarpoolAvailable(),
-                registration.outboundCarpoolSeats()
+                registration.outboundCarpoolSeats(),
+                registration.outboundCarpoolArea(),
+                registration.outboundCarpoolPreferredArea()
         );
     }
 }

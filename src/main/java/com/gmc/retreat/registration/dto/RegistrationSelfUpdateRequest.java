@@ -33,12 +33,16 @@ public record RegistrationSelfUpdateRequest(
             Boolean attendDay2Worship,
             Boolean attendDay3Morning,
             Boolean attendDay3Afternoon,
-            @NotNull TransportationMethod inboundTransportation,
+            @NotNull TransportationMethod inboundTransportationMethod,
             Boolean inboundCarpoolAvailable,
             @Min(1) @Max(10) Integer inboundCarpoolSeats,
-            @NotNull TransportationMethod outboundTransportation,
+            @Size(max = 100) String inboundCarpoolArea,
+            @Size(max = 100) String inboundCarpoolPreferredArea,
+            @NotNull TransportationMethod outboundTransportationMethod,
             Boolean outboundCarpoolAvailable,
-            @Min(1) @Max(10) Integer outboundCarpoolSeats
+            @Min(1) @Max(10) Integer outboundCarpoolSeats,
+            @Size(max = 100) String outboundCarpoolArea,
+            @Size(max = 100) String outboundCarpoolPreferredArea
     ) {
     }
 }

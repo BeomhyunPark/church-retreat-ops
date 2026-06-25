@@ -41,8 +41,12 @@ public record Registration(
         TransportationMethod inboundTransportationMethod,
         Boolean inboundCarpoolAvailable,
         Integer inboundCarpoolSeats,
+        String inboundCarpoolArea,
+        String inboundCarpoolPreferredArea,
         TransportationMethod outboundTransportationMethod,
         Boolean outboundCarpoolAvailable,
-        Integer outboundCarpoolSeats
+        Integer outboundCarpoolSeats,
+        String outboundCarpoolArea,
+        String outboundCarpoolPreferredArea
 ) {
 }

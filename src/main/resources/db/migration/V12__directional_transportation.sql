@@ -8,10 +8,20 @@ ALTER TABLE registrations
     ADD COLUMN outbound_carpool_seats SMALLINT;
 
 -- Backfill from existing single transportation_method field (V11)
--- Both inbound and outbound use the same value as the original transportation_method
+-- Both inbound and outbound use the same value as the original transportation_method,
+-- remapped to the renamed enum values used by the new directional columns
+-- (BUS -> GROUP_BUS, RIDE_NEEDED -> CARPOOL_NEEDED)
 UPDATE registrations
-SET inbound_transportation_method = transportation_method,
-    outbound_transportation_method = transportation_method,
+SET inbound_transportation_method = CASE transportation_method
+        WHEN 'BUS' THEN 'GROUP_BUS'
+        WHEN 'RIDE_NEEDED' THEN 'CARPOOL_NEEDED'
+        ELSE transportation_method
+    END,
+    outbound_transportation_method = CASE transportation_method
+        WHEN 'BUS' THEN 'GROUP_BUS'
+        WHEN 'RIDE_NEEDED' THEN 'CARPOOL_NEEDED'
+        ELSE transportation_method
+    END,
     inbound_carpool_available = carpool_available,
     outbound_carpool_available = carpool_available,
     inbound_carpool_seats = carpool_seats,

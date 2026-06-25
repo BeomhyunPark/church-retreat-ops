@@ -36,8 +36,6 @@ type FormValues = {
   outboundTransportationMethod: TransportationMethod;
   inboundCarpoolAvailable?: boolean;
   inboundCarpoolSeats?: number;
-  outboundCarpoolAvailable?: boolean;
-  outboundCarpoolSeats?: number;
   lodgingNight1?: boolean;
   lodgingNight2?: boolean;
   attendDay1Morning?: boolean;
@@ -93,9 +91,7 @@ function buildSteps(
   isLoaded: boolean,
   attendanceType?: AttendanceType,
   inboundTransportation?: TransportationMethod,
-  inboundCarpoolAvailable?: boolean,
-  outboundTransportation?: TransportationMethod,
-  outboundCarpoolAvailable?: boolean
+  inboundCarpoolAvailable?: boolean
 ): Array<keyof FormValues> {
   // Initial lookup steps
   const lookupSteps: Array<keyof FormValues> = ["name", "phoneLastFour", "lookupKey"];
@@ -122,13 +118,10 @@ function buildSteps(
       if (inboundCarpoolAvailable === true) {
         steps.push("inboundCarpoolSeats");
       }
-    }
-    steps.push("outboundTransportationMethod");
-    if (outboundTransportation === "OWN_CAR") {
-      steps.push("outboundCarpoolAvailable");
-      if (outboundCarpoolAvailable === true) {
-        steps.push("outboundCarpoolSeats");
-      }
+    } else {
+      // Driving yourself there means driving yourself back - outbound is only
+      // asked when you didn't bring your own car inbound
+      steps.push("outboundTransportationMethod");
     }
   } else if (attendanceType === "PARTIAL") {
     // PARTIAL: 숙박 + 일정 + 교통수단
@@ -139,13 +132,8 @@ function buildSteps(
       if (inboundCarpoolAvailable === true) {
         steps.push("inboundCarpoolSeats");
       }
-    }
-    steps.push("outboundTransportationMethod");
-    if (outboundTransportation === "OWN_CAR") {
-      steps.push("outboundCarpoolAvailable");
-      if (outboundCarpoolAvailable === true) {
-        steps.push("outboundCarpoolSeats");
-      }
+    } else {
+      steps.push("outboundTransportationMethod");
     }
   } else {
     // WORSHIP_ONLY: 집회 차량 또는 자차
@@ -156,13 +144,8 @@ function buildSteps(
       if (inboundCarpoolAvailable === true) {
         steps.push("inboundCarpoolSeats");
       }
-    }
-    steps.push("outboundTransportationMethod");
-    if (outboundTransportation === "OWN_CAR") {
-      steps.push("outboundCarpoolAvailable");
-      if (outboundCarpoolAvailable === true) {
-        steps.push("outboundCarpoolSeats");
-      }
+    } else {
+      steps.push("outboundTransportationMethod");
     }
   }
 
@@ -196,9 +179,7 @@ export function PublicSelfEditPage() {
       attendDay2Afternoon: false,
       attendDay2Worship: false,
       attendDay3Morning: false,
-      attendDay3Afternoon: false,
-      inboundCarpoolAvailable: false,
-      outboundCarpoolAvailable: false
+      attendDay3Afternoon: false
     }
   });
 
@@ -233,48 +214,59 @@ export function PublicSelfEditPage() {
   const inboundTransportation = watch("inboundTransportationMethod");
   const outboundTransportation = watch("outboundTransportationMethod");
   const inboundCarpoolAvailable = watch("inboundCarpoolAvailable");
-  const outboundCarpoolAvailable = watch("outboundCarpoolAvailable");
   const gender = watch("gender");
 
-  const currentSteps = buildSteps(
-    isLoaded,
-    attendanceType,
-    inboundTransportation,
-    inboundCarpoolAvailable,
-    outboundTransportation,
-    outboundCarpoolAvailable
-  );
-  const isLastStep = step === currentSteps.length - 1;
+  const currentSteps = buildSteps(isLoaded, attendanceType, inboundTransportation, inboundCarpoolAvailable);
+  // attendanceType is never truly the last step: every attendance type leads to
+  // at least an inboundTransportationMethod step once chosen, so treat it as
+  // not-last even before a choice is made (avoids flipping the action button
+  // to the submit button while this required field is still empty).
+  const isLastStep = step === currentSteps.length - 1 && currentSteps[step] !== "attendanceType";
 
 
   function onSubmit(values: FormValues) {
+    // Outbound carpool mirrors inbound: it's the same car making the same trip back
+    const isInboundOwnCar = values.inboundTransportationMethod === "OWN_CAR";
+
+    const update: any = {
+      gender: values.gender,
+      birthYear: values.birthYear,
+      phoneNumber: values.phoneNumber,
+      churchCellDepartment: values.churchCellDepartment,
+      attendanceType: values.attendanceType,
+      inboundTransportationMethod: values.inboundTransportationMethod,
+      outboundTransportationMethod: values.outboundTransportationMethod,
+      inboundCarpoolAvailable: values.inboundCarpoolAvailable,
+      inboundCarpoolSeats: values.inboundCarpoolSeats,
+      outboundCarpoolAvailable: isInboundOwnCar ? values.inboundCarpoolAvailable : undefined,
+      outboundCarpoolSeats: isInboundOwnCar ? values.inboundCarpoolSeats : undefined,
+      lodgingNight1: values.lodgingNight1,
+      lodgingNight2: values.lodgingNight2,
+      attendDay1Morning: values.attendDay1Morning,
+      attendDay1Afternoon: values.attendDay1Afternoon,
+      attendDay1Worship: values.attendDay1Worship,
+      attendDay2Morning: values.attendDay2Morning,
+      attendDay2Afternoon: values.attendDay2Afternoon,
+      attendDay2Worship: values.attendDay2Worship,
+      attendDay3Morning: values.attendDay3Morning,
+      attendDay3Afternoon: values.attendDay3Afternoon
+    };
+
+    // Strip carpool fields that don't apply to the final transportation choice for
+    // each direction - a leftover value from an earlier choice would otherwise get
+    // sent and rejected by the backend
+    for (const direction of ["inbound", "outbound"] as const) {
+      if (update[`${direction}TransportationMethod`] !== "OWN_CAR") {
+        delete update[`${direction}CarpoolAvailable`];
+        delete update[`${direction}CarpoolSeats`];
+      }
+    }
+
     const payload: RegistrationSelfUpdatePayload = {
       name: values.name,
       phoneLastFour: values.phoneLastFour,
       lookupKey: values.lookupKey,
-      update: {
-        gender: values.gender,
-        birthYear: values.birthYear,
-        phoneNumber: values.phoneNumber,
-        churchCellDepartment: values.churchCellDepartment,
-        attendanceType: values.attendanceType,
-        inboundTransportationMethod: values.inboundTransportationMethod,
-        outboundTransportationMethod: values.outboundTransportationMethod,
-        inboundCarpoolAvailable: values.inboundCarpoolAvailable,
-        inboundCarpoolSeats: values.inboundCarpoolSeats,
-        outboundCarpoolAvailable: values.outboundCarpoolAvailable,
-        outboundCarpoolSeats: values.outboundCarpoolSeats,
-        lodgingNight1: values.lodgingNight1,
-        lodgingNight2: values.lodgingNight2,
-        attendDay1Morning: values.attendDay1Morning,
-        attendDay1Afternoon: values.attendDay1Afternoon,
-        attendDay1Worship: values.attendDay1Worship,
-        attendDay2Morning: values.attendDay2Morning,
-        attendDay2Afternoon: values.attendDay2Afternoon,
-        attendDay2Worship: values.attendDay2Worship,
-        attendDay3Morning: values.attendDay3Morning,
-        attendDay3Afternoon: values.attendDay3Afternoon
-      }
+      update
     };
 
     // For FULL attendance, remove survey-related fields
@@ -427,6 +419,9 @@ export function PublicSelfEditPage() {
                 <span>비밀번호 (숫자 6자리)</span>
                 <input
                   {...register("lookupKey", { required: true, pattern: /^[0-9]{6}$/ })}
+                  onChange={(e) => {
+                    e.target.value = ValidationHelpers.filterNumeric(e.target.value).slice(0, 6);
+                  }}
                   inputMode="numeric"
                   maxLength={6}
                   placeholder="예: 123456"
@@ -457,8 +452,6 @@ export function PublicSelfEditPage() {
                         setValue("outboundTransportationMethod", undefined as any);
                         setValue("inboundCarpoolAvailable", false);
                         setValue("inboundCarpoolSeats", undefined);
-                        setValue("outboundCarpoolAvailable", false);
-                        setValue("outboundCarpoolSeats", undefined);
                         setValue("lodgingNight1", false);
                         setValue("lodgingNight2", false);
                         // 집회만 선택시 다른 일정은 자동으로 false
@@ -508,9 +501,16 @@ export function PublicSelfEditPage() {
                       }
                       onClick={() => {
                         setValue("inboundTransportationMethod", method, { shouldValidate: true });
-                        if (method !== "OWN_CAR") {
+                        if (method === "OWN_CAR") {
+                          // Same car goes back - outbound is decided, no need to ask again
+                          setValue("outboundTransportationMethod", "OWN_CAR", { shouldValidate: true });
+                        } else {
                           setValue("inboundCarpoolAvailable", false);
                           setValue("inboundCarpoolSeats", undefined);
+                          // Car isn't there for the return trip - clear a stale OWN_CAR pick
+                          if (outboundTransportation === "OWN_CAR") {
+                            setValue("outboundTransportationMethod", undefined as any);
+                          }
                         }
                       }}
                     >
@@ -556,7 +556,7 @@ export function PublicSelfEditPage() {
                     네
                   </button>
                 </div>
-                <input type="hidden" {...register("inboundCarpoolAvailable")} />
+                <input type="hidden" {...register("inboundCarpoolAvailable", { validate: (value) => value !== undefined })} />
               </div>
             ) : null}
 
@@ -596,111 +596,42 @@ export function PublicSelfEditPage() {
                 <span>어떻게 돌아가세요? (아웃바운드)</span>
                 <span className="direction-label">돌아갈 때</span>
                 <div className="option-cards" role="radiogroup" aria-label="아웃바운드 이동 방식">
-                  {getTransportationOptions(attendanceType).map((method) => (
-                    <button
-                      key={method}
-                      type="button"
-                      className={
-                        outboundTransportation === method
-                          ? "option-card option-card--active"
-                          : "option-card"
-                      }
-                      onClick={() => {
-                        setValue("outboundTransportationMethod", method, { shouldValidate: true });
-                        if (method !== "OWN_CAR") {
-                          setValue("outboundCarpoolAvailable", false);
-                          setValue("outboundCarpoolSeats", undefined);
+                  {/* OWN_CAR isn't offered here: if your car isn't there, you can't drive it back */}
+                  {getTransportationOptions(attendanceType)
+                    .filter((method) => method !== "OWN_CAR")
+                    .map((method) => (
+                      <button
+                        key={method}
+                        type="button"
+                        className={
+                          outboundTransportation === method
+                            ? "option-card option-card--active"
+                            : "option-card"
                         }
-                      }}
-                    >
-                      {getTransportationLabel(method)}
-                    </button>
-                  ))}
+                        onClick={() => {
+                          setValue("outboundTransportationMethod", method, { shouldValidate: true });
+                        }}
+                      >
+                        {getTransportationLabel(method)}
+                      </button>
+                    ))}
                 </div>
                 <input type="hidden" {...register("outboundTransportationMethod", { required: true })} />
               </div>
-            ) : null}
-
-            {/* Step: outboundCarpoolAvailable */}
-            {currentSteps[step] === "outboundCarpoolAvailable" && outboundTransportation === "OWN_CAR" && isLoaded ? (
-              <div className="flow-field flow-field--lg">
-                <span>동승자 탈 수 있어요? (아웃바운드)</span>
-                <span className="direction-label">돌아갈 때</span>
-                <div className="segmented" role="radiogroup" aria-label="아웃바운드 동승자 여부">
-                  <span
-                    className={outboundCarpoolAvailable !== undefined ? "segmented__pill segmented__pill--active" : "segmented__pill"}
-                    style={
-                      outboundCarpoolAvailable === true
-                        ? { left: "50%", width: "calc(50% - 0.25rem)" }
-                        : outboundCarpoolAvailable === false
-                          ? { left: "0.25rem", width: "calc(50% - 0.25rem)" }
-                          : { left: "50%", width: "2px", transform: "translateX(-1px)" }
-                    }
-                  />
-                  <button
-                    type="button"
-                    className={outboundCarpoolAvailable === false ? "segmented__option segmented__option--active" : "segmented__option"}
-                    onClick={() => {
-                      setValue("outboundCarpoolAvailable", false, { shouldValidate: true });
-                      setValue("outboundCarpoolSeats", undefined);
-                    }}
-                  >
-                    아니오
-                  </button>
-                  <button
-                    type="button"
-                    className={outboundCarpoolAvailable === true ? "segmented__option segmented__option--active" : "segmented__option"}
-                    onClick={() => setValue("outboundCarpoolAvailable", true, { shouldValidate: true })}
-                  >
-                    네
-                  </button>
-                </div>
-                <input type="hidden" {...register("outboundCarpoolAvailable")} />
-              </div>
-            ) : null}
-
-            {/* Step: outboundCarpoolSeats */}
-            {currentSteps[step] === "outboundCarpoolSeats" && isLoaded ? (
-              outboundTransportation === "OWN_CAR" && outboundCarpoolAvailable ? (
-                <label className="flow-field flow-field--lg">
-                  <span>몇 명까지 가능해요? (아웃바운드)</span>
-                  <span className="direction-label">돌아갈 때</span>
-                  <input
-                    {...register("outboundCarpoolSeats", {
-                      required: "동승자 수를 입력해주세요.",
-                      min: { value: 1, message: "최소 1명 이상이어야 합니다." },
-                      max: { value: 10, message: "최대 10명까지 입력 가능합니다." },
-                      validate: (value) => {
-                        const numValue = parseInt(value as any, 10);
-                        if (isNaN(numValue)) return "숫자만 입력 가능합니다.";
-                        return true;
-                      }
-                    })}
-                    onChange={(e) => {
-                      const filtered = ValidationHelpers.filterNumeric(e.target.value).slice(0, 2);
-                      e.target.value = filtered;
-                    }}
-                    inputMode="numeric"
-                    placeholder="1"
-                    autoFocus
-                  />
-                  {formState.errors.outboundCarpoolSeats && <span className="field-error">{formState.errors.outboundCarpoolSeats.message}</span>}
-                </label>
-              ) : null
             ) : null}
 
             {/* Step: lodgingNight1 and lodgingNight2 */}
             {currentSteps[step] === "lodgingNight1" && attendanceType === "PARTIAL" && isLoaded ? (
               <div className="flow-field flow-field--lg">
                 <span>숙박</span>
-                <div>
-                  <label className="check-row">
+                <div className="check-chip-row">
+                  <label className="check-chip">
                     <input {...register("lodgingNight1")} type="checkbox" />
-                    <span>첫째 밤 (금요일)</span>
+                    <span>첫째 밤</span>
                   </label>
-                  <label className="check-row">
+                  <label className="check-chip">
                     <input {...register("lodgingNight2")} type="checkbox" />
-                    <span>둘째 밤 (토요일)</span>
+                    <span>둘째 밤</span>
                   </label>
                 </div>
               </div>
@@ -715,63 +646,73 @@ export function PublicSelfEditPage() {
                     <p className="checklist-note">집회 시간만 참석합니다</p>
                     <div className="check-grid">
                       <div>
-                        <h3 className="checklist-day-label">금요일 (Day 1)</h3>
-                        <label className="check-row">
-                          <input {...register("attendDay1Worship")} type="checkbox" disabled={true} checked={true} readOnly={true} />
-                          <span className="disabled-text">집회</span>
-                        </label>
+                        <h3 className="checklist-day-label">Day 1</h3>
+                        <div className="check-chip-row">
+                          <label className="check-chip">
+                            <input {...register("attendDay1Worship")} type="checkbox" disabled={true} checked={true} readOnly={true} />
+                            <span className="disabled-text">집회</span>
+                          </label>
+                        </div>
                       </div>
                       <div>
-                        <h3 className="checklist-day-label">토요일 (Day 2)</h3>
-                        <label className="check-row">
-                          <input {...register("attendDay2Worship")} type="checkbox" disabled={true} checked={true} readOnly={true} />
-                          <span className="disabled-text">집회</span>
-                        </label>
+                        <h3 className="checklist-day-label">Day 2</h3>
+                        <div className="check-chip-row">
+                          <label className="check-chip">
+                            <input {...register("attendDay2Worship")} type="checkbox" disabled={true} checked={true} readOnly={true} />
+                            <span className="disabled-text">집회</span>
+                          </label>
+                        </div>
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div className="check-grid">
                     <div>
-                      <h3 className="checklist-day-label">금요일 (Day 1)</h3>
-                      <label className="check-row">
-                        <input {...register("attendDay1Morning")} type="checkbox" />
-                        <span>아침</span>
-                      </label>
-                      <label className="check-row">
-                        <input {...register("attendDay1Afternoon")} type="checkbox" />
-                        <span>오후</span>
-                      </label>
-                      <label className="check-row">
-                        <input {...register("attendDay1Worship")} type="checkbox" />
-                        <span>집회</span>
-                      </label>
+                      <h3 className="checklist-day-label">Day 1</h3>
+                      <div className="check-chip-row">
+                        <label className="check-chip">
+                          <input {...register("attendDay1Morning")} type="checkbox" />
+                          <span>오전</span>
+                        </label>
+                        <label className="check-chip">
+                          <input {...register("attendDay1Afternoon")} type="checkbox" />
+                          <span>오후</span>
+                        </label>
+                        <label className="check-chip">
+                          <input {...register("attendDay1Worship")} type="checkbox" />
+                          <span>집회</span>
+                        </label>
+                      </div>
                     </div>
                     <div>
-                      <h3 className="checklist-day-label">토요일 (Day 2)</h3>
-                      <label className="check-row">
-                        <input {...register("attendDay2Morning")} type="checkbox" />
-                        <span>아침</span>
-                      </label>
-                      <label className="check-row">
-                        <input {...register("attendDay2Afternoon")} type="checkbox" />
-                        <span>오후</span>
-                      </label>
-                      <label className="check-row">
-                        <input {...register("attendDay2Worship")} type="checkbox" />
-                        <span>예배</span>
-                      </label>
+                      <h3 className="checklist-day-label">Day 2</h3>
+                      <div className="check-chip-row">
+                        <label className="check-chip">
+                          <input {...register("attendDay2Morning")} type="checkbox" />
+                          <span>오전</span>
+                        </label>
+                        <label className="check-chip">
+                          <input {...register("attendDay2Afternoon")} type="checkbox" />
+                          <span>오후</span>
+                        </label>
+                        <label className="check-chip">
+                          <input {...register("attendDay2Worship")} type="checkbox" />
+                          <span>집회</span>
+                        </label>
+                      </div>
                     </div>
                     <div>
-                      <h3 className="checklist-day-label">일요일 (Day 3)</h3>
-                      <label className="check-row">
-                        <input {...register("attendDay3Morning")} type="checkbox" />
-                        <span>아침</span>
-                      </label>
-                      <label className="check-row">
-                        <input {...register("attendDay3Afternoon")} type="checkbox" />
-                        <span>오후</span>
-                      </label>
+                      <h3 className="checklist-day-label">Day 3</h3>
+                      <div className="check-chip-row">
+                        <label className="check-chip">
+                          <input {...register("attendDay3Morning")} type="checkbox" />
+                          <span>오전</span>
+                        </label>
+                        <label className="check-chip">
+                          <input {...register("attendDay3Afternoon")} type="checkbox" />
+                          <span>오후</span>
+                        </label>
+                      </div>
                     </div>
                   </div>
                 )}

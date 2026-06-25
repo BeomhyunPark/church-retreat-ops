@@ -710,7 +710,7 @@ class GmcRetreatApplicationTests {
         MvcResult result = createRegistration(
                 "Grace Kim",
                 "010-1234-5678",
-                Map.of("inboundTransportation", "OWN_CAR")
+                Map.of("inboundTransportationMethod", "OWN_CAR")
         );
         assertThat(result.getResponse().getStatus()).isEqualTo(400);
         JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
@@ -722,7 +722,7 @@ class GmcRetreatApplicationTests {
         MvcResult result = createRegistration(
                 "Grace Kim",
                 "010-1234-5678",
-                Map.of("inboundTransportation", "CARPOOL_NEEDED", "inboundCarpoolSeats", 2)
+                Map.of("inboundTransportationMethod", "CARPOOL_NEEDED", "inboundCarpoolSeats", 2)
         );
         assertThat(result.getResponse().getStatus()).isEqualTo(400);
         JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
@@ -734,21 +734,45 @@ class GmcRetreatApplicationTests {
         MvcResult missingSeats = createRegistration(
                 "Grace Kim",
                 "010-1234-5678",
-                Map.of("inboundTransportation", "OWN_CAR", "inboundCarpoolAvailable", true)
+                Map.of("inboundTransportationMethod", "OWN_CAR", "inboundCarpoolAvailable", true, "inboundCarpoolArea", "Gangnam")
         );
         assertThat(missingSeats.getResponse().getStatus()).isEqualTo(400);
 
         MvcResult outOfRange = createRegistration(
                 "Grace Lee",
                 "010-1234-9999",
-                Map.of("inboundTransportation", "OWN_CAR", "inboundCarpoolAvailable", true, "inboundCarpoolSeats", 20)
+                Map.of("inboundTransportationMethod", "OWN_CAR", "inboundCarpoolAvailable", true, "inboundCarpoolSeats", 20, "inboundCarpoolArea", "Gangnam")
         );
         assertThat(outOfRange.getResponse().getStatus()).isEqualTo(400);
+
+        MvcResult missingArea = createRegistration(
+                "Grace Han",
+                "010-1234-7777",
+                Map.of("inboundTransportationMethod", "OWN_CAR", "inboundCarpoolAvailable", true, "inboundCarpoolSeats", 3)
+        );
+        assertThat(missingArea.getResponse().getStatus()).isEqualTo(400);
 
         MvcResult valid = createRegistration(
                 "Grace Park",
                 "010-1234-8888",
-                Map.of("inboundTransportation", "OWN_CAR", "inboundCarpoolAvailable", true, "inboundCarpoolSeats", 3)
+                Map.of("inboundTransportationMethod", "OWN_CAR", "inboundCarpoolAvailable", true, "inboundCarpoolSeats", 3, "inboundCarpoolArea", "Gangnam")
+        );
+        assertThat(valid.getResponse().getStatus()).isEqualTo(200);
+    }
+
+    @Test
+    void carpoolNeededRequiresPreferredArea() throws Exception {
+        MvcResult missingPreferredArea = createRegistration(
+                "Grace Choi",
+                "010-1234-6666",
+                Map.of("inboundTransportationMethod", "CARPOOL_NEEDED")
+        );
+        assertThat(missingPreferredArea.getResponse().getStatus()).isEqualTo(400);
+
+        MvcResult valid = createRegistration(
+                "Grace Yoon",
+                "010-1234-4444",
+                Map.of("inboundTransportationMethod", "CARPOOL_NEEDED", "inboundCarpoolPreferredArea", "Gangnam")
         );
         assertThat(valid.getResponse().getStatus()).isEqualTo(200);
     }
@@ -758,7 +782,7 @@ class GmcRetreatApplicationTests {
         MvcResult result = createRegistration(
                 "Grace Kim",
                 "010-1234-5678",
-                Map.of("inboundTransportation", "GROUP_BUS", "inboundCarpoolAvailable", true, "inboundCarpoolSeats", 2)
+                Map.of("inboundTransportationMethod", "GROUP_BUS", "inboundCarpoolAvailable", true, "inboundCarpoolSeats", 2)
         );
         assertThat(result.getResponse().getStatus()).isEqualTo(400);
         JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
@@ -776,8 +800,8 @@ class GmcRetreatApplicationTests {
                                 "010-1234-5678",
                                 Map.of(
                                         "attendanceType", "PARTIAL",
-                                        "inboundTransportation", "PUBLIC_TRANSIT",
-                                        "outboundTransportation", "PUBLIC_TRANSIT",
+                                        "inboundTransportationMethod", "PUBLIC_TRANSIT",
+                                        "outboundTransportationMethod", "PUBLIC_TRANSIT",
                                         "lodgingNight1", true,
                                         "attendDay1Morning", true
                                 )
@@ -2665,8 +2689,8 @@ class GmcRetreatApplicationTests {
                 Map.entry("privacyConsentAgreed", privacyConsentAgreed),
                 Map.entry("lookupKey", DEFAULT_LOOKUP_KEY),
                 Map.entry("attendanceType", "FULL"),
-                Map.entry("inboundTransportation", "GROUP_BUS"),
-                Map.entry("outboundTransportation", "GROUP_BUS")
+                Map.entry("inboundTransportationMethod", "GROUP_BUS"),
+                Map.entry("outboundTransportationMethod", "GROUP_BUS")
         ));
     }
 
@@ -2684,19 +2708,19 @@ class GmcRetreatApplicationTests {
         body.put("privacyConsentAgreed", true);
         body.put("lookupKey", DEFAULT_LOOKUP_KEY);
         body.put("attendanceType", "FULL");
-        body.put("inboundTransportation", "GROUP_BUS");
-        body.put("outboundTransportation", "GROUP_BUS");
+        body.put("inboundTransportationMethod", "GROUP_BUS");
+        body.put("outboundTransportationMethod", "GROUP_BUS");
         body.putAll(attendanceOverrides);
         // Sync directional transportation if inbound/outbound overridden
-        if (attendanceOverrides.containsKey("inboundTransportation")) {
+        if (attendanceOverrides.containsKey("inboundTransportationMethod")) {
             // inbound already overridden
         } else {
-            body.putIfAbsent("inboundTransportation", "GROUP_BUS");
+            body.putIfAbsent("inboundTransportationMethod", "GROUP_BUS");
         }
-        if (attendanceOverrides.containsKey("outboundTransportation")) {
+        if (attendanceOverrides.containsKey("outboundTransportationMethod")) {
             // outbound already overridden
         } else {
-            body.putIfAbsent("outboundTransportation", "GROUP_BUS");
+            body.putIfAbsent("outboundTransportationMethod", "GROUP_BUS");
         }
         return objectMapper.writeValueAsString(body);
     }
@@ -2716,15 +2740,15 @@ class GmcRetreatApplicationTests {
         update.put("phoneNumber", phoneNumber);
         update.put("churchCellDepartment", "Updated Cell");
         update.put("attendanceType", "FULL");
-        update.put("inboundTransportation", "GROUP_BUS");
-        update.put("outboundTransportation", "GROUP_BUS");
+        update.put("inboundTransportationMethod", "GROUP_BUS");
+        update.put("outboundTransportationMethod", "GROUP_BUS");
         update.putAll(attendanceOverrides);
         // Ensure directional transportation fields are set
-        if (!attendanceOverrides.containsKey("inboundTransportation")) {
-            update.putIfAbsent("inboundTransportation", "GROUP_BUS");
+        if (!attendanceOverrides.containsKey("inboundTransportationMethod")) {
+            update.putIfAbsent("inboundTransportationMethod", "GROUP_BUS");
         }
-        if (!attendanceOverrides.containsKey("outboundTransportation")) {
-            update.putIfAbsent("outboundTransportation", "GROUP_BUS");
+        if (!attendanceOverrides.containsKey("outboundTransportationMethod")) {
+            update.putIfAbsent("outboundTransportationMethod", "GROUP_BUS");
         }
 
         Map<String, Object> body = new LinkedHashMap<>();
