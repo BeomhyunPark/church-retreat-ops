@@ -10,12 +10,21 @@ Content-Type: application/json
   "birthYear": 1991,
   "phoneNumber": "010-1234-5678",
   "churchCellDepartment": "Young Adults",
-  "privacyConsentAgreed": true
+  "privacyConsentAgreed": true,
+  "lookupKey": "123456",
+  "attendanceType": "FULL",
+  "inboundTransportationMethod": "OWN_CAR",
+  "outboundTransportationMethod": "OWN_CAR",
+  "inboundCarpoolAvailable": true,
+  "inboundCarpoolSeats": 2,
+  "inboundCarpoolArea": "교회에서 출발",
+  "inboundCarpoolRouteArea": "잠실 경유 가능",
+  "outboundCarpoolAvailable": false
 }
 
 > {%
     client.global.set("participantId", response.body.data.registration.id);
-    client.global.set("participantLookupKey", response.body.data.lookupKey);
+    client.global.set("participantLookupKey", "123456");
 %}
 
 ### Self lookup
@@ -24,7 +33,6 @@ Content-Type: application/json
 
 {
   "name": "Grace Kim",
-  "phoneLastFour": "5678",
   "lookupKey": "{{participantLookupKey}}"
 }
 
@@ -40,6 +48,16 @@ Content-Type: application/json
     "gender": "FEMALE",
     "birthYear": 1992,
     "phoneNumber": "010-9999-0000",
-    "churchCellDepartment": "Updated Cell"
+    "churchCellDepartment": "Updated Cell",
+    "attendanceType": "PARTIAL",
+    "plannedArrivalAt": "2026-08-01T19:00:00+09:00",
+    "plannedDepartureAt": "2026-08-02T21:00:00+09:00",
+    "partialAttendanceNote": "둘째 날 집회 후 귀가",
+    "lodgingNight1": true,
+    "inboundTransportationMethod": "WORSHIP_SHUTTLE",
+    "inboundWorshipBusRideSlot": "DAY1_BEFORE_WORSHIP",
+    "outboundTransportationMethod": "CARPOOL_NEEDED",
+    "outboundCarpoolPreferredArea": "서울역 근처",
+    "outboundCarpoolPreferredNote": "교회까지만 와도 괜찮음"
   }
 }

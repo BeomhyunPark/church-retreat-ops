@@ -28,6 +28,9 @@ public record Registration(
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
         AttendanceType attendanceType,
+        OffsetDateTime plannedArrivalAt,
+        OffsetDateTime plannedDepartureAt,
+        String partialAttendanceNote,
         Boolean lodgingNight1,
         Boolean lodgingNight2,
         Boolean attendDay1Morning,
@@ -42,11 +45,19 @@ public record Registration(
         Boolean inboundCarpoolAvailable,
         Integer inboundCarpoolSeats,
         String inboundCarpoolArea,
+        String inboundCarpoolRouteArea,
+        String inboundCarpoolNote,
         String inboundCarpoolPreferredArea,
+        String inboundCarpoolPreferredNote,
+        WorshipBusRideSlot inboundWorshipBusRideSlot,
         TransportationMethod outboundTransportationMethod,
         Boolean outboundCarpoolAvailable,
         Integer outboundCarpoolSeats,
         String outboundCarpoolArea,
-        String outboundCarpoolPreferredArea
+        String outboundCarpoolRouteArea,
+        String outboundCarpoolNote,
+        String outboundCarpoolPreferredArea,
+        String outboundCarpoolPreferredNote,
+        WorshipBusRideSlot outboundWorshipBusRideSlot
 ) {
 }

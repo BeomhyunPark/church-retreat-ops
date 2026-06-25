@@ -5,7 +5,9 @@ import com.gmc.retreat.registration.domain.Gender;
 import com.gmc.retreat.registration.domain.Registration;
 import com.gmc.retreat.registration.domain.RegistrationStatus;
 import com.gmc.retreat.registration.domain.TransportationMethod;
+import com.gmc.retreat.registration.domain.WorshipBusRideSlot;
 import com.gmc.retreat.registration.service.PhoneNumberNormalizer;
+import java.time.OffsetDateTime;
 
 public record RegistrationResponse(
         Long id,
@@ -17,6 +19,9 @@ public record RegistrationResponse(
         Boolean feePaid,
         RegistrationStatus status,
         AttendanceType attendanceType,
+        OffsetDateTime plannedArrivalAt,
+        OffsetDateTime plannedDepartureAt,
+        String partialAttendanceNote,
         Boolean lodgingNight1,
         Boolean lodgingNight2,
         Boolean attendDay1Morning,
@@ -31,12 +36,20 @@ public record RegistrationResponse(
         Boolean inboundCarpoolAvailable,
         Integer inboundCarpoolSeats,
         String inboundCarpoolArea,
+        String inboundCarpoolRouteArea,
+        String inboundCarpoolNote,
         String inboundCarpoolPreferredArea,
+        String inboundCarpoolPreferredNote,
+        WorshipBusRideSlot inboundWorshipBusRideSlot,
         TransportationMethod outboundTransportationMethod,
         Boolean outboundCarpoolAvailable,
         Integer outboundCarpoolSeats,
         String outboundCarpoolArea,
-        String outboundCarpoolPreferredArea
+        String outboundCarpoolRouteArea,
+        String outboundCarpoolNote,
+        String outboundCarpoolPreferredArea,
+        String outboundCarpoolPreferredNote,
+        WorshipBusRideSlot outboundWorshipBusRideSlot
 ) {
     public static RegistrationResponse from(Registration registration) {
         return new RegistrationResponse(
@@ -49,6 +62,9 @@ public record RegistrationResponse(
                 registration.feePaid(),
                 registration.status(),
                 registration.attendanceType(),
+                registration.plannedArrivalAt(),
+                registration.plannedDepartureAt(),
+                registration.partialAttendanceNote(),
                 registration.lodgingNight1(),
                 registration.lodgingNight2(),
                 registration.attendDay1Morning(),
@@ -63,12 +79,20 @@ public record RegistrationResponse(
                 registration.inboundCarpoolAvailable(),
                 registration.inboundCarpoolSeats(),
                 registration.inboundCarpoolArea(),
+                registration.inboundCarpoolRouteArea(),
+                registration.inboundCarpoolNote(),
                 registration.inboundCarpoolPreferredArea(),
+                registration.inboundCarpoolPreferredNote(),
+                registration.inboundWorshipBusRideSlot(),
                 registration.outboundTransportationMethod(),
                 registration.outboundCarpoolAvailable(),
                 registration.outboundCarpoolSeats(),
                 registration.outboundCarpoolArea(),
-                registration.outboundCarpoolPreferredArea()
+                registration.outboundCarpoolRouteArea(),
+                registration.outboundCarpoolNote(),
+                registration.outboundCarpoolPreferredArea(),
+                registration.outboundCarpoolPreferredNote(),
+                registration.outboundWorshipBusRideSlot()
         );
     }
 }

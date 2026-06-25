@@ -1,8 +1,11 @@
 package com.gmc.retreat.registration.dto;
 
+import com.gmc.retreat.registration.domain.AttendanceType;
 import com.gmc.retreat.registration.domain.Gender;
 import com.gmc.retreat.registration.domain.Registration;
 import com.gmc.retreat.registration.domain.RegistrationStatus;
+import com.gmc.retreat.registration.domain.TransportationMethod;
+import com.gmc.retreat.registration.domain.WorshipBusRideSlot;
 import com.gmc.retreat.registration.service.PhoneNumberNormalizer;
 import java.time.OffsetDateTime;
 
@@ -26,7 +29,29 @@ public record AdminRegistrationResponse(
         Boolean newcomer,
         Boolean careTarget,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        OffsetDateTime updatedAt,
+        AttendanceType attendanceType,
+        OffsetDateTime plannedArrivalAt,
+        OffsetDateTime plannedDepartureAt,
+        String partialAttendanceNote,
+        TransportationMethod inboundTransportationMethod,
+        Boolean inboundCarpoolAvailable,
+        Integer inboundCarpoolSeats,
+        String inboundCarpoolArea,
+        String inboundCarpoolRouteArea,
+        String inboundCarpoolNote,
+        String inboundCarpoolPreferredArea,
+        String inboundCarpoolPreferredNote,
+        WorshipBusRideSlot inboundWorshipBusRideSlot,
+        TransportationMethod outboundTransportationMethod,
+        Boolean outboundCarpoolAvailable,
+        Integer outboundCarpoolSeats,
+        String outboundCarpoolArea,
+        String outboundCarpoolRouteArea,
+        String outboundCarpoolNote,
+        String outboundCarpoolPreferredArea,
+        String outboundCarpoolPreferredNote,
+        WorshipBusRideSlot outboundWorshipBusRideSlot
 ) {
     public static AdminRegistrationResponse listItem(Registration registration) {
         return from(registration, true);
@@ -57,7 +82,29 @@ public record AdminRegistrationResponse(
                 registration.newcomer(),
                 registration.careTarget(),
                 registration.createdAt(),
-                registration.updatedAt()
+                registration.updatedAt(),
+                registration.attendanceType(),
+                maskPhone ? null : registration.plannedArrivalAt(),
+                maskPhone ? null : registration.plannedDepartureAt(),
+                maskPhone ? null : registration.partialAttendanceNote(),
+                registration.inboundTransportationMethod(),
+                maskPhone ? null : registration.inboundCarpoolAvailable(),
+                maskPhone ? null : registration.inboundCarpoolSeats(),
+                maskPhone ? null : registration.inboundCarpoolArea(),
+                maskPhone ? null : registration.inboundCarpoolRouteArea(),
+                maskPhone ? null : registration.inboundCarpoolNote(),
+                maskPhone ? null : registration.inboundCarpoolPreferredArea(),
+                maskPhone ? null : registration.inboundCarpoolPreferredNote(),
+                registration.inboundWorshipBusRideSlot(),
+                registration.outboundTransportationMethod(),
+                maskPhone ? null : registration.outboundCarpoolAvailable(),
+                maskPhone ? null : registration.outboundCarpoolSeats(),
+                maskPhone ? null : registration.outboundCarpoolArea(),
+                maskPhone ? null : registration.outboundCarpoolRouteArea(),
+                maskPhone ? null : registration.outboundCarpoolNote(),
+                maskPhone ? null : registration.outboundCarpoolPreferredArea(),
+                maskPhone ? null : registration.outboundCarpoolPreferredNote(),
+                registration.outboundWorshipBusRideSlot()
         );
     }
 }

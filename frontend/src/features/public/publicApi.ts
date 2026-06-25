@@ -1,6 +1,7 @@
 import { apiRequest } from "../../shared/api/client";
 
 export type TransportationMethod = "OWN_CAR" | "GROUP_BUS" | "WORSHIP_SHUTTLE" | "PUBLIC_TRANSIT" | "CARPOOL_NEEDED" | "NOT_DECIDED";
+export type WorshipBusRideSlot = "DAY1_BEFORE_WORSHIP" | "DAY1_AFTER_WORSHIP" | "DAY2_BEFORE_WORSHIP" | "DAY2_AFTER_WORSHIP";
 
 export type RegistrationCreatePayload = {
   name: string;
@@ -11,16 +12,27 @@ export type RegistrationCreatePayload = {
   privacyConsentAgreed: boolean;
   lookupKey: string;
   attendanceType: "FULL" | "PARTIAL" | "WORSHIP_ONLY";
+  plannedArrivalAt?: string;
+  plannedDepartureAt?: string;
+  partialAttendanceNote?: string;
   inboundTransportationMethod: TransportationMethod;
   outboundTransportationMethod: TransportationMethod;
   inboundCarpoolAvailable?: boolean;
   inboundCarpoolSeats?: number;
   inboundCarpoolArea?: string;
+  inboundCarpoolRouteArea?: string;
+  inboundCarpoolNote?: string;
   inboundCarpoolPreferredArea?: string;
+  inboundCarpoolPreferredNote?: string;
+  inboundWorshipBusRideSlot?: WorshipBusRideSlot;
   outboundCarpoolAvailable?: boolean;
   outboundCarpoolSeats?: number;
   outboundCarpoolArea?: string;
+  outboundCarpoolRouteArea?: string;
+  outboundCarpoolNote?: string;
   outboundCarpoolPreferredArea?: string;
+  outboundCarpoolPreferredNote?: string;
+  outboundWorshipBusRideSlot?: WorshipBusRideSlot;
   lodgingNight1?: boolean;
   lodgingNight2?: boolean;
   attendDay1Morning?: boolean;
@@ -42,6 +54,28 @@ export type RegistrationResponse = {
   churchCellDepartment?: string | null;
   feePaid: boolean;
   status: string;
+  attendanceType: "FULL" | "PARTIAL" | "WORSHIP_ONLY";
+  plannedArrivalAt?: string | null;
+  plannedDepartureAt?: string | null;
+  partialAttendanceNote?: string | null;
+  inboundTransportationMethod: TransportationMethod;
+  outboundTransportationMethod: TransportationMethod;
+  inboundCarpoolAvailable?: boolean | null;
+  inboundCarpoolSeats?: number | null;
+  inboundCarpoolArea?: string | null;
+  inboundCarpoolRouteArea?: string | null;
+  inboundCarpoolNote?: string | null;
+  inboundCarpoolPreferredArea?: string | null;
+  inboundCarpoolPreferredNote?: string | null;
+  inboundWorshipBusRideSlot?: WorshipBusRideSlot | null;
+  outboundCarpoolAvailable?: boolean | null;
+  outboundCarpoolSeats?: number | null;
+  outboundCarpoolArea?: string | null;
+  outboundCarpoolRouteArea?: string | null;
+  outboundCarpoolNote?: string | null;
+  outboundCarpoolPreferredArea?: string | null;
+  outboundCarpoolPreferredNote?: string | null;
+  outboundWorshipBusRideSlot?: WorshipBusRideSlot | null;
 };
 
 export type RegistrationCreateResponse = {
@@ -64,16 +98,27 @@ export type RegistrationSelfUpdatePayload = {
     phoneNumber: string;
     churchCellDepartment?: string;
     attendanceType: "FULL" | "PARTIAL" | "WORSHIP_ONLY";
+    plannedArrivalAt?: string;
+    plannedDepartureAt?: string;
+    partialAttendanceNote?: string;
     inboundTransportationMethod: TransportationMethod;
     outboundTransportationMethod: TransportationMethod;
     inboundCarpoolAvailable?: boolean;
     inboundCarpoolSeats?: number;
     inboundCarpoolArea?: string;
+    inboundCarpoolRouteArea?: string;
+    inboundCarpoolNote?: string;
     inboundCarpoolPreferredArea?: string;
+    inboundCarpoolPreferredNote?: string;
+    inboundWorshipBusRideSlot?: WorshipBusRideSlot;
     outboundCarpoolAvailable?: boolean;
     outboundCarpoolSeats?: number;
     outboundCarpoolArea?: string;
+    outboundCarpoolRouteArea?: string;
+    outboundCarpoolNote?: string;
     outboundCarpoolPreferredArea?: string;
+    outboundCarpoolPreferredNote?: string;
+    outboundWorshipBusRideSlot?: WorshipBusRideSlot;
     lodgingNight1?: boolean;
     lodgingNight2?: boolean;
     attendDay1Morning?: boolean;
