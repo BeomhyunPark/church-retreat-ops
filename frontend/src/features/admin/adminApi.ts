@@ -73,6 +73,38 @@ export type AdminRegistration = {
   adminMemo?: string | null;
   newcomer: boolean;
   careTarget: boolean;
+  attendanceType: "FULL" | "PARTIAL";
+  plannedArrivalAt?: string | null;
+  plannedDepartureAt?: string | null;
+  partialAttendanceNote?: string | null;
+  lodgingNight1?: boolean | null;
+  lodgingNight2?: boolean | null;
+  attendDay1Morning?: boolean | null;
+  attendDay1Afternoon?: boolean | null;
+  attendDay1Worship?: boolean | null;
+  attendDay2Morning?: boolean | null;
+  attendDay2Afternoon?: boolean | null;
+  attendDay2Worship?: boolean | null;
+  attendDay3Morning?: boolean | null;
+  attendDay3Afternoon?: boolean | null;
+  inboundTransportationMethod: "OWN_CAR" | "GROUP_BUS" | "WORSHIP_SHUTTLE" | "PUBLIC_TRANSIT" | "CARPOOL_NEEDED" | "NOT_DECIDED" | null;
+  inboundCarpoolAvailable?: boolean | null;
+  inboundCarpoolSeats?: number | null;
+  inboundCarpoolArea?: string | null;
+  inboundCarpoolRouteArea?: string | null;
+  inboundCarpoolNote?: string | null;
+  inboundCarpoolPreferredArea?: string | null;
+  inboundCarpoolPreferredNote?: string | null;
+  inboundWorshipBusRideSlot?: string | null;
+  outboundTransportationMethod: "OWN_CAR" | "GROUP_BUS" | "WORSHIP_SHUTTLE" | "PUBLIC_TRANSIT" | "CARPOOL_NEEDED" | "NOT_DECIDED" | null;
+  outboundCarpoolAvailable?: boolean | null;
+  outboundCarpoolSeats?: number | null;
+  outboundCarpoolArea?: string | null;
+  outboundCarpoolRouteArea?: string | null;
+  outboundCarpoolNote?: string | null;
+  outboundCarpoolPreferredArea?: string | null;
+  outboundCarpoolPreferredNote?: string | null;
+  outboundWorshipBusRideSlot?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -251,6 +283,26 @@ export type RetreatGroupMember = {
   leader: boolean;
   createdAt: string;
   updatedAt: string;
+};
+
+export type FeeEventItem = {
+  id: number;
+  participantId: number;
+  previousFeePaid: boolean;
+  newFeePaid: boolean;
+  changedBy: { id: number; name: string } | null;
+  reason: string | null;
+  createdAt: string;
+};
+
+export type RegistrationHistoryItem = {
+  id: number;
+  changeType: string;
+  actorType: "ADMIN" | "PARTICIPANT";
+  actorAdminUserId: number | null;
+  beforeSnapshot: unknown;
+  afterSnapshot: unknown;
+  createdAt: string;
 };
 
 export function loginAdmin(email: string, password: string) {
@@ -552,4 +604,24 @@ export function removeParticipantFromRetreatGroup(participantId: number) {
     method: "DELETE",
     body: { confirmText: "DELETE" }
   });
+}
+
+export function updateRegistrationFeePaid(id: number, feePaid: boolean, reason?: string) {
+  return apiRequest<AdminRegistration>(`/admin/registrations/${id}/fee-paid`, {
+    auth: true,
+    method: "PATCH",
+    body: { feePaid, reason }
+  });
+}
+
+export function getRegistrationHistories(id: number) {
+  return apiRequest<RegistrationHistoryItem[]>(`/admin/registrations/${id}/histories`, { auth: true });
+}
+
+export function getCheckInDetail(participantId: number) {
+  return apiRequest<CheckInRosterItem>(`/admin/check-ins/${participantId}`, { auth: true });
+}
+
+export function getFeeEvents(participantId: number) {
+  return apiRequest<FeeEventItem[]>(`/admin/fees/${participantId}/events`, { auth: true });
 }

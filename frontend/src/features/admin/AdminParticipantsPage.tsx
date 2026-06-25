@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { getAdminRegistrations } from "./adminApi";
+import { getAdminRegistrations, getCheckInRoster } from "./adminApi";
 import { EmptyState } from "../../shared/ui/EmptyState";
 import { StatusMessage } from "../../shared/ui/StatusMessage";
 
@@ -10,11 +10,27 @@ export function AdminParticipantsPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [feeFilter, setFeeFilter] = useState("ALL");
   const [tagFilter, setTagFilter] = useState("ALL");
-  const query = useQuery({
+  const [checkInFilter, setCheckInFilter] = useState("ALL");
+
+  const registrationsQuery = useQuery({
     queryKey: ["admin", "registrations"],
-    queryFn: () => getAdminRegistrations()
+    queryFn: () => getAdminRegistrations(200)
   });
-  const participants = useMemo(() => query.data?.content ?? [], [query.data?.content]);
+
+  const checkInsQuery = useQuery({
+    queryKey: ["admin", "check-ins", "roster"],
+    queryFn: () => getCheckInRoster({})
+  });
+
+  const participants = useMemo(() => registrationsQuery.data?.content ?? [], [registrationsQuery.data?.content]);
+  const checkInsMap = useMemo(
+    () =>
+      new Map(
+        (checkInsQuery.data?.content ?? []).map((item) => [item.participantId, item])
+      ),
+    [checkInsQuery.data?.content]
+  );
+
   const filteredParticipants = useMemo(() => {
     const keyword = searchText.trim().toLowerCase();
 
@@ -39,9 +55,15 @@ export function AdminParticipantsPage() {
         (tagFilter === "NEWCOMER" && item.newcomer) ||
         (tagFilter === "CARE_TARGET" && item.careTarget);
 
-      return matchesKeyword && matchesStatus && matchesFee && matchesTag;
+      const checkInStatus = checkInsMap.get(item.id);
+      const matchesCheckIn =
+        checkInFilter === "ALL" ||
+        (checkInFilter === "CHECKED_IN" && checkInStatus?.checkedIn) ||
+        (checkInFilter === "NOT_CHECKED_IN" && !checkInStatus?.checkedIn);
+
+      return matchesKeyword && matchesStatus && matchesFee && matchesTag && matchesCheckIn;
     });
-  }, [feeFilter, participants, searchText, statusFilter, tagFilter]);
+  }, [feeFilter, participants, searchText, statusFilter, tagFilter, checkInFilter, checkInsMap]);
 
   return (
     <section className="page-stack">
@@ -53,7 +75,9 @@ export function AdminParticipantsPage() {
         <span className="pill">상세 조회 시 개인정보 접근 로그가 남습니다</span>
       </div>
 
-      {query.isError ? <StatusMessage message={query.error.message} tone="error" /> : null}
+      {registrationsQuery.isError ? (
+        <StatusMessage message={registrationsQuery.error.message} tone="error" />
+      ) : null}
 
       <section className="filter-panel" aria-label="참가자 목록 필터">
         <label>
@@ -82,6 +106,14 @@ export function AdminParticipantsPage() {
           </select>
         </label>
         <label>
+          체크인
+          <select onChange={(event) => setCheckInFilter(event.target.value)} value={checkInFilter}>
+            <option value="ALL">전체</option>
+            <option value="CHECKED_IN">완료</option>
+            <option value="NOT_CHECKED_IN">미완료</option>
+          </select>
+        </label>
+        <label>
           관리 태그
           <select onChange={(event) => setTagFilter(event.target.value)} value={tagFilter}>
             <option value="ALL">전체</option>
@@ -90,9 +122,9 @@ export function AdminParticipantsPage() {
           </select>
         </label>
         <div className="filter-summary">
-          <span>현재 페이지</span>
+          <span>필터 결과</span>
           <strong>
-            {filteredParticipants.length} / {participants.length}
+            {filteredParticipants.length} / {participants.length} 명
           </strong>
         </div>
       </section>
@@ -105,6 +137,7 @@ export function AdminParticipantsPage() {
               <th>연락처</th>
               <th>상태</th>
               <th>참가비</th>
+              <th>체크인</th>
               <th>공동체</th>
               <th>수련회 조</th>
             </tr>
@@ -130,17 +163,30 @@ export function AdminParticipantsPage() {
                     {item.feePaid ? "납부" : "미납"}
                   </span>
                 </td>
+                <td>
+                  <span
+                    className={
+                      checkInsMap.get(item.id)?.checkedIn
+                        ? "status-pill status-pill--success"
+                        : "status-pill status-pill--neutral"
+                    }
+                  >
+                    {checkInsMap.get(item.id)?.checkedIn ? "완료" : "미완료"}
+                  </span>
+                </td>
                 <td>{item.churchCellName ?? item.churchCellDepartment ?? "-"}</td>
                 <td>{item.retreatGroupName ?? "-"}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        {query.isLoading ? <EmptyState title="참가자 목록을 불러오는 중입니다" message="잠시만 기다려 주세요." /> : null}
-        {!query.isLoading && !participants.length ? (
+        {registrationsQuery.isLoading ? (
+          <EmptyState title="참가자 목록을 불러오는 중입니다" message="잠시만 기다려 주세요." />
+        ) : null}
+        {!registrationsQuery.isLoading && !participants.length ? (
           <EmptyState title="등록된 참가자가 없습니다" message="공개 등록 화면에서 참가자가 등록되면 이곳에 표시됩니다." />
         ) : null}
-        {!query.isLoading && participants.length > 0 && !filteredParticipants.length ? (
+        {!registrationsQuery.isLoading && participants.length > 0 && !filteredParticipants.length ? (
           <EmptyState title="조건에 맞는 참가자가 없습니다" message="검색어나 필터 조건을 조금 넓혀 보세요." />
         ) : null}
       </div>

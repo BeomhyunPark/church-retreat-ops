@@ -27,6 +27,9 @@ docker-data/
 http/admin-auth.http
 http/*.local.http
 
+# Local-only seed data and scratch files
+local/
+
 # Serena local data
 .serena/project.local.yml
 .serena/cache/
