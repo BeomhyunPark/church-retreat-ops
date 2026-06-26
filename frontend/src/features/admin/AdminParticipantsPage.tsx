@@ -236,6 +236,7 @@ export function AdminParticipantsPage() {
                   onClick={() => toggleSort("name_asc", "name_desc")}
                 />
               </th>
+              <th>태그</th>
               <th>연락처</th>
               <th>등록 상태</th>
               <th>
@@ -252,7 +253,8 @@ export function AdminParticipantsPage() {
                   onClick={() => toggleOneWaySort("check_in_pending_first")}
                 />
               </th>
-              <th>참석/교통</th>
+              <th>참석</th>
+              <th>교통</th>
               <th>소속</th>
               <th>
                 <SortableHeader
@@ -280,8 +282,8 @@ export function AdminParticipantsPage() {
                   <span className="table-note">
                     {item.gender === "FEMALE" ? "여성" : "남성"} · {item.birthYear}
                   </span>
-                  <TagList newcomer={item.newcomer} careTarget={item.careTarget} />
                 </td>
+                <td><TagList newcomer={item.newcomer} careTarget={item.careTarget} /></td>
                 <td>{item.phoneNumber}</td>
                 <td>
                   <StatusPill tone={item.status === "REGISTERED" ? "success" : "danger"}>
@@ -294,10 +296,8 @@ export function AdminParticipantsPage() {
                 <td>
                   <StatusPill tone={item.checkedIn ? "success" : "neutral"}>{item.checkedIn ? "완료" : "미완료"}</StatusPill>
                 </td>
-                <td>
-                  <strong className="cell-primary">{formatAttendance(item.attendanceType)}</strong>
-                  <span className="table-note">{formatTransportationSummary(item)}</span>
-                </td>
+                <td>{formatAttendance(item.attendanceType)}</td>
+                <td>{formatTransportationSummary(item)}</td>
                 <td>
                   <strong className="cell-primary">{item.churchCellName ?? item.churchCellDepartment ?? "-"}</strong>
                   <span className="table-note">{item.middleGroupName ?? "중그룹 미지정"}</span>

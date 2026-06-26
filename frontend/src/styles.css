@@ -1363,7 +1363,6 @@ th {
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem;
-  margin-top: 0.35rem;
 }
 
 .mini-tag {
