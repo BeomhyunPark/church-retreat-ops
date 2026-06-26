@@ -1,0 +1,382 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gmc.retreat.registration.mapper.RegistrationMapper">
+
+    <resultMap id="RegistrationResultMap" type="com.gmc.retreat.registration.domain.Registration">
+        <constructor>
+            <arg column="id" javaType="java.lang.Long" />
+            <arg column="name" javaType="java.lang.String" />
+            <arg column="normalized_name" javaType="java.lang.String" />
+            <arg column="gender" javaType="com.gmc.retreat.registration.domain.Gender" />
+            <arg column="birth_year" javaType="java.lang.Integer" />
+            <arg column="phone_number" javaType="java.lang.String" />
+            <arg column="phone_last_four" javaType="java.lang.String" />
+            <arg column="church_cell_department" javaType="java.lang.String" />
+            <arg column="church_cell_id" javaType="java.lang.Long" />
+            <arg column="church_cell_name" javaType="java.lang.String" />
+            <arg column="middle_group_id" javaType="java.lang.Long" />
+            <arg column="middle_group_name" javaType="java.lang.String" />
+            <arg column="retreat_group_id" javaType="java.lang.Long" />
+            <arg column="retreat_group_name" javaType="java.lang.String" />
+            <arg column="retreat_group_leader" javaType="java.lang.Boolean" />
+            <arg column="lookup_key_hash" javaType="java.lang.String" />
+            <arg column="privacy_consent_agreed" javaType="java.lang.Boolean" />
+            <arg column="fee_paid" javaType="java.lang.Boolean" />
+            <arg column="status" javaType="com.gmc.retreat.registration.domain.RegistrationStatus" />
+            <arg column="admin_memo" javaType="java.lang.String" />
+            <arg column="newcomer" javaType="java.lang.Boolean" />
+            <arg column="care_target" javaType="java.lang.Boolean" />
+            <arg column="checked_in" javaType="java.lang.Boolean" />
+            <arg column="created_at" javaType="java.time.OffsetDateTime" />
+            <arg column="updated_at" javaType="java.time.OffsetDateTime" />
+            <arg column="attendance_type" javaType="com.gmc.retreat.registration.domain.AttendanceType" />
+            <arg column="planned_arrival_at" javaType="java.time.OffsetDateTime" />
+            <arg column="planned_departure_at" javaType="java.time.OffsetDateTime" />
+            <arg column="partial_attendance_note" javaType="java.lang.String" />
+            <arg column="lodging_night1" javaType="java.lang.Boolean" />
+            <arg column="lodging_night2" javaType="java.lang.Boolean" />
+            <arg column="attend_day1_morning" javaType="java.lang.Boolean" />
+            <arg column="attend_day1_afternoon" javaType="java.lang.Boolean" />
+            <arg column="attend_day1_worship" javaType="java.lang.Boolean" />
+            <arg column="attend_day2_morning" javaType="java.lang.Boolean" />
+            <arg column="attend_day2_afternoon" javaType="java.lang.Boolean" />
+            <arg column="attend_day2_worship" javaType="java.lang.Boolean" />
+            <arg column="attend_day3_morning" javaType="java.lang.Boolean" />
+            <arg column="attend_day3_afternoon" javaType="java.lang.Boolean" />
+            <arg column="inbound_transportation_method" javaType="com.gmc.retreat.registration.domain.TransportationMethod" />
+            <arg column="inbound_carpool_available" javaType="java.lang.Boolean" />
+            <arg column="inbound_carpool_seats" javaType="java.lang.Integer" />
+            <arg column="inbound_carpool_area" javaType="java.lang.String" />
+            <arg column="inbound_carpool_route_area" javaType="java.lang.String" />
+            <arg column="inbound_carpool_note" javaType="java.lang.String" />
+            <arg column="inbound_carpool_preferred_area" javaType="java.lang.String" />
+            <arg column="inbound_carpool_preferred_note" javaType="java.lang.String" />
+            <arg column="inbound_worship_bus_ride_slot" javaType="com.gmc.retreat.registration.domain.WorshipBusRideSlot" />
+            <arg column="outbound_transportation_method" javaType="com.gmc.retreat.registration.domain.TransportationMethod" />
+            <arg column="outbound_carpool_available" javaType="java.lang.Boolean" />
+            <arg column="outbound_carpool_seats" javaType="java.lang.Integer" />
+            <arg column="outbound_carpool_area" javaType="java.lang.String" />
+            <arg column="outbound_carpool_route_area" javaType="java.lang.String" />
+            <arg column="outbound_carpool_note" javaType="java.lang.String" />
+            <arg column="outbound_carpool_preferred_area" javaType="java.lang.String" />
+            <arg column="outbound_carpool_preferred_note" javaType="java.lang.String" />
+            <arg column="outbound_worship_bus_ride_slot" javaType="com.gmc.retreat.registration.domain.WorshipBusRideSlot" />
+        </constructor>
+    </resultMap>
+
+    <sql id="selectColumns">
+        r.id, r.name, r.normalized_name, r.gender, r.birth_year, r.phone_number, r.phone_last_four,
+        r.church_cell_department, r.church_cell_id, cc.name AS church_cell_name,
+        mg.id AS middle_group_id, mg.name AS middle_group_name,
+        rg.id AS retreat_group_id, rg.name AS retreat_group_name, rgm.leader AS retreat_group_leader,
+        r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
+        r.status, r.admin_memo, r.newcomer, r.care_target,
+        COALESCE(ci.checked_in, FALSE) AS checked_in, r.created_at, r.updated_at,
+        r.attendance_type,
+        r.planned_arrival_at, r.planned_departure_at, r.partial_attendance_note,
+        r.lodging_night1, r.lodging_night2,
+        r.attend_day1_morning, r.attend_day1_afternoon, r.attend_day1_worship,
+        r.attend_day2_morning, r.attend_day2_afternoon, r.attend_day2_worship,
+        r.attend_day3_morning, r.attend_day3_afternoon,
+        r.inbound_transportation_method, r.inbound_carpool_available, r.inbound_carpool_seats,
+        r.inbound_carpool_area, r.inbound_carpool_route_area, r.inbound_carpool_note,
+        r.inbound_carpool_preferred_area, r.inbound_carpool_preferred_note, r.inbound_worship_bus_ride_slot,
+        r.outbound_transportation_method, r.outbound_carpool_available, r.outbound_carpool_seats,
+        r.outbound_carpool_area, r.outbound_carpool_route_area, r.outbound_carpool_note,
+        r.outbound_carpool_preferred_area, r.outbound_carpool_preferred_note, r.outbound_worship_bus_ride_slot
+    </sql>
+
+    <sql id="commonJoins">
+        LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
+        LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
+        LEFT JOIN retreat_group_members rgm ON rgm.registration_id = r.id
+        LEFT JOIN retreat_groups rg ON rg.id = rgm.retreat_group_id
+        LEFT JOIN retreat_check_ins ci ON ci.participant_id = r.id
+    </sql>
+
+    <sql id="listFilters">
+        <if test="keyword != null and keyword != ''">
+            AND (
+                lower(r.name) LIKE lower(concat('%', #{keyword}, '%'))
+                OR r.phone_last_four = #{keyword}
+                OR lower(r.church_cell_department) LIKE lower(concat('%', #{keyword}, '%'))
+                OR lower(cc.name) LIKE lower(concat('%', #{keyword}, '%'))
+                OR lower(mg.name) LIKE lower(concat('%', #{keyword}, '%'))
+                OR lower(rg.name) LIKE lower(concat('%', #{keyword}, '%'))
+            )
+        </if>
+        <if test="status != null">
+            AND r.status = #{status}
+        </if>
+        <if test="feePaid != null">
+            AND r.fee_paid = #{feePaid}
+        </if>
+        <if test="newcomer != null">
+            AND r.newcomer = #{newcomer}
+        </if>
+        <if test="careTarget != null">
+            AND r.care_target = #{careTarget}
+        </if>
+        <if test="checkedIn != null">
+            AND COALESCE(ci.checked_in, FALSE) = #{checkedIn}
+        </if>
+        <if test="retreatGroupAssigned != null and retreatGroupAssigned">
+            AND rg.id IS NOT NULL
+        </if>
+        <if test="retreatGroupAssigned != null and !retreatGroupAssigned">
+            AND rg.id IS NULL
+        </if>
+        <if test="churchCellAssigned != null and churchCellAssigned">
+            AND r.church_cell_id IS NOT NULL
+        </if>
+        <if test="churchCellAssigned != null and !churchCellAssigned">
+            AND r.church_cell_id IS NULL
+        </if>
+        <if test="attendanceType != null">
+            AND r.attendance_type = #{attendanceType}
+        </if>
+        <if test="transportationNeed != null and transportationNeed == 'CARPOOL_NEEDED'">
+            AND (
+                r.inbound_transportation_method = 'CARPOOL_NEEDED'
+                OR r.outbound_transportation_method = 'CARPOOL_NEEDED'
+            )
+        </if>
+        <if test="transportationNeed != null and transportationNeed == 'CARPOOL_AVAILABLE'">
+            AND (
+                r.inbound_carpool_available = TRUE
+                OR r.outbound_carpool_available = TRUE
+            )
+        </if>
+    </sql>
+
+    <select id="findById" resultMap="RegistrationResultMap">
+        SELECT <include refid="selectColumns" />
+        FROM registrations r
+        <include refid="commonJoins" />
+        WHERE r.id = #{id}
+    </select>
+
+    <select id="findActiveByNormalizedNameAndPhoneNumber" resultMap="RegistrationResultMap">
+        SELECT <include refid="selectColumns" />
+        FROM registrations r
+        <include refid="commonJoins" />
+        WHERE r.normalized_name = #{normalizedName}
+          AND r.phone_number = #{phoneNumber}
+          AND r.status = 'REGISTERED'
+    </select>
+
+    <select id="findActiveByNormalizedNameAndPhoneLastFour" resultMap="RegistrationResultMap">
+        SELECT <include refid="selectColumns" />
+        FROM registrations r
+        <include refid="commonJoins" />
+        WHERE r.normalized_name = #{normalizedName}
+          AND r.phone_last_four = #{phoneLastFour}
+          AND r.status = 'REGISTERED'
+        ORDER BY r.id ASC
+    </select>
+
+    <select id="findActiveByNormalizedName" resultMap="RegistrationResultMap">
+        SELECT <include refid="selectColumns" />
+        FROM registrations r
+        <include refid="commonJoins" />
+        WHERE r.normalized_name = #{normalizedName}
+          AND r.status = 'REGISTERED'
+        ORDER BY r.id ASC
+    </select>
+
+    <select id="findPage" resultMap="RegistrationResultMap">
+        SELECT <include refid="selectColumns" />
+        FROM registrations r
+        <include refid="commonJoins" />
+        <where>
+            <include refid="listFilters" />
+        </where>
+        <choose>
+            <when test="sort == 'name_asc'">
+                ORDER BY r.name ASC, r.id ASC
+            </when>
+            <when test="sort == 'fee_unpaid_first'">
+                ORDER BY r.fee_paid ASC, r.created_at DESC, r.id DESC
+            </when>
+            <when test="sort == 'check_in_pending_first'">
+                ORDER BY COALESCE(ci.checked_in, FALSE) ASC, r.created_at DESC, r.id DESC
+            </when>
+            <when test="sort == 'group_asc'">
+                ORDER BY rg.display_order ASC NULLS LAST, rg.name ASC NULLS LAST, r.name ASC, r.id ASC
+            </when>
+            <otherwise>
+                ORDER BY r.created_at DESC, r.id DESC
+            </otherwise>
+        </choose>
+        LIMIT #{limit}
+        OFFSET #{offset}
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*)
+        FROM registrations r
+        <include refid="commonJoins" />
+        <where>
+            <include refid="listFilters" />
+        </where>
+    </select>
+
+    <insert id="insert" parameterType="com.gmc.retreat.registration.mapper.RegistrationInsert"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO registrations (
+            name, normalized_name, gender, birth_year, phone_number, phone_last_four,
+            church_cell_department, lookup_key_hash, privacy_consent_agreed, fee_paid, status,
+            attendance_type,
+            planned_arrival_at, planned_departure_at, partial_attendance_note,
+            lodging_night1, lodging_night2,
+            attend_day1_morning, attend_day1_afternoon, attend_day1_worship,
+            attend_day2_morning, attend_day2_afternoon, attend_day2_worship,
+            attend_day3_morning, attend_day3_afternoon,
+            inbound_transportation_method, inbound_carpool_available, inbound_carpool_seats,
+            inbound_carpool_area, inbound_carpool_route_area, inbound_carpool_note,
+            inbound_carpool_preferred_area, inbound_carpool_preferred_note, inbound_worship_bus_ride_slot,
+            outbound_transportation_method, outbound_carpool_available, outbound_carpool_seats,
+            outbound_carpool_area, outbound_carpool_route_area, outbound_carpool_note,
+            outbound_carpool_preferred_area, outbound_carpool_preferred_note, outbound_worship_bus_ride_slot
+        )
+        VALUES (
+            #{name}, #{normalizedName}, #{gender}, #{birthYear}, #{phoneNumber}, #{phoneLastFour},
+            #{churchCellDepartment}, #{lookupKeyHash}, #{privacyConsentAgreed}, #{feePaid}, #{status},
+            #{attendanceType},
+            #{plannedArrivalAt}, #{plannedDepartureAt}, #{partialAttendanceNote},
+            #{lodgingNight1}, #{lodgingNight2},
+            #{attendDay1Morning}, #{attendDay1Afternoon}, #{attendDay1Worship},
+            #{attendDay2Morning}, #{attendDay2Afternoon}, #{attendDay2Worship},
+            #{attendDay3Morning}, #{attendDay3Afternoon},
+            #{inboundTransportationMethod}, #{inboundCarpoolAvailable}, #{inboundCarpoolSeats},
+            #{inboundCarpoolArea}, #{inboundCarpoolRouteArea}, #{inboundCarpoolNote},
+            #{inboundCarpoolPreferredArea}, #{inboundCarpoolPreferredNote}, #{inboundWorshipBusRideSlot},
+            #{outboundTransportationMethod}, #{outboundCarpoolAvailable}, #{outboundCarpoolSeats},
+            #{outboundCarpoolArea}, #{outboundCarpoolRouteArea}, #{outboundCarpoolNote},
+            #{outboundCarpoolPreferredArea}, #{outboundCarpoolPreferredNote}, #{outboundWorshipBusRideSlot}
+        )
+    </insert>
+
+    <update id="overwrite" parameterType="com.gmc.retreat.registration.mapper.RegistrationOverwrite">
+        UPDATE registrations
+        SET name = #{name},
+            normalized_name = #{normalizedName},
+            gender = #{gender},
+            birth_year = #{birthYear},
+            phone_number = #{phoneNumber},
+            phone_last_four = #{phoneLastFour},
+            church_cell_department = #{churchCellDepartment},
+            lookup_key_hash = #{lookupKeyHash},
+            privacy_consent_agreed = #{privacyConsentAgreed},
+            attendance_type = #{attendanceType},
+            planned_arrival_at = #{plannedArrivalAt},
+            planned_departure_at = #{plannedDepartureAt},
+            partial_attendance_note = #{partialAttendanceNote},
+            lodging_night1 = #{lodgingNight1},
+            lodging_night2 = #{lodgingNight2},
+            attend_day1_morning = #{attendDay1Morning},
+            attend_day1_afternoon = #{attendDay1Afternoon},
+            attend_day1_worship = #{attendDay1Worship},
+            attend_day2_morning = #{attendDay2Morning},
+            attend_day2_afternoon = #{attendDay2Afternoon},
+            attend_day2_worship = #{attendDay2Worship},
+            attend_day3_morning = #{attendDay3Morning},
+            attend_day3_afternoon = #{attendDay3Afternoon},
+            inbound_transportation_method = #{inboundTransportationMethod},
+            inbound_carpool_available = #{inboundCarpoolAvailable},
+            inbound_carpool_seats = #{inboundCarpoolSeats},
+            inbound_carpool_area = #{inboundCarpoolArea},
+            inbound_carpool_route_area = #{inboundCarpoolRouteArea},
+            inbound_carpool_note = #{inboundCarpoolNote},
+            inbound_carpool_preferred_area = #{inboundCarpoolPreferredArea},
+            inbound_carpool_preferred_note = #{inboundCarpoolPreferredNote},
+            inbound_worship_bus_ride_slot = #{inboundWorshipBusRideSlot},
+            outbound_transportation_method = #{outboundTransportationMethod},
+            outbound_carpool_available = #{outboundCarpoolAvailable},
+            outbound_carpool_seats = #{outboundCarpoolSeats},
+            outbound_carpool_area = #{outboundCarpoolArea},
+            outbound_carpool_route_area = #{outboundCarpoolRouteArea},
+            outbound_carpool_note = #{outboundCarpoolNote},
+            outbound_carpool_preferred_area = #{outboundCarpoolPreferredArea},
+            outbound_carpool_preferred_note = #{outboundCarpoolPreferredNote},
+            outbound_worship_bus_ride_slot = #{outboundWorshipBusRideSlot},
+            updated_at = now()
+        WHERE id = #{id}
+    </update>
+
+    <update id="selfUpdate" parameterType="com.gmc.retreat.registration.mapper.RegistrationSelfUpdate">
+        UPDATE registrations
+        SET gender = #{gender},
+            birth_year = #{birthYear},
+            phone_number = #{phoneNumber},
+            phone_last_four = #{phoneLastFour},
+            church_cell_department = #{churchCellDepartment},
+            attendance_type = #{attendanceType},
+            planned_arrival_at = #{plannedArrivalAt},
+            planned_departure_at = #{plannedDepartureAt},
+            partial_attendance_note = #{partialAttendanceNote},
+            lodging_night1 = #{lodgingNight1},
+            lodging_night2 = #{lodgingNight2},
+            attend_day1_morning = #{attendDay1Morning},
+            attend_day1_afternoon = #{attendDay1Afternoon},
+            attend_day1_worship = #{attendDay1Worship},
+            attend_day2_morning = #{attendDay2Morning},
+            attend_day2_afternoon = #{attendDay2Afternoon},
+            attend_day2_worship = #{attendDay2Worship},
+            attend_day3_morning = #{attendDay3Morning},
+            attend_day3_afternoon = #{attendDay3Afternoon},
+            inbound_transportation_method = #{inboundTransportationMethod},
+            inbound_carpool_available = #{inboundCarpoolAvailable},
+            inbound_carpool_seats = #{inboundCarpoolSeats},
+            inbound_carpool_area = #{inboundCarpoolArea},
+            inbound_carpool_route_area = #{inboundCarpoolRouteArea},
+            inbound_carpool_note = #{inboundCarpoolNote},
+            inbound_carpool_preferred_area = #{inboundCarpoolPreferredArea},
+            inbound_carpool_preferred_note = #{inboundCarpoolPreferredNote},
+            inbound_worship_bus_ride_slot = #{inboundWorshipBusRideSlot},
+            outbound_transportation_method = #{outboundTransportationMethod},
+            outbound_carpool_available = #{outboundCarpoolAvailable},
+            outbound_carpool_seats = #{outboundCarpoolSeats},
+            outbound_carpool_area = #{outboundCarpoolArea},
+            outbound_carpool_route_area = #{outboundCarpoolRouteArea},
+            outbound_carpool_note = #{outboundCarpoolNote},
+            outbound_carpool_preferred_area = #{outboundCarpoolPreferredArea},
+            outbound_carpool_preferred_note = #{outboundCarpoolPreferredNote},
+            outbound_worship_bus_ride_slot = #{outboundWorshipBusRideSlot},
+            updated_at = now()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateFeePaid">
+        UPDATE registrations
+        SET fee_paid = #{feePaid},
+            updated_at = now()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE registrations
+        SET status = #{status},
+            updated_at = now()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateManagement" parameterType="com.gmc.retreat.registration.mapper.RegistrationManagementUpdate">
+        UPDATE registrations
+        SET admin_memo = #{adminMemo},
+            newcomer = #{newcomer},
+            care_target = #{careTarget},
+            updated_at = now()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateChurchCell">
+        UPDATE registrations
+        SET church_cell_id = #{churchCellId},
+            updated_at = now()
+        WHERE id = #{id}
+    </update>
+
+</mapper>

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gmc.retreat.admin.mapper.AdminUserMapper">
+    <resultMap id="AdminUserResultMap" type="com.gmc.retreat.admin.domain.AdminUser">
+        <constructor>
+            <arg column="id" javaType="java.lang.Long" />
+            <arg column="email" javaType="java.lang.String" />
+            <arg column="password_hash" javaType="java.lang.String" />
+            <arg column="name" javaType="java.lang.String" />
+            <arg column="role" javaType="com.gmc.retreat.admin.domain.AdminRole" />
+            <arg column="status" javaType="com.gmc.retreat.admin.domain.AdminStatus" />
+            <arg column="last_login_at" javaType="java.time.OffsetDateTime" />
+            <arg column="created_at" javaType="java.time.OffsetDateTime" />
+            <arg column="updated_at" javaType="java.time.OffsetDateTime" />
+        </constructor>
+    </resultMap>
+
+    <select id="findById" resultMap="AdminUserResultMap">
+        SELECT id, email, password_hash, name, role, status, last_login_at, created_at, updated_at
+        FROM admin_users
+        WHERE id = #{id}
+    </select>
+
+    <select id="findByEmail" resultMap="AdminUserResultMap">
+        SELECT id, email, password_hash, name, role, status, last_login_at, created_at, updated_at
+        FROM admin_users
+        WHERE email = #{email}
+    </select>
+
+    <select id="findAll" resultMap="AdminUserResultMap">
+        SELECT id, email, password_hash, name, role, status, last_login_at, created_at, updated_at
+        FROM admin_users
+        ORDER BY created_at
+    </select>
+
+    <insert id="insert" parameterType="com.gmc.retreat.admin.mapper.AdminUserInsert">
+        INSERT INTO admin_users (email, password_hash, name, role, status)
+        VALUES (#{email}, #{passwordHash}, #{name}, #{role}, #{status})
+    </insert>
+
+    <update id="update">
+        UPDATE admin_users
+        SET name = #{name}, role = #{role}, updated_at = now()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE admin_users
+        SET status = #{status}, updated_at = now()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updatePasswordHash">
+        UPDATE admin_users
+        SET password_hash = #{passwordHash}, updated_at = now()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateLastLoginAt">
+        UPDATE admin_users
+        SET last_login_at = now(), updated_at = now()
+        WHERE id = #{id}
+    </update>
+</mapper>

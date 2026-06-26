@@ -16,6 +16,9 @@ spring:
 server:
   port: 8080
 
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+
 app:
   identity:
     app-name: ${APP_IDENTITY_APP_NAME:Retreat Ops}

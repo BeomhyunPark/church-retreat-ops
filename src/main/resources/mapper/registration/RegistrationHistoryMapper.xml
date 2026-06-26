@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gmc.retreat.registration.mapper.RegistrationHistoryMapper">
+    <resultMap id="RegistrationHistoryResultMap" type="com.gmc.retreat.registration.domain.RegistrationHistory">
+        <constructor>
+            <arg column="id" javaType="java.lang.Long" />
+            <arg column="registration_id" javaType="java.lang.Long" />
+            <arg column="change_type" javaType="com.gmc.retreat.registration.domain.RegistrationHistoryChangeType" />
+            <arg column="previous_snapshot_json" javaType="java.lang.String" />
+            <arg column="new_snapshot_json" javaType="java.lang.String" />
+            <arg column="actor_type" javaType="com.gmc.retreat.registration.domain.RegistrationActorType" />
+            <arg column="actor_admin_user_id" javaType="java.lang.Long" />
+            <arg column="created_at" javaType="java.time.OffsetDateTime" />
+        </constructor>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.gmc.retreat.registration.mapper.RegistrationHistoryInsert">
+        INSERT INTO registration_histories (
+            registration_id, change_type, previous_snapshot_json, new_snapshot_json,
+            actor_type, actor_admin_user_id
+        )
+        VALUES (
+            #{registrationId}, #{changeType}, #{previousSnapshotJson}, #{newSnapshotJson},
+            #{actorType}, #{actorAdminUserId}
+        )
+    </insert>
+
+    <select id="findByRegistrationId" resultMap="RegistrationHistoryResultMap">
+        SELECT id, registration_id, change_type, previous_snapshot_json, new_snapshot_json,
+               actor_type, actor_admin_user_id, created_at
+        FROM registration_histories
+        WHERE registration_id = #{registrationId}
+        ORDER BY created_at DESC, id DESC
+    </select>
+</mapper>
