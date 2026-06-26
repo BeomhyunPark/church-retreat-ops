@@ -23,7 +23,7 @@ import com.gmc.retreat.retreat.dto.RetreatGroupTreeResponse;
 import com.gmc.retreat.retreat.dto.RetreatGroupTreeResponse.GroupNode;
 import com.gmc.retreat.retreat.dto.RetreatGroupTreeResponse.MemberNode;
 import com.gmc.retreat.retreat.mapper.RetreatGroupMapper;
-import com.gmc.retreat.retreat.mapper.RetreatGroupMapper.RetreatGroupUpsert;
+import com.gmc.retreat.retreat.mapper.RetreatGroupUpsert;
 import com.gmc.retreat.security.auth.AdminPrincipal;
 import java.util.List;
 import java.util.Map;
