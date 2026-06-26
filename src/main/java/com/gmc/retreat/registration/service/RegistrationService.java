@@ -34,8 +34,8 @@ import com.gmc.retreat.registration.mapper.RegistrationMapper.RegistrationInsert
 import com.gmc.retreat.registration.mapper.RegistrationMapper.RegistrationManagementUpdate;
 import com.gmc.retreat.registration.mapper.RegistrationMapper.RegistrationOverwrite;
 import com.gmc.retreat.registration.mapper.RegistrationMapper.RegistrationSelfUpdate;
+import com.gmc.retreat.registration.mapper.RegistrationPrivacyAccessLogInsert;
 import com.gmc.retreat.registration.mapper.RegistrationPrivacyAccessLogMapper;
-import com.gmc.retreat.registration.mapper.RegistrationPrivacyAccessLogMapper.RegistrationPrivacyAccessLogInsert;
 import com.gmc.retreat.security.auth.AdminPrincipal;
 import java.time.OffsetDateTime;
 import java.util.List;
