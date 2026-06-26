@@ -2,8 +2,8 @@ package com.gmc.retreat.admin.service;
 
 import com.gmc.retreat.admin.domain.AdminRole;
 import com.gmc.retreat.admin.domain.AdminStatus;
+import com.gmc.retreat.admin.mapper.AdminUserInsert;
 import com.gmc.retreat.admin.mapper.AdminUserMapper;
-import com.gmc.retreat.admin.mapper.AdminUserMapper.AdminUserInsert;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
