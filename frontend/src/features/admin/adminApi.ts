@@ -125,7 +125,7 @@ export type AdminRegistrationFilters = {
   churchCellAssigned?: boolean;
   attendanceType?: "FULL" | "PARTIAL" | "WORSHIP_ONLY";
   transportationNeed?: "CARPOOL_NEEDED" | "CARPOOL_AVAILABLE";
-  sort?: "created_desc" | "name_asc" | "fee_unpaid_first" | "check_in_pending_first" | "group_asc";
+  sorts?: string[];
 };
 
 export type FeeRosterItem = {
@@ -339,9 +339,9 @@ export function getAdminRegistrations(filtersOrSize: AdminRegistrationFilters | 
   const filters = typeof filtersOrSize === "number" ? { size: filtersOrSize } : filtersOrSize;
   const params = new URLSearchParams({
     page: String(filters.page ?? 0),
-    size: String(filters.size ?? 20),
-    sort: filters.sort ?? "created_desc"
+    size: String(filters.size ?? 20)
   });
+  (filters.sorts ?? []).forEach((s) => params.append("sort", s));
 
   if (filters.keyword?.trim()) {
     params.set("keyword", filters.keyword.trim());
@@ -690,4 +690,12 @@ export function getCheckInDetail(participantId: number) {
 
 export function getFeeEvents(participantId: number) {
   return apiRequest<FeeEventItem[]>(`/admin/fees/${participantId}/events`, { auth: true });
+}
+
+export function getAdminPreferences() {
+  return apiRequest<Record<string, unknown>>("/admin/auth/me/preferences", { auth: true });
+}
+
+export function updateAdminPreferences(preferences: Record<string, unknown>) {
+  return apiRequest<null>("/admin/auth/me/preferences", { auth: true, method: "PUT", body: preferences });
 }

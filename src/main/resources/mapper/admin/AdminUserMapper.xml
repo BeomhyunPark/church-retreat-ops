@@ -63,4 +63,14 @@
         SET last_login_at = now(), updated_at = now()
         WHERE id = #{id}
     </update>
+
+    <select id="findUiPreferences" resultType="string">
+        SELECT ui_preferences::text FROM admin_users WHERE id = #{id}
+    </select>
+
+    <update id="updateUiPreferences">
+        UPDATE admin_users
+        SET ui_preferences = #{json}::jsonb, updated_at = now()
+        WHERE id = #{id}
+    </update>
 </mapper>

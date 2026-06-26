@@ -334,7 +334,7 @@ public class RegistrationService {
             Boolean churchCellAssigned,
             AttendanceType attendanceType,
             String transportationNeed,
-            String sort,
+            List<String> sort,
             int page,
             int size
     ) {
@@ -343,7 +343,7 @@ public class RegistrationService {
         int safeSize = Math.min(Math.max(size, 1), 100);
         String normalizedKeyword = normalizeOptional(keyword);
         String normalizedTransportationNeed = normalizeTransportationNeed(transportationNeed);
-        String normalizedSort = normalizeRegistrationListSort(sort);
+        String orderBy = buildOrderBy(sort);
         List<AdminRegistrationResponse> content = registrationMapper.findPage(
                         normalizedKeyword,
                         status,
@@ -355,7 +355,7 @@ public class RegistrationService {
                         churchCellAssigned,
                         attendanceType,
                         normalizedTransportationNeed,
-                        normalizedSort,
+                        orderBy,
                         safeSize,
                         safePage * safeSize
                 )
@@ -945,15 +945,47 @@ public class RegistrationService {
         throw new BusinessException(ErrorCode.INVALID_REQUEST);
     }
 
-    private String normalizeRegistrationListSort(String value) {
-        String normalized = normalizeOptional(value);
-        if (normalized == null) {
-            return "created_desc";
+    private String buildOrderBy(List<String> sorts) {
+        if (sorts == null || sorts.isEmpty()) {
+            return "r.created_at DESC, r.id DESC";
         }
-        return switch (normalized) {
-            case "created_desc", "name_asc", "fee_unpaid_first", "check_in_pending_first", "group_asc" -> normalized;
-            default -> throw new BusinessException(ErrorCode.INVALID_REQUEST);
-        };
+        List<String> clauses = new java.util.ArrayList<>();
+        java.util.Set<String> seen = new java.util.LinkedHashSet<>();
+        for (String sort : sorts) {
+            String key = normalizeOptional(sort);
+            if (key == null || !seen.add(key)) continue;
+            String clause = switch (key) {
+                case "name_asc" -> "r.name ASC";
+                case "name_desc" -> "r.name DESC";
+                case "birth_year_asc" -> "r.birth_year ASC";
+                case "birth_year_desc" -> "r.birth_year DESC";
+                case "gender_asc" -> "r.gender ASC";
+                case "gender_desc" -> "r.gender DESC";
+                case "phone_asc" -> "r.phone_number ASC";
+                case "phone_desc" -> "r.phone_number DESC";
+                case "middle_group_asc" -> "mg.name ASC NULLS LAST";
+                case "middle_group_desc" -> "mg.name DESC NULLS LAST";
+                case "cell_asc" -> "cc.name ASC NULLS LAST";
+                case "cell_desc" -> "cc.name DESC NULLS LAST";
+                case "attendance_asc" -> "r.attendance_type ASC NULLS LAST";
+                case "attendance_desc" -> "r.attendance_type DESC NULLS LAST";
+                case "transport_asc" -> "CASE WHEN r.inbound_transportation_method = 'CARPOOL_NEEDED' OR r.outbound_transportation_method = 'CARPOOL_NEEDED' THEN 0 WHEN r.inbound_transportation_method = 'CARPOOL_AVAILABLE' OR r.outbound_transportation_method = 'CARPOOL_AVAILABLE' THEN 1 ELSE 2 END ASC";
+                case "transport_desc" -> "CASE WHEN r.inbound_transportation_method = 'CARPOOL_NEEDED' OR r.outbound_transportation_method = 'CARPOOL_NEEDED' THEN 0 WHEN r.inbound_transportation_method = 'CARPOOL_AVAILABLE' OR r.outbound_transportation_method = 'CARPOOL_AVAILABLE' THEN 1 ELSE 2 END DESC";
+                case "special_first" -> "CASE WHEN r.newcomer OR r.care_target OR r.status = 'CANCELLED' THEN 0 ELSE 1 END ASC";
+                case "created_asc" -> "r.created_at ASC";
+                case "created_desc" -> "r.created_at DESC";
+                case "fee_unpaid_first" -> "r.fee_paid ASC";
+                case "check_in_pending_first" -> "COALESCE(ci.checked_in, FALSE) ASC";
+                case "group_asc" -> "rg.display_order ASC NULLS LAST, rg.name ASC NULLS LAST";
+                default -> throw new BusinessException(ErrorCode.INVALID_REQUEST);
+            };
+            clauses.add(clause);
+        }
+        if (clauses.isEmpty()) {
+            return "r.created_at DESC, r.id DESC";
+        }
+        clauses.add("r.id ASC");
+        return String.join(", ", clauses);
     }
 
     private String normalizeFeeReason(Boolean feePaid, String value) {

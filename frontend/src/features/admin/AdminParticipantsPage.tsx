@@ -1,69 +1,323 @@
-import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
-import { getAdminRegistrations, type AdminRegistrationFilters } from "./adminApi";
+import {
+  getAdminRegistrations,
+  getAdminPreferences,
+  updateAdminPreferences,
+  type AdminRegistration,
+  type AdminRegistrationFilters
+} from "./adminApi";
 import { EmptyState } from "../../shared/ui/EmptyState";
 import { StatusMessage } from "../../shared/ui/StatusMessage";
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE_DEFAULT = 50;
+const PAGE_SIZE_ALL     = 9999;
+const PAGE_SIZE_OPTIONS = [10, 20, 30, 50, 100, PAGE_SIZE_ALL] as const;
 
-const PRESETS: Array<{
-  key: string;
-  label: string;
-  filters: Partial<AdminRegistrationFilters>;
-}> = [
-  { key: "unpaid", label: "미납자", filters: { feePaid: false, sort: "fee_unpaid_first" } },
-  { key: "not-checked-in", label: "미체크인", filters: { checkedIn: false, sort: "check_in_pending_first" } },
-  { key: "newcomer", label: "새가족", filters: { newcomer: true } },
-  { key: "care-target", label: "돌봄", filters: { careTarget: true } },
-  { key: "no-group", label: "조 미배정", filters: { retreatGroupAssigned: false, sort: "group_asc" } },
-  { key: "no-cell", label: "셀 미지정", filters: { churchCellAssigned: false } },
-  { key: "partial", label: "부분 참석", filters: { attendanceType: "PARTIAL" } },
-  { key: "carpool", label: "카풀 필요", filters: { transportationNeed: "CARPOOL_NEEDED" } }
+// ── Column definitions ────────────────────────────────────────────────────────
+
+type ColumnKey =
+  | "name" | "birthYear" | "gender" | "phone" | "middleGroup" | "cell"
+  | "attendance" | "group" | "transportation" | "feePaid" | "checkedIn"
+  | "createdAt" | "special";
+
+const DEFAULT_COL_ORDER: ColumnKey[] = [
+  "name", "birthYear", "gender", "phone", "middleGroup", "cell",
+  "attendance", "group", "transportation", "feePaid", "checkedIn", "createdAt", "special"
 ];
+
+const COL_DEFAULT_WIDTH: Record<ColumnKey, number> = {
+  name: 11, birthYear: 5, gender: 5, phone: 9, middleGroup: 9, cell: 9,
+  attendance: 7, group: 8, transportation: 7, feePaid: 7, checkedIn: 7,
+  createdAt: 8, special: 8
+};
+
+const COL_LABEL: Record<ColumnKey, string> = {
+  name: "이름", birthYear: "또래", gender: "성별", phone: "연락처",
+  middleGroup: "중그룹", cell: "셀", attendance: "참석여부", group: "조",
+  transportation: "교통", feePaid: "참가비", checkedIn: "체크인",
+  createdAt: "등록일", special: "특이사항"
+};
+
+// bidirectional: [primaryAsc, primaryDesc]
+const COL_BISORT: Partial<Record<ColumnKey, [string, string]>> = {
+  name:         ["name_asc",          "name_desc"],
+  birthYear:    ["birth_year_asc",    "birth_year_desc"],
+  gender:       ["gender_asc",        "gender_desc"],
+  phone:        ["phone_asc",         "phone_desc"],
+  middleGroup:  ["middle_group_asc",  "middle_group_desc"],
+  cell:         ["cell_asc",          "cell_desc"],
+  attendance:   ["attendance_asc",    "attendance_desc"],
+  transportation:["transport_asc",    "transport_desc"],
+  createdAt:    ["created_desc",      "created_asc"],
+};
+
+const COL_ONEWAY: Partial<Record<ColumnKey, string>> = {
+  group:    "group_asc",
+  feePaid:  "fee_unpaid_first",
+  checkedIn:"check_in_pending_first",
+  special:  "special_first",
+};
+
+// ── Prefs keys ────────────────────────────────────────────────────────────────
+
+const PREFS_WIDTHS_KEY = "participantTableColWidthsV2";
+const PREFS_ORDER_KEY  = "participantTableColOrder";
+const MIN_COL_WIDTH    = 50;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function measureNaturalColWidths(table: HTMLTableElement): number[] {
+  const clone = table.cloneNode(true) as HTMLTableElement;
+  clone.style.cssText = "position:fixed;top:-9999px;left:0;visibility:hidden;table-layout:auto;width:auto;";
+  clone.querySelectorAll("col").forEach((el) => el.remove());
+  clone.querySelectorAll(".col-resize-handle").forEach((el) => el.remove());
+  document.body.appendChild(clone);
+  const ths = Array.from(clone.querySelectorAll("thead th")) as HTMLElement[];
+  const widths = ths.map((th) => th.getBoundingClientRect().width);
+  document.body.removeChild(clone);
+  return widths;
+}
+
+// ── Hook: column resize + drag-and-drop reorder ───────────────────────────────
+
+function useColumnCustomization() {
+  const queryClient = useQueryClient();
+  const tableRef = useRef<HTMLTableElement>(null);
+
+  const [colOrder, setColOrder] = useState<ColumnKey[] | null>(null);
+  const [widths,   setWidths]   = useState<Record<ColumnKey, number> | null>(null);
+  const [draggedKey,  setDraggedKey]  = useState<ColumnKey | null>(null);
+  const [dragOverKey, setDragOverKey] = useState<ColumnKey | null>(null);
+
+  // refs so mouse-event closures always read the latest values
+  const colOrderRef = useRef<ColumnKey[] | null>(null);
+  const widthsRef   = useRef<Record<ColumnKey, number> | null>(null);
+  useEffect(() => { colOrderRef.current = colOrder; }, [colOrder]);
+  useEffect(() => { widthsRef.current   = widths;   }, [widths]);
+
+  const prefsQuery = useQuery({
+    queryKey: ["admin", "preferences"],
+    queryFn: getAdminPreferences,
+    staleTime: Infinity
+  });
+
+  useEffect(() => {
+    const data = prefsQuery.data;
+    if (!data) return;
+    const savedOrder = data[PREFS_ORDER_KEY];
+    if (Array.isArray(savedOrder) && savedOrder.length === DEFAULT_COL_ORDER.length) {
+      setColOrder(savedOrder as ColumnKey[]);
+    }
+    const savedWidths = data[PREFS_WIDTHS_KEY];
+    if (savedWidths && typeof savedWidths === "object" && !Array.isArray(savedWidths)) {
+      setWidths(savedWidths as Record<ColumnKey, number>);
+    }
+  }, [prefsQuery.data]);
+
+  const saveMutation = useMutation({
+    mutationFn: (patch: Record<string, unknown>) =>
+      updateAdminPreferences({ ...prefsQuery.data, ...patch }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "preferences"] })
+  });
+
+  const effectiveOrder = colOrder ?? DEFAULT_COL_ORDER;
+
+  const getColWidth = useCallback((key: ColumnKey): string => {
+    const w = widths?.[key];
+    return w !== undefined ? `${w}%` : `${COL_DEFAULT_WIDTH[key]}%`;
+  }, [widths]);
+
+  const resetOrder = useCallback(() => {
+    setColOrder(null);
+    saveMutation.mutate({ [PREFS_ORDER_KEY]: null });
+  }, [saveMutation]);
+
+  const resetWidths = useCallback(() => {
+    setWidths(null);
+    saveMutation.mutate({ [PREFS_WIDTHS_KEY]: null });
+  }, [saveMutation]);
+
+  // Resize: same algorithm as before, widths now saved as Record<ColumnKey, number>
+  const startResize = useCallback((colIndex: number, startX: number) => {
+    const table = tableRef.current;
+    if (!table) return;
+
+    const ths = Array.from(table.querySelectorAll("thead th")) as HTMLElement[];
+    const cols = Array.from(table.querySelectorAll("col")) as HTMLElement[];
+    const startWidths = ths.map((th) => th.offsetWidth);
+    const startThis = startWidths[colIndex];
+    const startNext = startWidths[colIndex + 1];
+    if (startNext === undefined) return;
+
+    const naturalWidths = measureNaturalColWidths(table);
+    const minThis = Math.max(MIN_COL_WIDTH, naturalWidths[colIndex] ?? 0);
+    const minNext = Math.max(MIN_COL_WIDTH, naturalWidths[colIndex + 1] ?? 0);
+    const tableWidth = table.offsetWidth;
+    const totalTwo   = startThis + startNext;
+    const clamp      = (raw: number) => Math.min(totalTwo - minNext, Math.max(minThis, raw));
+
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "col-resize";
+
+    const onMouseMove = (e: MouseEvent) => {
+      const t = clamp(startThis + (e.clientX - startX));
+      cols[colIndex].style.width     = `${t}px`;
+      cols[colIndex + 1].style.width = `${totalTwo - t}px`;
+    };
+
+    const onMouseUp = (e: MouseEvent) => {
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup",   onMouseUp);
+
+      const t = clamp(startThis + (e.clientX - startX));
+      const finalPx = [...startWidths];
+      finalPx[colIndex]     = t;
+      finalPx[colIndex + 1] = totalTwo - t;
+      const pct = finalPx.map((w) => Math.round((w / tableWidth) * 1000) / 10);
+
+      const order = colOrderRef.current ?? DEFAULT_COL_ORDER;
+      const next: Record<string, number> = { ...(widthsRef.current ?? {}) };
+      order.forEach((key, i) => { next[key] = pct[i]; });
+
+      setWidths(next as Record<ColumnKey, number>);
+      saveMutation.mutate({ [PREFS_WIDTHS_KEY]: next });
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup",   onMouseUp);
+  }, [saveMutation]);
+
+  // DnD: reorder columns
+  const onDragStart = useCallback((key: ColumnKey, e: React.DragEvent) => {
+    e.dataTransfer.effectAllowed = "move";
+    setDraggedKey(key);
+  }, []);
+
+  const onDragOver = useCallback((key: ColumnKey, e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (key !== draggedKey) setDragOverKey(key);
+  }, [draggedKey]);
+
+  const onDrop = useCallback((targetKey: ColumnKey, e: React.DragEvent) => {
+    e.preventDefault();
+    const fromKey = draggedKey;
+    setDraggedKey(null);
+    setDragOverKey(null);
+    if (!fromKey || fromKey === targetKey) return;
+
+    const order = colOrderRef.current ?? DEFAULT_COL_ORDER;
+    const next = [...order];
+    next.splice(next.indexOf(fromKey), 1);
+    next.splice(next.indexOf(targetKey), 0, fromKey);
+
+    setColOrder(next);
+    saveMutation.mutate({ [PREFS_ORDER_KEY]: next });
+  }, [draggedKey, saveMutation]);
+
+  const onDragEnd = useCallback(() => {
+    setDraggedKey(null);
+    setDragOverKey(null);
+  }, []);
+
+  return {
+    tableRef,
+    effectiveOrder,
+    getColWidth,
+    startResize,
+    resetOrder,
+    resetWidths,
+    hasOrderCustomization: !!colOrder,
+    hasWidthCustomization: !!widths,
+    draggedKey,
+    dragOverKey,
+    onDragStart,
+    onDragOver,
+    onDrop,
+    onDragEnd,
+  };
+}
+
+// ── Page component ────────────────────────────────────────────────────────────
 
 export function AdminParticipantsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = useMemo(() => filtersFromSearchParams(searchParams), [searchParams]);
   const [keyword, setKeyword] = useState(filters.keyword ?? "");
-  const hasAdvancedFilters = Boolean(
-    filters.status ||
-      filters.newcomer !== undefined ||
-      filters.careTarget !== undefined ||
-      filters.retreatGroupAssigned !== undefined ||
-      filters.churchCellAssigned !== undefined ||
-      filters.attendanceType ||
-      filters.transportationNeed
-  );
-
-  useEffect(() => {
-    setKeyword(filters.keyword ?? "");
-  }, [filters.keyword]);
+  useEffect(() => { setKeyword(filters.keyword ?? ""); }, [filters.keyword]);
 
   const registrationsQuery = useQuery({
     queryKey: ["admin", "registrations", filters],
-    queryFn: () => getAdminRegistrations(filters)
+    queryFn: () => getAdminRegistrations(filters),
+    placeholderData: keepPreviousData
   });
 
-  const page = registrationsQuery.data;
+  const page         = registrationsQuery.data;
   const participants = page?.content ?? [];
-  const currentPage = filters.page ?? 0;
-  const activePreset = PRESETS.find((preset) => presetMatches(filters, preset.filters))?.key;
+  const currentPage  = filters.page ?? 0;
 
   const updateFilters = (next: Partial<AdminRegistrationFilters>) => {
     setSearchParams(searchParamsFromFilters({ ...filters, ...next, page: next.page ?? 0 }));
   };
 
-  const applyPreset = (preset: (typeof PRESETS)[number]) => {
-    setSearchParams(searchParamsFromFilters({ size: PAGE_SIZE, sort: "created_desc", ...preset.filters, page: 0 }));
-  };
-
   const clearFilters = () => {
-    setSearchParams(searchParamsFromFilters({ page: 0, size: PAGE_SIZE, sort: "created_desc" }));
+    setSearchParams(searchParamsFromFilters({ page: 0, size: filters.size ?? PAGE_SIZE_DEFAULT }));
   };
 
-  const updateSort = (sort: AdminRegistrationFilters["sort"]) => {
-    updateFilters({ sort });
+  const {
+    tableRef, effectiveOrder, getColWidth, startResize,
+    resetOrder, resetWidths, hasOrderCustomization, hasWidthCustomization,
+    draggedKey, dragOverKey, onDragStart, onDragOver, onDrop, onDragEnd,
+  } = useColumnCustomization();
+
+  const currentSorts = filters.sorts ?? [];
+
+  const sortInfo = (primary: string, alternate: string) => {
+    const pi = currentSorts.indexOf(primary);
+    const ai = currentSorts.indexOf(alternate);
+    if (pi !== -1) return { direction: "asc" as const,  priority: currentSorts.length > 1 ? pi + 1 : undefined };
+    if (ai !== -1) return { direction: "desc" as const, priority: currentSorts.length > 1 ? ai + 1 : undefined };
+    return { direction: undefined as undefined, priority: undefined };
+  };
+
+  const oneWayInfo = (sort: string) => {
+    const i = currentSorts.indexOf(sort);
+    if (i !== -1) return { direction: "asc" as const, priority: currentSorts.length > 1 ? i + 1 : undefined };
+    return { direction: undefined as undefined, priority: undefined };
+  };
+
+  const toggleSort = (asc: string, desc: string) => {
+    const hasAsc  = currentSorts.includes(asc);
+    const hasDesc = currentSorts.includes(desc);
+    if (hasAsc) {
+      updateFilters({ sorts: currentSorts.map((s) => (s === asc ? desc : s)), page: 0 });
+    } else if (hasDesc) {
+      updateFilters({ sorts: currentSorts.filter((s) => s !== desc), page: 0 });
+    } else {
+      updateFilters({ sorts: [asc, ...currentSorts], page: 0 });
+    }
+  };
+
+  const toggleOneWaySort = (sort: string) => {
+    if (currentSorts.includes(sort)) {
+      updateFilters({ sorts: currentSorts.filter((s) => s !== sort), page: 0 });
+    } else {
+      updateFilters({ sorts: [sort, ...currentSorts], page: 0 });
+    }
+  };
+
+  // Render sort header per column key
+  const getSortHeader = (key: ColumnKey) => {
+    const label = COL_LABEL[key];
+    const bi    = COL_BISORT[key];
+    const ow    = COL_ONEWAY[key];
+    if (bi)  return <SortableHeader {...sortInfo(bi[0], bi[1])} label={label} onClick={() => toggleSort(bi[0], bi[1])} />;
+    if (ow)  return <SortableHeader {...oneWayInfo(ow)}         label={label} onClick={() => toggleOneWaySort(ow)} />;
+    return <span className="col-label">{label}</span>;
   };
 
   return (
@@ -71,212 +325,181 @@ export function AdminParticipantsPage() {
       <div className="page-heading">
         <div>
           <p className="eyebrow">Participants</p>
-          <h1>참가자 관리</h1>
+          <div className="page-heading-title-row">
+            <h1>참가자 관리</h1>
+            <span className="masking-badge" title="목록에서는 연락처가 마스킹되어 표시됩니다.">
+              <svg aria-hidden="true" fill="none" height="12" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 24 24" width="12">
+                <path d="M12 2L3 7v5c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7L12 2z" />
+                <path d="M9 12l2 2 4-4" />
+              </svg>
+              연락처 마스킹 ON
+            </span>
+          </div>
         </div>
-        <span className="pill">목록 연락처는 마스킹 표시</span>
+        <div className="result-count">
+          <span className="result-count__label">검색 결과</span>
+          <strong className="result-count__number">{page?.totalElements ?? "–"}</strong>
+          <span className="result-count__unit">명</span>
+        </div>
       </div>
 
       {registrationsQuery.isError ? (
         <StatusMessage message={registrationsQuery.error.message} tone="error" />
       ) : null}
 
-      <section className="ops-toolbar" aria-label="참가자 빠른 필터">
-        <div className="preset-row">
-          {PRESETS.map((preset) => (
-            <button
-              className={activePreset === preset.key ? "preset-chip preset-chip--active" : "preset-chip"}
-              key={preset.key}
-              onClick={() => applyPreset(preset)}
-              type="button"
-            >
-              {preset.label}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="participant-list-controls" aria-label="참가자 목록 필터">
+      <div className="search-card">
         <form
-          className="participant-search"
+          className="search-card-top"
           onSubmit={(event) => {
             event.preventDefault();
             updateFilters({ keyword: keyword.trim() || undefined });
           }}
         >
-          <label>
-            검색
+          <div className="search-input-wrap">
+            <svg aria-hidden="true" className="search-icon" fill="none" height="16" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="16">
+              <circle cx="11" cy="11" r="8" />
+              <path d="M21 21l-4.35-4.35" />
+            </svg>
             <input
               onChange={(event) => setKeyword(event.target.value)}
-              placeholder="이름, 연락처 끝 4자리, 공동체, 조"
+              placeholder="이름, 연락처 끝 4자리, 공동체, 조 검색"
               type="search"
               value={keyword}
             />
-          </label>
-          <button className="button button--secondary" type="submit">
-            검색
-          </button>
+          </div>
+          <button className="button button--search-submit button--md" type="submit">검색</button>
+          <button className="button button--ghost button--md" onClick={clearFilters} type="button">초기화</button>
         </form>
-        <div className="quick-filter-group" aria-label="핵심 상태 필터">
-          <ToggleFilter active={filters.feePaid === false} onClick={() => updateFilters({ feePaid: filters.feePaid === false ? undefined : false })}>
-            미납
-          </ToggleFilter>
-          <ToggleFilter
-            active={filters.checkedIn === false}
-            onClick={() => updateFilters({ checkedIn: filters.checkedIn === false ? undefined : false })}
+        <div aria-hidden="true" className="search-card-divider" />
+        <div className="filter-select-row" aria-label="필터">
+          <span className="filter-label">필터</span>
+          <select
+            className={filters.status ? "filter-select filter-select--active" : "filter-select"}
+            onChange={(e) => updateFilters({ status: valueOrUndefined(e.target.value) as AdminRegistrationFilters["status"] })}
+            value={filters.status ?? ""}
           >
-            미체크인
-          </ToggleFilter>
-          <ToggleFilter active={filters.status === "CANCELLED"} onClick={() => updateFilters({ status: filters.status === "CANCELLED" ? undefined : "CANCELLED" })}>
-            취소
-          </ToggleFilter>
-        </div>
-        <div className="filter-summary">
-          <span>결과</span>
-          <strong>{page ? `${page.totalElements}명` : "-"}</strong>
-        </div>
-        <button className="button button--ghost filter-clear" onClick={clearFilters} type="button">
-          초기화
-        </button>
-      </section>
-
-      <details className="advanced-filter-panel" open={hasAdvancedFilters}>
-        <summary>상세 필터</summary>
-        <div className="filter-panel filter-panel--participants" aria-label="참가자 상세 필터">
-          <label>
-            등록 상태
+            <option value="">등록 상태</option>
+            <option value="REGISTERED">등록 완료</option>
+            <option value="CANCELLED">취소</option>
+          </select>
+          <select
+            className={filters.attendanceType ? "filter-select filter-select--active" : "filter-select"}
+            onChange={(e) => updateFilters({ attendanceType: valueOrUndefined(e.target.value) as AdminRegistrationFilters["attendanceType"] })}
+            value={filters.attendanceType ?? ""}
+          >
+            <option value="">참석</option>
+            <option value="FULL">전체 참석</option>
+            <option value="PARTIAL">부분 참석</option>
+            <option value="WORSHIP_ONLY">예배만</option>
+          </select>
+          <select
+            className={filters.feePaid !== undefined ? "filter-select filter-select--active" : "filter-select"}
+            onChange={(e) => updateFilters({ feePaid: e.target.value === "" ? undefined : e.target.value === "true" })}
+            value={filters.feePaid === undefined ? "" : String(filters.feePaid)}
+          >
+            <option value="">참가비</option>
+            <option value="false">미납</option>
+            <option value="true">납부</option>
+          </select>
+          <select
+            className={filters.retreatGroupAssigned !== undefined || filters.churchCellAssigned !== undefined ? "filter-select filter-select--active" : "filter-select"}
+            onChange={(e) => {
+              const v = e.target.value;
+              updateFilters({ retreatGroupAssigned: v === "NO_GROUP" ? false : undefined, churchCellAssigned: v === "NO_CELL" ? false : undefined });
+            }}
+            value={filters.retreatGroupAssigned === false ? "NO_GROUP" : filters.churchCellAssigned === false ? "NO_CELL" : ""}
+          >
+            <option value="">배정</option>
+            <option value="NO_GROUP">조 미배정</option>
+            <option value="NO_CELL">셀 미지정</option>
+          </select>
+          <select
+            className={filters.checkedIn !== undefined ? "filter-select filter-select--active" : "filter-select"}
+            onChange={(e) => updateFilters({ checkedIn: e.target.value === "" ? undefined : e.target.value === "true" })}
+            value={filters.checkedIn === undefined ? "" : String(filters.checkedIn)}
+          >
+            <option value="">체크인</option>
+            <option value="false">미완료</option>
+            <option value="true">완료</option>
+          </select>
+          <select
+            className={filters.transportationNeed ? "filter-select filter-select--active" : "filter-select"}
+            onChange={(e) => updateFilters({ transportationNeed: valueOrUndefined(e.target.value) as AdminRegistrationFilters["transportationNeed"] })}
+            value={filters.transportationNeed ?? ""}
+          >
+            <option value="">교통</option>
+            <option value="CARPOOL_NEEDED">카풀 필요</option>
+            <option value="CARPOOL_AVAILABLE">카풀 제공</option>
+          </select>
+          <select
+            className={filters.newcomer !== undefined || filters.careTarget !== undefined ? "filter-select filter-select--active" : "filter-select"}
+            onChange={(e) => {
+              const v = e.target.value;
+              updateFilters({ newcomer: v === "NEWCOMER" ? true : undefined, careTarget: v === "CARE_TARGET" ? true : undefined });
+            }}
+            value={filters.newcomer ? "NEWCOMER" : filters.careTarget ? "CARE_TARGET" : ""}
+          >
+            <option value="">태그</option>
+            <option value="NEWCOMER">새가족</option>
+            <option value="CARE_TARGET">돌봄</option>
+          </select>
+          <label className="page-size-select-wrap" style={{ marginLeft: "auto" }}>
+            <span>행</span>
             <select
-              onChange={(event) => updateFilters({ status: valueOrUndefined(event.target.value) as AdminRegistrationFilters["status"] })}
-              value={filters.status ?? ""}
+              className="page-size-select"
+              onChange={(e) => updateFilters({ size: Number(e.target.value), page: 0 })}
+              value={filters.size ?? PAGE_SIZE_DEFAULT}
             >
-              <option value="">전체</option>
-              <option value="REGISTERED">등록 완료</option>
-              <option value="CANCELLED">취소</option>
-            </select>
-          </label>
-          <label>
-            태그
-            <select
-              onChange={(event) => {
-                const value = event.target.value;
-                updateFilters({
-                  newcomer: value === "NEWCOMER" ? true : undefined,
-                  careTarget: value === "CARE_TARGET" ? true : undefined
-                });
-              }}
-              value={filters.newcomer ? "NEWCOMER" : filters.careTarget ? "CARE_TARGET" : ""}
-            >
-              <option value="">전체</option>
-              <option value="NEWCOMER">새가족</option>
-              <option value="CARE_TARGET">돌봄</option>
-            </select>
-          </label>
-          <label>
-            배정
-            <select
-              onChange={(event) => {
-                const value = event.target.value;
-                updateFilters({
-                  retreatGroupAssigned: value === "NO_GROUP" ? false : undefined,
-                  churchCellAssigned: value === "NO_CELL" ? false : undefined
-                });
-              }}
-              value={filters.retreatGroupAssigned === false ? "NO_GROUP" : filters.churchCellAssigned === false ? "NO_CELL" : ""}
-            >
-              <option value="">전체</option>
-              <option value="NO_GROUP">조 미배정</option>
-              <option value="NO_CELL">셀 미지정</option>
-            </select>
-          </label>
-          <label>
-            참석
-            <select
-              onChange={(event) => updateFilters({ attendanceType: valueOrUndefined(event.target.value) as AdminRegistrationFilters["attendanceType"] })}
-              value={filters.attendanceType ?? ""}
-            >
-              <option value="">전체</option>
-              <option value="FULL">전체 참석</option>
-              <option value="PARTIAL">부분 참석</option>
-              <option value="WORSHIP_ONLY">예배만</option>
-            </select>
-          </label>
-          <label>
-            교통
-            <select
-              onChange={(event) =>
-                updateFilters({ transportationNeed: valueOrUndefined(event.target.value) as AdminRegistrationFilters["transportationNeed"] })
-              }
-              value={filters.transportationNeed ?? ""}
-            >
-              <option value="">전체</option>
-              <option value="CARPOOL_NEEDED">카풀 필요</option>
-              <option value="CARPOOL_AVAILABLE">카풀 제공</option>
+              {PAGE_SIZE_OPTIONS.map((n) => (
+                <option key={n} value={n}>{n >= PAGE_SIZE_ALL ? "전체" : n}</option>
+              ))}
             </select>
           </label>
         </div>
-      </details>
+      </div>
 
       <div className="table-card participant-table-card">
-        <table className="participant-table">
+        <table className="participant-table" ref={tableRef}>
+          <colgroup>
+            {effectiveOrder.map((key) => (
+              <col key={key} style={{ width: getColWidth(key) }} />
+            ))}
+          </colgroup>
           <thead>
             <tr>
-              <th>
-                <SortableHeader active={filters.sort === "name_asc"} label="참가자" onClick={() => updateSort("name_asc")} />
-              </th>
-              <th>연락처</th>
-              <th>등록 상태</th>
-              <th>
-                <SortableHeader active={filters.sort === "fee_unpaid_first"} label="참가비" onClick={() => updateSort("fee_unpaid_first")} />
-              </th>
-              <th>
-                <SortableHeader active={filters.sort === "check_in_pending_first"} label="체크인" onClick={() => updateSort("check_in_pending_first")} />
-              </th>
-              <th>참석/교통</th>
-              <th>소속</th>
-              <th>
-                <SortableHeader active={filters.sort === "group_asc"} label="수련회 조" onClick={() => updateSort("group_asc")} />
-              </th>
-              <th>
-                <SortableHeader active={(filters.sort ?? "created_desc") === "created_desc"} label="등록일" onClick={() => updateSort("created_desc")} />
-              </th>
+              {effectiveOrder.map((key, i) => (
+                <th
+                  key={key}
+                  className={
+                    draggedKey === key ? "col-dragging"
+                    : dragOverKey === key ? "col-drag-over"
+                    : undefined
+                  }
+                  draggable
+                  onDragEnd={onDragEnd}
+                  onDragOver={(e) => onDragOver(key, e)}
+                  onDragStart={(e) => onDragStart(key, e)}
+                  onDrop={(e) => onDrop(key, e)}
+                >
+                  {getSortHeader(key)}
+                  {i < effectiveOrder.length - 1 && (
+                    <ColResizeHandle onMouseDown={(e) => startResize(i, e.clientX)} />
+                  )}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {participants.map((item) => (
               <tr key={item.id}>
-                <td className="participant-name-cell">
-                  <Link className="table-link" to={`/admin/participants/${item.id}`}>
-                    {item.name}
-                  </Link>
-                  <span className="table-note">
-                    {item.gender === "FEMALE" ? "여성" : "남성"} · {item.birthYear}
-                  </span>
-                  <TagList newcomer={item.newcomer} careTarget={item.careTarget} />
-                </td>
-                <td>{item.phoneNumber}</td>
-                <td>
-                  <StatusPill tone={item.status === "REGISTERED" ? "success" : "danger"}>
-                    {item.status === "REGISTERED" ? "등록 완료" : "취소"}
-                  </StatusPill>
-                </td>
-                <td>
-                  <StatusPill tone={item.feePaid ? "success" : "warning"}>{item.feePaid ? "납부" : "미납"}</StatusPill>
-                </td>
-                <td>
-                  <StatusPill tone={item.checkedIn ? "success" : "neutral"}>{item.checkedIn ? "완료" : "미완료"}</StatusPill>
-                </td>
-                <td>
-                  <strong className="cell-primary">{formatAttendance(item.attendanceType)}</strong>
-                  <span className="table-note">{formatTransportationSummary(item)}</span>
-                </td>
-                <td>
-                  <strong className="cell-primary">{item.churchCellName ?? item.churchCellDepartment ?? "-"}</strong>
-                  <span className="table-note">{item.middleGroupName ?? "중그룹 미지정"}</span>
-                </td>
-                <td>
-                  <strong className="cell-primary">{item.retreatGroupName ?? "-"}</strong>
-                  {item.retreatGroupLeader ? <span className="table-note">조장</span> : null}
-                </td>
-                <td>{formatDate(item.createdAt)}</td>
+                {effectiveOrder.map((key, i) => (
+                  <td key={key} className={key === "name" ? "participant-name-cell" : undefined}>
+                    {getBodyCell(item, key)}
+                    {i < effectiveOrder.length - 1 && (
+                      <ColResizeHandle onMouseDown={(e) => startResize(i, e.clientX)} />
+                    )}
+                  </td>
+                ))}
               </tr>
             ))}
           </tbody>
@@ -289,49 +512,136 @@ export function AdminParticipantsPage() {
         ) : null}
       </div>
 
-      {page ? (
-        <div className="pagination-bar" aria-label="참가자 목록 페이지">
-          <button className="button button--ghost" disabled={currentPage <= 0} onClick={() => updateFilters({ page: currentPage - 1 })} type="button">
-            이전
+      <div className="participant-table-footer">
+        <div className="col-reset-group">
+          <button className="button button--ghost button--sm" disabled={!hasWidthCustomization} onClick={resetWidths} type="button">
+            열 너비 초기화
           </button>
-          <span>
-            {page.totalPages === 0 ? 0 : currentPage + 1} / {page.totalPages}
-          </span>
-          <button
-            className="button button--ghost"
-            disabled={currentPage + 1 >= page.totalPages}
-            onClick={() => updateFilters({ page: currentPage + 1 })}
-            type="button"
-          >
-            다음
+          <button className="button button--ghost button--sm" disabled={!hasOrderCustomization} onClick={resetOrder} type="button">
+            열 순서 초기화
           </button>
         </div>
-      ) : null}
+        {page ? (
+          <div className="pagination-bar" aria-label="참가자 목록 페이지">
+            <button className="button button--ghost" disabled={currentPage <= 0} onClick={() => updateFilters({ page: currentPage - 1 })} type="button">
+              이전
+            </button>
+            <span>
+              {page.totalPages === 0 ? 0 : currentPage + 1} / {page.totalPages}
+            </span>
+            <button
+              className="button button--ghost"
+              disabled={currentPage + 1 >= page.totalPages}
+              onClick={() => updateFilters({ page: currentPage + 1 })}
+              type="button"
+            >
+              다음
+            </button>
+          </div>
+        ) : null}
+      </div>
     </section>
   );
 }
 
-function ToggleFilter({ active, children, onClick }: { active: boolean; children: string; onClick: () => void }) {
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function ColResizeHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) {
   return (
-    <button className={active ? "toggle-chip toggle-chip--active" : "toggle-chip"} onClick={onClick} type="button">
-      {children}
+    <div
+      className="col-resize-handle"
+      draggable={false}
+      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onMouseDown(e); }}
+    />
+  );
+}
+
+function SortableHeader({
+  direction,
+  priority,
+  label,
+  onClick
+}: {
+  direction?: "asc" | "desc";
+  priority?: number;
+  label: string;
+  onClick: () => void;
+}) {
+  const cls = direction === "asc"
+    ? "sort-header sort-header--asc"
+    : direction === "desc"
+    ? "sort-header sort-header--desc"
+    : "sort-header";
+  return (
+    <button className={cls} onClick={onClick} type="button">
+      <span>{label}</span>
+      <span className="sort-header-icon" aria-hidden="true">
+        {direction === "asc" ? "↑" : direction === "desc" ? "↓" : "↕"}
+        {priority !== undefined ? <sup>{priority}</sup> : null}
+      </span>
     </button>
   );
 }
 
-function SortableHeader({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+function SpecialTags({ newcomer, careTarget, cancelled }: { newcomer: boolean; careTarget: boolean; cancelled: boolean }) {
+  if (!newcomer && !careTarget && !cancelled) return null;
   return (
-    <button className={active ? "sort-header sort-header--active" : "sort-header"} onClick={onClick} type="button">
-      <span>{label}</span>
-      <span aria-hidden="true">{active ? "↓" : "↕"}</span>
-    </button>
+    <div className="tag-list">
+      {cancelled ? <span className="mini-tag mini-tag--danger">취소</span> : null}
+      {newcomer ? <span className="mini-tag">새가족</span> : null}
+      {careTarget ? <span className="mini-tag mini-tag--warning">돌봄</span> : null}
+    </div>
   );
 }
+
+function StatusPill({ tone, children }: { tone: "success" | "warning" | "danger" | "neutral"; children: string }) {
+  return <span className={`status-pill status-pill--${tone}`}>{children}</span>;
+}
+
+// ── Pure cell renderer (no component state needed) ────────────────────────────
+
+function getBodyCell(item: AdminRegistration, key: ColumnKey) {
+  switch (key) {
+    case "name":
+      return <Link className="table-link" to={`/admin/participants/${item.id}`}>{item.name}</Link>;
+    case "birthYear":
+      return String(item.birthYear % 100).padStart(2, "0");
+    case "gender":
+      return item.gender === "FEMALE" ? "여" : "남";
+    case "phone":
+      return item.phoneNumber;
+    case "middleGroup":
+      return item.middleGroupName ?? "-";
+    case "cell":
+      return item.churchCellName ?? item.churchCellDepartment ?? "-";
+    case "attendance":
+      return formatAttendance(item.attendanceType);
+    case "group":
+      return (
+        <>
+          {item.retreatGroupName ?? "-"}
+          {item.retreatGroupLeader ? <span className="table-note">조장</span> : null}
+        </>
+      );
+    case "transportation":
+      return formatTransportationSummary(item);
+    case "feePaid":
+      return <StatusPill tone={item.feePaid ? "success" : "warning"}>{item.feePaid ? "납부" : "미납"}</StatusPill>;
+    case "checkedIn":
+      return <StatusPill tone={item.checkedIn ? "success" : "neutral"}>{item.checkedIn ? "완료" : "미완료"}</StatusPill>;
+    case "createdAt":
+      return formatDate(item.createdAt);
+    case "special":
+      return <SpecialTags newcomer={item.newcomer} careTarget={item.careTarget} cancelled={item.status === "CANCELLED"} />;
+  }
+}
+
+// ── URL param helpers ─────────────────────────────────────────────────────────
 
 function filtersFromSearchParams(params: URLSearchParams): AdminRegistrationFilters {
   return {
     page: numberParam(params.get("page"), 0),
-    size: PAGE_SIZE,
+    size: numberParam(params.get("size"), PAGE_SIZE_DEFAULT),
     keyword: valueOrUndefined(params.get("keyword") ?? ""),
     status: valueOrUndefined(params.get("status") ?? "") as AdminRegistrationFilters["status"],
     feePaid: booleanOrUndefined(params.get("feePaid") ?? ""),
@@ -342,29 +652,26 @@ function filtersFromSearchParams(params: URLSearchParams): AdminRegistrationFilt
     churchCellAssigned: booleanOrUndefined(params.get("churchCellAssigned") ?? ""),
     attendanceType: valueOrUndefined(params.get("attendanceType") ?? "") as AdminRegistrationFilters["attendanceType"],
     transportationNeed: valueOrUndefined(params.get("transportationNeed") ?? "") as AdminRegistrationFilters["transportationNeed"],
-    sort: (valueOrUndefined(params.get("sort") ?? "") as AdminRegistrationFilters["sort"]) ?? "created_desc"
+    sorts: params.getAll("sort").filter(Boolean)
   };
 }
 
 function searchParamsFromFilters(filters: AdminRegistrationFilters) {
   const params = new URLSearchParams();
   params.set("page", String(filters.page ?? 0));
-  if (filters.keyword) params.set("keyword", filters.keyword);
-  if (filters.status) params.set("status", filters.status);
-  if (filters.feePaid !== undefined) params.set("feePaid", String(filters.feePaid));
-  if (filters.newcomer !== undefined) params.set("newcomer", String(filters.newcomer));
-  if (filters.careTarget !== undefined) params.set("careTarget", String(filters.careTarget));
-  if (filters.checkedIn !== undefined) params.set("checkedIn", String(filters.checkedIn));
+  if ((filters.size ?? PAGE_SIZE_DEFAULT) !== PAGE_SIZE_DEFAULT) params.set("size", String(filters.size));
+  if (filters.keyword)                   params.set("keyword",              filters.keyword);
+  if (filters.status)                    params.set("status",               filters.status);
+  if (filters.feePaid !== undefined)     params.set("feePaid",              String(filters.feePaid));
+  if (filters.newcomer !== undefined)    params.set("newcomer",             String(filters.newcomer));
+  if (filters.careTarget !== undefined)  params.set("careTarget",           String(filters.careTarget));
+  if (filters.checkedIn !== undefined)   params.set("checkedIn",            String(filters.checkedIn));
   if (filters.retreatGroupAssigned !== undefined) params.set("retreatGroupAssigned", String(filters.retreatGroupAssigned));
-  if (filters.churchCellAssigned !== undefined) params.set("churchCellAssigned", String(filters.churchCellAssigned));
-  if (filters.attendanceType) params.set("attendanceType", filters.attendanceType);
-  if (filters.transportationNeed) params.set("transportationNeed", filters.transportationNeed);
-  if (filters.sort && filters.sort !== "created_desc") params.set("sort", filters.sort);
+  if (filters.churchCellAssigned !== undefined)   params.set("churchCellAssigned",   String(filters.churchCellAssigned));
+  if (filters.attendanceType)            params.set("attendanceType",       filters.attendanceType);
+  if (filters.transportationNeed)        params.set("transportationNeed",   filters.transportationNeed);
+  (filters.sorts ?? []).forEach((s) => params.append("sort", s));
   return params;
-}
-
-function presetMatches(filters: AdminRegistrationFilters, preset: Partial<AdminRegistrationFilters>) {
-  return Object.entries(preset).every(([key, value]) => filters[key as keyof AdminRegistrationFilters] === value);
 }
 
 function numberParam(value: string | null, fallback: number) {
@@ -377,66 +684,37 @@ function valueOrUndefined(value: string) {
 }
 
 function booleanOrUndefined(value: string) {
-  if (value === "true") return true;
+  if (value === "true")  return true;
   if (value === "false") return false;
   return undefined;
 }
 
-function stringFromBoolean(value?: boolean) {
-  if (value === true) return "true";
-  if (value === false) return "false";
-  return "";
-}
-
-function TagList({ newcomer, careTarget }: { newcomer: boolean; careTarget: boolean }) {
-  if (!newcomer && !careTarget) return null;
-  return (
-    <div className="tag-list">
-      {newcomer ? <span className="mini-tag">새가족</span> : null}
-      {careTarget ? <span className="mini-tag mini-tag--warning">돌봄</span> : null}
-    </div>
-  );
-}
-
-function StatusPill({ tone, children }: { tone: "success" | "warning" | "danger" | "neutral"; children: string }) {
-  return <span className={`status-pill status-pill--${tone}`}>{children}</span>;
-}
+// ── Format helpers ────────────────────────────────────────────────────────────
 
 function formatAttendance(value: string) {
   switch (value) {
-    case "FULL":
-      return "전체 참석";
-    case "PARTIAL":
-      return "부분 참석";
-    case "WORSHIP_ONLY":
-      return "예배만";
-    default:
-      return value;
+    case "FULL":         return "전체 참석";
+    case "PARTIAL":      return "부분 참석";
+    case "WORSHIP_ONLY": return "예배만";
+    default:             return value;
   }
 }
 
-function formatTransportationSummary(item: { inboundTransportationMethod: string | null; outboundTransportationMethod: string | null }) {
-  const inbound = formatTransportation(item.inboundTransportationMethod);
+function formatTransportationSummary(item: Pick<AdminRegistration, "inboundTransportationMethod" | "outboundTransportationMethod">) {
+  const inbound  = formatTransportation(item.inboundTransportationMethod);
   const outbound = formatTransportation(item.outboundTransportationMethod);
   return inbound === outbound ? inbound : `${inbound} / ${outbound}`;
 }
 
 function formatTransportation(value: string | null) {
   switch (value) {
-    case "OWN_CAR":
-      return "개인차량";
-    case "GROUP_BUS":
-      return "단체버스";
-    case "WORSHIP_SHUTTLE":
-      return "경배 셔틀";
-    case "PUBLIC_TRANSIT":
-      return "대중교통";
-    case "CARPOOL_NEEDED":
-      return "카풀 필요";
-    case "NOT_DECIDED":
-      return "미정";
-    default:
-      return "-";
+    case "OWN_CAR":          return "개인차량";
+    case "GROUP_BUS":        return "단체버스";
+    case "WORSHIP_SHUTTLE":  return "경배 셔틀";
+    case "PUBLIC_TRANSIT":   return "대중교통";
+    case "CARPOOL_NEEDED":   return "카풀 필요";
+    case "NOT_DECIDED":      return "미정";
+    default:                 return "-";
   }
 }
 
