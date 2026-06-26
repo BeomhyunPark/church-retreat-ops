@@ -197,6 +197,12 @@
             <when test="sort == 'name_asc'">
                 ORDER BY r.name ASC, r.id ASC
             </when>
+            <when test="sort == 'name_desc'">
+                ORDER BY r.name DESC, r.id DESC
+            </when>
+            <when test="sort == 'created_asc'">
+                ORDER BY r.created_at ASC, r.id ASC
+            </when>
             <when test="sort == 'fee_unpaid_first'">
                 ORDER BY r.fee_paid ASC, r.created_at DESC, r.id DESC
             </when>

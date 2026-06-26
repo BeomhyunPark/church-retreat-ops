@@ -125,7 +125,7 @@ export type AdminRegistrationFilters = {
   churchCellAssigned?: boolean;
   attendanceType?: "FULL" | "PARTIAL" | "WORSHIP_ONLY";
   transportationNeed?: "CARPOOL_NEEDED" | "CARPOOL_AVAILABLE";
-  sort?: "created_desc" | "name_asc" | "fee_unpaid_first" | "check_in_pending_first" | "group_asc";
+  sort?: "created_desc" | "created_asc" | "name_asc" | "name_desc" | "fee_unpaid_first" | "check_in_pending_first" | "group_asc";
 };
 
 export type FeeRosterItem = {

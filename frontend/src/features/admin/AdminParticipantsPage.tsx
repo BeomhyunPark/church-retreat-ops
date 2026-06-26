@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { getAdminRegistrations, type AdminRegistrationFilters } from "./adminApi";
 import { EmptyState } from "../../shared/ui/EmptyState";
@@ -42,7 +42,8 @@ export function AdminParticipantsPage() {
 
   const registrationsQuery = useQuery({
     queryKey: ["admin", "registrations", filters],
-    queryFn: () => getAdminRegistrations(filters)
+    queryFn: () => getAdminRegistrations(filters),
+    placeholderData: keepPreviousData
   });
 
   const page = registrationsQuery.data;
@@ -62,8 +63,17 @@ export function AdminParticipantsPage() {
     setSearchParams(searchParamsFromFilters({ page: 0, size: PAGE_SIZE, sort: "created_desc" }));
   };
 
-  const updateSort = (sort: AdminRegistrationFilters["sort"]) => {
-    updateFilters({ sort });
+  const currentSort = filters.sort ?? "created_desc";
+
+  const toggleSort = (asc: AdminRegistrationFilters["sort"], desc: AdminRegistrationFilters["sort"]) => {
+    if (currentSort === asc) updateFilters({ sort: desc });
+    else if (currentSort === desc) updateFilters({ sort: asc });
+    else updateFilters({ sort: asc });
+  };
+
+  const toggleOneWaySort = (sort: AdminRegistrationFilters["sort"]) => {
+    if (currentSort === sort) updateFilters({ sort: "created_desc" });
+    else updateFilters({ sort });
   };
 
   return (
@@ -220,23 +230,43 @@ export function AdminParticipantsPage() {
           <thead>
             <tr>
               <th>
-                <SortableHeader active={filters.sort === "name_asc"} label="참가자" onClick={() => updateSort("name_asc")} />
+                <SortableHeader
+                  direction={currentSort === "name_asc" ? "asc" : currentSort === "name_desc" ? "desc" : undefined}
+                  label="참가자"
+                  onClick={() => toggleSort("name_asc", "name_desc")}
+                />
               </th>
               <th>연락처</th>
               <th>등록 상태</th>
               <th>
-                <SortableHeader active={filters.sort === "fee_unpaid_first"} label="참가비" onClick={() => updateSort("fee_unpaid_first")} />
+                <SortableHeader
+                  direction={currentSort === "fee_unpaid_first" ? "asc" : undefined}
+                  label="참가비"
+                  onClick={() => toggleOneWaySort("fee_unpaid_first")}
+                />
               </th>
               <th>
-                <SortableHeader active={filters.sort === "check_in_pending_first"} label="체크인" onClick={() => updateSort("check_in_pending_first")} />
+                <SortableHeader
+                  direction={currentSort === "check_in_pending_first" ? "asc" : undefined}
+                  label="체크인"
+                  onClick={() => toggleOneWaySort("check_in_pending_first")}
+                />
               </th>
               <th>참석/교통</th>
               <th>소속</th>
               <th>
-                <SortableHeader active={filters.sort === "group_asc"} label="수련회 조" onClick={() => updateSort("group_asc")} />
+                <SortableHeader
+                  direction={currentSort === "group_asc" ? "asc" : undefined}
+                  label="수련회 조"
+                  onClick={() => toggleOneWaySort("group_asc")}
+                />
               </th>
               <th>
-                <SortableHeader active={(filters.sort ?? "created_desc") === "created_desc"} label="등록일" onClick={() => updateSort("created_desc")} />
+                <SortableHeader
+                  direction={currentSort === "created_desc" ? "desc" : currentSort === "created_asc" ? "asc" : undefined}
+                  label="등록일"
+                  onClick={() => toggleSort("created_desc", "created_asc")}
+                />
               </th>
             </tr>
           </thead>
@@ -319,11 +349,11 @@ function ToggleFilter({ active, children, onClick }: { active: boolean; children
   );
 }
 
-function SortableHeader({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+function SortableHeader({ direction, label, onClick }: { direction?: "asc" | "desc"; label: string; onClick: () => void }) {
   return (
-    <button className={active ? "sort-header sort-header--active" : "sort-header"} onClick={onClick} type="button">
+    <button className={direction ? "sort-header sort-header--active" : "sort-header"} onClick={onClick} type="button">
       <span>{label}</span>
-      <span aria-hidden="true">{active ? "↓" : "↕"}</span>
+      <span aria-hidden="true">{direction === "asc" ? "↑" : direction === "desc" ? "↓" : "↕"}</span>
     </button>
   );
 }

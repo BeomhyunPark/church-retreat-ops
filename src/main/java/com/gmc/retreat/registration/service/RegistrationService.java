@@ -951,7 +951,7 @@ public class RegistrationService {
             return "created_desc";
         }
         return switch (normalized) {
-            case "created_desc", "name_asc", "fee_unpaid_first", "check_in_pending_first", "group_asc" -> normalized;
+            case "created_desc", "created_asc", "name_asc", "name_desc", "fee_unpaid_first", "check_in_pending_first", "group_asc" -> normalized;
             default -> throw new BusinessException(ErrorCode.INVALID_REQUEST);
         };
     }
