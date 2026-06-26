@@ -97,6 +97,11 @@
         WHERE id = #{id}
     </update>
 
+    <delete id="deleteGroupById">
+        DELETE FROM retreat_groups
+        WHERE id = #{id}
+    </delete>
+
     <select id="findMembersByGroupId" resultMap="RetreatGroupMemberResultMap">
         SELECT
         <include refid="MemberColumns" />
@@ -112,12 +117,6 @@
         ORDER BY rg.display_order ASC, rg.name ASC, gm.leader DESC, r.name ASC, r.id ASC
     </select>
 
-    <select id="countAssignmentsForParticipant" resultType="int">
-        SELECT COUNT(*)
-        FROM retreat_group_members
-        WHERE registration_id = #{participantId}
-    </select>
-
     <select id="findGroupIdByParticipantId" resultType="java.lang.Long">
         SELECT retreat_group_id
         FROM retreat_group_members
@@ -128,6 +127,14 @@
         INSERT INTO retreat_group_members (retreat_group_id, registration_id, leader)
         VALUES (#{groupId}, #{participantId}, #{leader})
     </insert>
+
+    <update id="updateMemberGroup">
+        UPDATE retreat_group_members
+        SET retreat_group_id = #{groupId},
+            leader = FALSE,
+            updated_at = now()
+        WHERE registration_id = #{participantId}
+    </update>
 
     <update id="clearGroupLeader">
         UPDATE retreat_group_members
@@ -144,6 +151,11 @@
         WHERE retreat_group_id = #{groupId}
           AND registration_id = #{participantId}
     </update>
+
+    <delete id="deleteMembersByGroupId">
+        DELETE FROM retreat_group_members
+        WHERE retreat_group_id = #{groupId}
+    </delete>
 
     <delete id="deleteMemberByParticipantId">
         DELETE FROM retreat_group_members

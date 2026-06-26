@@ -104,6 +104,14 @@ public class RetreatGroupService {
         return RetreatGroupResponse.from(findGroupOrThrow(id));
     }
 
+    @Transactional
+    public void deleteGroup(AdminPrincipal admin, Long id) {
+        requireRole(admin, AdminRole.CHAIR);
+        findGroupOrThrow(id);
+        retreatGroupMapper.deleteMembersByGroupId(id);
+        retreatGroupMapper.deleteGroupById(id);
+    }
+
     @Transactional(readOnly = true)
     public List<RetreatGroupMemberResponse> findMembers(AdminPrincipal admin, Long groupId) {
         requireRole(admin, AdminRole.STAFF);
@@ -149,10 +157,17 @@ public class RetreatGroupService {
         requireRole(admin, AdminRole.CHAIR);
         Registration registration = findRegistrationOrThrow(participantId);
         findGroupOrThrow(request.retreatGroupId());
-        ensureParticipantUnassigned(participantId);
+        Long assignedGroupId = retreatGroupMapper.findGroupIdByParticipantId(participantId).orElse(null);
+        if (request.retreatGroupId().equals(assignedGroupId)) {
+            return AdminRegistrationResponse.detail(registration);
+        }
 
         String previousSnapshot = snapshot(registration);
-        retreatGroupMapper.insertMember(request.retreatGroupId(), participantId, false);
+        if (assignedGroupId == null) {
+            retreatGroupMapper.insertMember(request.retreatGroupId(), participantId, false);
+        } else {
+            retreatGroupMapper.updateMemberGroup(request.retreatGroupId(), participantId);
+        }
         return updatedRegistrationResponse(participantId, previousSnapshot, admin.id());
     }
 
@@ -227,12 +242,6 @@ public class RetreatGroupService {
                 .ifPresent(existing -> {
                     throw new BusinessException(ErrorCode.DUPLICATE_RETREAT_GROUP_NAME);
                 });
-    }
-
-    private void ensureParticipantUnassigned(Long participantId) {
-        if (retreatGroupMapper.countAssignmentsForParticipant(participantId) > 0) {
-            throw new BusinessException(ErrorCode.DUPLICATE_RETREAT_GROUP_ASSIGNMENT);
-        }
     }
 
     private void insertAdminHistory(

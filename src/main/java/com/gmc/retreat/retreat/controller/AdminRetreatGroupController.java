@@ -74,6 +74,17 @@ public class AdminRetreatGroupController {
         return ApiResponse.success(retreatGroupService.updateGroupActive(admin, id, request));
     }
 
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> deleteGroup(
+            @AuthenticationPrincipal AdminPrincipal admin,
+            @PathVariable Long id,
+            @Valid @RequestBody DeleteConfirmationRequest request
+    ) {
+        request.requireConfirmed();
+        retreatGroupService.deleteGroup(admin, id);
+        return ApiResponse.success(null);
+    }
+
     @GetMapping("/{id}/members")
     public ApiResponse<List<RetreatGroupMemberResponse>> members(
             @AuthenticationPrincipal AdminPrincipal admin,

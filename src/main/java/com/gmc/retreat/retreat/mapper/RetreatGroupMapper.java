@@ -22,11 +22,11 @@ public interface RetreatGroupMapper {
 
     int updateGroupActive(@Param("id") Long id, @Param("active") Boolean active);
 
+    int deleteGroupById(@Param("id") Long id);
+
     List<RetreatGroupMember> findMembersByGroupId(@Param("groupId") Long groupId);
 
     List<RetreatGroupMember> findMembers();
-
-    int countAssignmentsForParticipant(@Param("participantId") Long participantId);
 
     Optional<Long> findGroupIdByParticipantId(@Param("participantId") Long participantId);
 
@@ -36,9 +36,13 @@ public interface RetreatGroupMapper {
             @Param("leader") Boolean leader
     );
 
+    int updateMemberGroup(@Param("groupId") Long groupId, @Param("participantId") Long participantId);
+
     int clearGroupLeader(@Param("groupId") Long groupId);
 
     int markLeader(@Param("groupId") Long groupId, @Param("participantId") Long participantId);
+
+    int deleteMembersByGroupId(@Param("groupId") Long groupId);
 
     int deleteMemberByParticipantId(@Param("participantId") Long participantId);
 }

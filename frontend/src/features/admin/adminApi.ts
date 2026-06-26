@@ -636,6 +636,14 @@ export function updateRetreatGroupActive(id: number, active: boolean) {
   });
 }
 
+export function deleteRetreatGroup(id: number) {
+  return apiRequest<void>(`/admin/retreat-groups/${id}`, {
+    auth: true,
+    method: "DELETE",
+    body: { confirmText: "DELETE" }
+  });
+}
+
 export function getRetreatGroupMembers(groupId: number) {
   return apiRequest<RetreatGroupMember[]>(`/admin/retreat-groups/${groupId}/members`, { auth: true });
 }
