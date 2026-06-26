@@ -10,10 +10,13 @@ import com.gmc.retreat.admin.dto.AdminStatusUpdateRequest;
 import com.gmc.retreat.admin.dto.AdminUpdateRequest;
 import com.gmc.retreat.admin.mapper.AdminUserInsert;
 import com.gmc.retreat.admin.mapper.AdminUserMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gmc.retreat.error.BusinessException;
 import com.gmc.retreat.error.ErrorCode;
 import com.gmc.retreat.security.auth.AdminPrincipal;
 import java.util.List;
+import java.util.Map;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,10 +27,12 @@ public class AdminAccountService {
 
     private final AdminUserMapper adminUserMapper;
     private final PasswordEncoder passwordEncoder;
+    private final ObjectMapper objectMapper;
 
-    public AdminAccountService(AdminUserMapper adminUserMapper, PasswordEncoder passwordEncoder) {
+    public AdminAccountService(AdminUserMapper adminUserMapper, PasswordEncoder passwordEncoder, ObjectMapper objectMapper) {
         this.adminUserMapper = adminUserMapper;
         this.passwordEncoder = passwordEncoder;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional(readOnly = true)
@@ -78,6 +83,25 @@ public class AdminAccountService {
         requireRole(admin, AdminRole.SYSTEM_ADMIN);
         findByIdOrThrow(id);
         adminUserMapper.updatePasswordHash(id, passwordEncoder.encode(request.newPassword()));
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getUiPreferences(Long adminId) {
+        String json = adminUserMapper.findUiPreferences(adminId);
+        try {
+            return objectMapper.readValue(json != null ? json : "{}", new TypeReference<>() {});
+        } catch (Exception e) {
+            return Map.of();
+        }
+    }
+
+    @Transactional
+    public void updateUiPreferences(Long adminId, Map<String, Object> preferences) {
+        try {
+            adminUserMapper.updateUiPreferences(adminId, objectMapper.writeValueAsString(preferences));
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to serialize ui preferences", e);
+        }
     }
 
     private AdminUser findByIdOrThrow(Long id) {

@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
-import { getAdminRegistrations, type AdminRegistrationFilters } from "./adminApi";
+import { getAdminRegistrations, getAdminPreferences, updateAdminPreferences, type AdminRegistrationFilters } from "./adminApi";
 import { EmptyState } from "../../shared/ui/EmptyState";
 import { StatusMessage } from "../../shared/ui/StatusMessage";
 
@@ -21,6 +21,84 @@ const PRESETS: Array<{
   { key: "partial", label: "부분 참석", filters: { attendanceType: "PARTIAL" } },
   { key: "carpool", label: "카풀 필요", filters: { transportationNeed: "CARPOOL_NEEDED" } }
 ];
+
+const DEFAULT_COL_FRACTIONS = [14, 7, 11, 8, 6, 6, 8, 9, 11, 9, 11];
+const PREFS_KEY = "participantTableColWidths";
+const MIN_COL_WIDTH = 50;
+
+function useColumnResize() {
+  const queryClient = useQueryClient();
+  const tableRef = useRef<HTMLTableElement>(null);
+  const [widths, setWidths] = useState<number[] | null>(null);
+
+  const prefsQuery = useQuery({
+    queryKey: ["admin", "preferences"],
+    queryFn: getAdminPreferences,
+    staleTime: Infinity
+  });
+
+  useEffect(() => {
+    const saved = prefsQuery.data?.[PREFS_KEY];
+    if (Array.isArray(saved) && saved.length === DEFAULT_COL_FRACTIONS.length) {
+      setWidths(saved as number[]);
+    }
+  }, [prefsQuery.data]);
+
+  const saveMutation = useMutation({
+    mutationFn: (next: number[]) =>
+      updateAdminPreferences({ ...prefsQuery.data, [PREFS_KEY]: next }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "preferences"] })
+  });
+
+  const startResize = useCallback((colIndex: number, startX: number) => {
+    const table = tableRef.current;
+    if (!table) return;
+
+    const ths = Array.from(table.querySelectorAll("thead th")) as HTMLElement[];
+    const startWidths = ths.map((th) => th.offsetWidth);
+    const startThis = startWidths[colIndex];
+    const startNext = startWidths[colIndex + 1];
+    if (startNext === undefined) return;
+
+    setWidths(startWidths);
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "col-resize";
+
+    const onMouseMove = (e: MouseEvent) => {
+      const delta = e.clientX - startX;
+      const newThis = Math.max(MIN_COL_WIDTH, startThis + delta);
+      const actualDelta = newThis - startThis;
+      const newNext = Math.max(MIN_COL_WIDTH, startNext - actualDelta);
+      setWidths((prev) => {
+        const next = [...(prev ?? startWidths)];
+        next[colIndex] = newThis;
+        next[colIndex + 1] = newNext;
+        return next;
+      });
+    };
+
+    const onMouseUp = (e: MouseEvent) => {
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+
+      const delta = e.clientX - startX;
+      const newThis = Math.max(MIN_COL_WIDTH, startThis + delta);
+      const actualDelta = newThis - startThis;
+      const newNext = Math.max(MIN_COL_WIDTH, startNext - actualDelta);
+      const finalWidths = [...startWidths];
+      finalWidths[colIndex] = newThis;
+      finalWidths[colIndex + 1] = newNext;
+      saveMutation.mutate(finalWidths);
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }, [saveMutation]);
+
+  return { tableRef, widths, startResize };
+}
 
 export function AdminParticipantsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -62,6 +140,8 @@ export function AdminParticipantsPage() {
   const clearFilters = () => {
     setSearchParams(searchParamsFromFilters({ page: 0, size: PAGE_SIZE, sort: "created_desc" }));
   };
+
+  const { tableRef, widths, startResize } = useColumnResize();
 
   const currentSort = filters.sort ?? "created_desc";
 
@@ -226,7 +306,12 @@ export function AdminParticipantsPage() {
       </details>
 
       <div className="table-card participant-table-card">
-        <table className="participant-table">
+        <table className="participant-table" ref={tableRef}>
+          <colgroup>
+            {widths
+              ? widths.map((w, i) => <col key={i} style={{ width: w }} />)
+              : DEFAULT_COL_FRACTIONS.map((f, i) => <col key={i} style={{ width: `${f}%` }} />)}
+          </colgroup>
           <thead>
             <tr>
               <th>
@@ -235,16 +320,27 @@ export function AdminParticipantsPage() {
                   label="참가자"
                   onClick={() => toggleSort("name_asc", "name_desc")}
                 />
+                <ColResizeHandle onMouseDown={(e) => startResize(0, e.clientX)} />
               </th>
-              <th>태그</th>
-              <th>연락처</th>
-              <th>등록 상태</th>
+              <th>
+                태그
+                <ColResizeHandle onMouseDown={(e) => startResize(1, e.clientX)} />
+              </th>
+              <th>
+                연락처
+                <ColResizeHandle onMouseDown={(e) => startResize(2, e.clientX)} />
+              </th>
+              <th>
+                등록 상태
+                <ColResizeHandle onMouseDown={(e) => startResize(3, e.clientX)} />
+              </th>
               <th>
                 <SortableHeader
                   direction={currentSort === "fee_unpaid_first" ? "asc" : undefined}
                   label="참가비"
                   onClick={() => toggleOneWaySort("fee_unpaid_first")}
                 />
+                <ColResizeHandle onMouseDown={(e) => startResize(4, e.clientX)} />
               </th>
               <th>
                 <SortableHeader
@@ -252,16 +348,27 @@ export function AdminParticipantsPage() {
                   label="체크인"
                   onClick={() => toggleOneWaySort("check_in_pending_first")}
                 />
+                <ColResizeHandle onMouseDown={(e) => startResize(5, e.clientX)} />
               </th>
-              <th>참석</th>
-              <th>교통</th>
-              <th>소속</th>
+              <th>
+                참석
+                <ColResizeHandle onMouseDown={(e) => startResize(6, e.clientX)} />
+              </th>
+              <th>
+                교통
+                <ColResizeHandle onMouseDown={(e) => startResize(7, e.clientX)} />
+              </th>
+              <th>
+                소속
+                <ColResizeHandle onMouseDown={(e) => startResize(8, e.clientX)} />
+              </th>
               <th>
                 <SortableHeader
                   direction={currentSort === "group_asc" ? "asc" : undefined}
                   label="수련회 조"
                   onClick={() => toggleOneWaySort("group_asc")}
                 />
+                <ColResizeHandle onMouseDown={(e) => startResize(9, e.clientX)} />
               </th>
               <th>
                 <SortableHeader
@@ -269,6 +376,7 @@ export function AdminParticipantsPage() {
                   label="등록일"
                   onClick={() => toggleSort("created_desc", "created_asc")}
                 />
+                <ColResizeHandle onMouseDown={(e) => startResize(10, e.clientX)} />
               </th>
             </tr>
           </thead>
@@ -346,6 +454,15 @@ function ToggleFilter({ active, children, onClick }: { active: boolean; children
     <button className={active ? "toggle-chip toggle-chip--active" : "toggle-chip"} onClick={onClick} type="button">
       {children}
     </button>
+  );
+}
+
+function ColResizeHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) {
+  return (
+    <div
+      className="col-resize-handle"
+      onMouseDown={(e) => { e.preventDefault(); onMouseDown(e); }}
+    />
   );
 }
 

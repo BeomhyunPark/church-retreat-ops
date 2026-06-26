@@ -691,3 +691,11 @@ export function getCheckInDetail(participantId: number) {
 export function getFeeEvents(participantId: number) {
   return apiRequest<FeeEventItem[]>(`/admin/fees/${participantId}/events`, { auth: true });
 }
+
+export function getAdminPreferences() {
+  return apiRequest<Record<string, unknown>>("/admin/auth/me/preferences", { auth: true });
+}
+
+export function updateAdminPreferences(preferences: Record<string, unknown>) {
+  return apiRequest<null>("/admin/auth/me/preferences", { auth: true, method: "PUT", body: preferences });
+}

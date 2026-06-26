@@ -26,4 +26,8 @@ public interface AdminUserMapper {
     int updatePasswordHash(@Param("id") Long id, @Param("passwordHash") String passwordHash);
 
     int updateLastLoginAt(@Param("id") Long id);
+
+    String findUiPreferences(@Param("id") Long id);
+
+    int updateUiPreferences(@Param("id") Long id, @Param("json") String json);
 }

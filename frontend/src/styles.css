@@ -1293,7 +1293,30 @@ table {
 }
 
 .participant-table {
-  min-width: 1240px;
+  table-layout: fixed;
+}
+
+.participant-table th {
+  position: relative;
+}
+
+.participant-table td {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.col-resize-handle {
+  bottom: 0;
+  cursor: col-resize;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 5px;
+  z-index: 1;
+}
+
+.col-resize-handle:hover {
+  background: var(--color-border);
 }
 
 .participant-table th:first-child,
@@ -1351,12 +1374,16 @@ th {
   display: block;
   font-size: 0.78rem;
   margin-top: 0.2rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cell-primary {
   display: block;
   font-size: 0.92rem;
   font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tag-list {
@@ -1397,7 +1424,10 @@ th {
 
 .table-link {
   color: var(--color-primary-dark);
+  display: block;
   font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .table-link:hover {
