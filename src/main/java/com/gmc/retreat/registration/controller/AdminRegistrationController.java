@@ -1,5 +1,7 @@
 package com.gmc.retreat.registration.controller;
 
+import java.util.List;
+
 import com.gmc.retreat.api.ApiResponse;
 import com.gmc.retreat.registration.domain.AttendanceType;
 import com.gmc.retreat.registration.domain.RegistrationStatus;
@@ -45,7 +47,7 @@ public class AdminRegistrationController {
             @RequestParam(required = false) Boolean churchCellAssigned,
             @RequestParam(required = false) AttendanceType attendanceType,
             @RequestParam(required = false) String transportationNeed,
-            @RequestParam(defaultValue = "created_desc") String sort,
+            @RequestParam(required = false) List<String> sort,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {

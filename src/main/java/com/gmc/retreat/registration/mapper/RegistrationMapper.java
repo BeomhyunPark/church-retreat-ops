@@ -36,7 +36,7 @@ public interface RegistrationMapper {
             @Param("churchCellAssigned") Boolean churchCellAssigned,
             @Param("attendanceType") AttendanceType attendanceType,
             @Param("transportationNeed") String transportationNeed,
-            @Param("sort") String sort,
+            @Param("orderBy") String orderBy,
             @Param("limit") int limit,
             @Param("offset") int offset
     );
