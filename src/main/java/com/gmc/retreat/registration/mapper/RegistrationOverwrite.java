@@ -1,0 +1,53 @@
+package com.gmc.retreat.registration.mapper;
+
+import com.gmc.retreat.registration.domain.AttendanceType;
+import com.gmc.retreat.registration.domain.Gender;
+import com.gmc.retreat.registration.domain.TransportationMethod;
+import com.gmc.retreat.registration.domain.WorshipBusRideSlot;
+import java.time.OffsetDateTime;
+
+public record RegistrationOverwrite(
+        Long id,
+        String name,
+        String normalizedName,
+        Gender gender,
+        Integer birthYear,
+        String phoneNumber,
+        String phoneLastFour,
+        String churchCellDepartment,
+        String lookupKeyHash,
+        Boolean privacyConsentAgreed,
+        AttendanceType attendanceType,
+        OffsetDateTime plannedArrivalAt,
+        OffsetDateTime plannedDepartureAt,
+        String partialAttendanceNote,
+        Boolean lodgingNight1,
+        Boolean lodgingNight2,
+        Boolean attendDay1Morning,
+        Boolean attendDay1Afternoon,
+        Boolean attendDay1Worship,
+        Boolean attendDay2Morning,
+        Boolean attendDay2Afternoon,
+        Boolean attendDay2Worship,
+        Boolean attendDay3Morning,
+        Boolean attendDay3Afternoon,
+        TransportationMethod inboundTransportationMethod,
+        Boolean inboundCarpoolAvailable,
+        Integer inboundCarpoolSeats,
+        String inboundCarpoolArea,
+        String inboundCarpoolRouteArea,
+        String inboundCarpoolNote,
+        String inboundCarpoolPreferredArea,
+        String inboundCarpoolPreferredNote,
+        WorshipBusRideSlot inboundWorshipBusRideSlot,
+        TransportationMethod outboundTransportationMethod,
+        Boolean outboundCarpoolAvailable,
+        Integer outboundCarpoolSeats,
+        String outboundCarpoolArea,
+        String outboundCarpoolRouteArea,
+        String outboundCarpoolNote,
+        String outboundCarpoolPreferredArea,
+        String outboundCarpoolPreferredNote,
+        WorshipBusRideSlot outboundWorshipBusRideSlot
+) {
+}
