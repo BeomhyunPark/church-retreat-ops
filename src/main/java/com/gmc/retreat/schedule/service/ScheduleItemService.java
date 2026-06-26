@@ -10,7 +10,7 @@ import com.gmc.retreat.schedule.domain.ScheduleTargetAudience;
 import com.gmc.retreat.schedule.dto.ScheduleItemRequest;
 import com.gmc.retreat.schedule.dto.ScheduleItemResponse;
 import com.gmc.retreat.schedule.mapper.ScheduleItemMapper;
-import com.gmc.retreat.schedule.mapper.ScheduleItemMapper.ScheduleItemUpsert;
+import com.gmc.retreat.schedule.mapper.ScheduleItemUpsert;
 import com.gmc.retreat.security.auth.AdminPrincipal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;

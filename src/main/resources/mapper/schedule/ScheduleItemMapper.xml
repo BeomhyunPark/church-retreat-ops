@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gmc.retreat.schedule.mapper.ScheduleItemMapper">
+    <resultMap id="ScheduleItemResultMap" type="com.gmc.retreat.schedule.domain.ScheduleItem">
+        <constructor>
+            <arg column="id" javaType="java.lang.Long" />
+            <arg column="title" javaType="java.lang.String" />
+            <arg column="description" javaType="java.lang.String" />
+            <arg column="schedule_date" javaType="java.time.LocalDate" />
+            <arg column="starts_at" javaType="java.time.OffsetDateTime" />
+            <arg column="ends_at" javaType="java.time.OffsetDateTime" />
+            <arg column="location" javaType="java.lang.String" />
+            <arg column="category" javaType="com.gmc.retreat.schedule.domain.ScheduleCategory" />
+            <arg column="target_audience" javaType="com.gmc.retreat.schedule.domain.ScheduleTargetAudience" />
+            <arg column="is_active" javaType="java.lang.Boolean" />
+            <arg column="display_order" javaType="java.lang.Integer" />
+            <arg column="created_by_admin_id" javaType="java.lang.Long" />
+            <arg column="created_by_admin_email" javaType="java.lang.String" />
+            <arg column="created_by_admin_name" javaType="java.lang.String" />
+            <arg column="created_by_admin_role" javaType="com.gmc.retreat.admin.domain.AdminRole" />
+            <arg column="updated_by_admin_id" javaType="java.lang.Long" />
+            <arg column="updated_by_admin_email" javaType="java.lang.String" />
+            <arg column="updated_by_admin_name" javaType="java.lang.String" />
+            <arg column="updated_by_admin_role" javaType="com.gmc.retreat.admin.domain.AdminRole" />
+            <arg column="created_at" javaType="java.time.OffsetDateTime" />
+            <arg column="updated_at" javaType="java.time.OffsetDateTime" />
+        </constructor>
+    </resultMap>
+
+    <sql id="ScheduleColumns">
+        s.id, s.title, s.description, s.schedule_date, s.starts_at, s.ends_at, s.location,
+        s.category, s.target_audience, s.is_active, s.display_order,
+        s.created_by_admin_id, created_admin.email AS created_by_admin_email,
+        created_admin.name AS created_by_admin_name, created_admin.role AS created_by_admin_role,
+        s.updated_by_admin_id, updated_admin.email AS updated_by_admin_email,
+        updated_admin.name AS updated_by_admin_name, updated_admin.role AS updated_by_admin_role,
+        s.created_at, s.updated_at
+    </sql>
+
+    <sql id="ScheduleJoins">
+        FROM retreat_schedule_items s
+        JOIN admin_users created_admin ON created_admin.id = s.created_by_admin_id
+        JOIN admin_users updated_admin ON updated_admin.id = s.updated_by_admin_id
+    </sql>
+
+    <select id="findScheduleItems" resultMap="ScheduleItemResultMap">
+        SELECT
+        <include refid="ScheduleColumns" />
+        <include refid="ScheduleJoins" />
+        <where>
+            <if test="scheduleDate != null">
+                s.schedule_date = #{scheduleDate}
+            </if>
+            <if test="category != null">
+                AND s.category = #{category}
+            </if>
+            <if test="active != null">
+                AND s.is_active = #{active}
+            </if>
+        </where>
+        ORDER BY s.schedule_date ASC, s.display_order ASC, s.starts_at ASC, s.id ASC
+    </select>
+
+    <select id="findScheduleItemById" resultMap="ScheduleItemResultMap">
+        SELECT
+        <include refid="ScheduleColumns" />
+        <include refid="ScheduleJoins" />
+        WHERE s.id = #{id}
+    </select>
+
+    <insert id="insertScheduleItem" parameterType="com.gmc.retreat.schedule.mapper.ScheduleItemUpsert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO retreat_schedule_items (
+            title, description, schedule_date, starts_at, ends_at, location,
+            category, target_audience, is_active, display_order,
+            created_by_admin_id, updated_by_admin_id
+        )
+        VALUES (
+            #{title}, #{description}, #{scheduleDate}, #{startsAt}, #{endsAt}, #{location},
+            #{category}, #{targetAudience}, #{active}, #{displayOrder},
+            #{adminId}, #{adminId}
+        )
+    </insert>
+
+    <update id="updateScheduleItem" parameterType="com.gmc.retreat.schedule.mapper.ScheduleItemUpsert">
+        UPDATE retreat_schedule_items
+        SET title = #{title},
+            description = #{description},
+            schedule_date = #{scheduleDate},
+            starts_at = #{startsAt},
+            ends_at = #{endsAt},
+            location = #{location},
+            category = #{category},
+            target_audience = #{targetAudience},
+            is_active = #{active},
+            display_order = #{displayOrder},
+            updated_by_admin_id = #{adminId},
+            updated_at = now()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateActive">
+        UPDATE retreat_schedule_items
+        SET is_active = #{active},
+            updated_by_admin_id = #{adminId},
+            updated_at = now()
+        WHERE id = #{id}
+    </update>
+</mapper>
