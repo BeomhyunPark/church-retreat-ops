@@ -537,7 +537,7 @@ function formatTransportation(method: string | null): string {
     case "GROUP_BUS":
       return "단체버스";
     case "WORSHIP_SHUTTLE":
-      return "경배 셔틀";
+      return "집회차량";
     case "PUBLIC_TRANSIT":
       return "대중교통";
     case "CARPOOL_NEEDED":

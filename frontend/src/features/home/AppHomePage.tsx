@@ -27,7 +27,7 @@ export function AppHomePage() {
         <div className="app-home__copy">
           <p className="eyebrow">Retreat is loading</p>
           <h1>{identity.eventName}</h1>
-          <p>등록은 빠르게, 확인은 간단하게. 시작부터 현장까지 한 번에 이어집니다.</p>
+          <p>수련회 주제</p>
           <div className="app-home__actions">
             <Link className="button button--primary" to="/public/register">
               수련회 등록
@@ -37,7 +37,14 @@ export function AppHomePage() {
             </Link>
           </div>
         </div>
-
+        <div className="app-home__image">
+          <img
+            src="/images/retreat-illustration.svg"
+            alt="각 교회 로고"
+            width={400}
+            height={400}
+          />
+        </div>
       </section>
     </main>
   );
