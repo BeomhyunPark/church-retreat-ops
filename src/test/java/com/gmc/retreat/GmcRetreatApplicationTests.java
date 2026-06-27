@@ -1634,6 +1634,48 @@ class GmcRetreatApplicationTests {
     }
 
     @Test
+    void chairCanDeleteRetreatGroupAndReuseName() throws Exception {
+        JsonNode created = objectMapper.readTree(
+                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                        .getResponse()
+                        .getContentAsString()
+        );
+        Long participantId = created.path("data").path("registration").path("id").asLong();
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long groupId = createRetreatGroup(chairToken, "Group 1");
+
+        mockMvc.perform(patch("/api/admin/participants/" + participantId + "/retreat-group")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("retreatGroupId", groupId))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(delete("/api/admin/retreat-groups/" + groupId)
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("confirmText", "DELETE"))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/admin/retreat-groups")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isEmpty());
+
+        mockMvc.perform(get("/api/admin/registrations")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].retreatGroupId").doesNotExist())
+                .andExpect(jsonPath("$.data.content[0].retreatGroupName").doesNotExist());
+
+        mockMvc.perform(post("/api/admin/retreat-groups")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(retreatGroupRequest("Group 1", 1)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.name").value("Group 1"));
+    }
+
+    @Test
     void chairCanAssignAndRemoveParticipantRetreatGroup() throws Exception {
         JsonNode created = objectMapper.readTree(
                 createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
@@ -1703,7 +1745,7 @@ class GmcRetreatApplicationTests {
     }
 
     @Test
-    void duplicateRetreatGroupAssignmentIsRejected() throws Exception {
+    void assignedParticipantCanMoveToAnotherRetreatGroup() throws Exception {
         JsonNode created = objectMapper.readTree(
                 createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
                         .getResponse()
@@ -1724,8 +1766,20 @@ class GmcRetreatApplicationTests {
                         .header("Authorization", "Bearer " + chairToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("retreatGroupId", groupTwoId))))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error.code").value("DUPLICATE_RETREAT_GROUP_ASSIGNMENT"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.retreatGroupId").value(groupTwoId))
+                .andExpect(jsonPath("$.data.retreatGroupName").value("Group 2"))
+                .andExpect(jsonPath("$.data.retreatGroupLeader").value(false));
+
+        mockMvc.perform(get("/api/admin/retreat-groups/" + groupOneId + "/members")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isEmpty());
+
+        mockMvc.perform(get("/api/admin/retreat-groups/" + groupTwoId + "/members")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].participantId").value(participantId));
     }
 
     @Test
