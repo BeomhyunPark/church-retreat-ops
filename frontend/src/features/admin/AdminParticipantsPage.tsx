@@ -12,7 +12,7 @@ import { EmptyState } from "../../shared/ui/EmptyState";
 import { StatusMessage } from "../../shared/ui/StatusMessage";
 
 const PAGE_SIZE_DEFAULT = 50;
-const PAGE_SIZE_ALL     = 9999;
+const PAGE_SIZE_ALL = 9999;
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 50, 100, PAGE_SIZE_ALL] as const;
 
 // ── Column definitions ────────────────────────────────────────────────────────
@@ -42,29 +42,29 @@ const COL_LABEL: Record<ColumnKey, string> = {
 
 // bidirectional: [primaryAsc, primaryDesc]
 const COL_BISORT: Partial<Record<ColumnKey, [string, string]>> = {
-  name:         ["name_asc",          "name_desc"],
-  birthYear:    ["birth_year_asc",    "birth_year_desc"],
-  gender:       ["gender_asc",        "gender_desc"],
-  phone:        ["phone_asc",         "phone_desc"],
-  middleGroup:  ["middle_group_asc",  "middle_group_desc"],
-  cell:         ["cell_asc",          "cell_desc"],
-  attendance:   ["attendance_asc",    "attendance_desc"],
-  transportation:["transport_asc",    "transport_desc"],
-  createdAt:    ["created_desc",      "created_asc"],
+  name: ["name_asc", "name_desc"],
+  birthYear: ["birth_year_asc", "birth_year_desc"],
+  gender: ["gender_asc", "gender_desc"],
+  phone: ["phone_asc", "phone_desc"],
+  middleGroup: ["middle_group_asc", "middle_group_desc"],
+  cell: ["cell_asc", "cell_desc"],
+  attendance: ["attendance_asc", "attendance_desc"],
+  transportation: ["transport_asc", "transport_desc"],
+  createdAt: ["created_desc", "created_asc"],
 };
 
 const COL_ONEWAY: Partial<Record<ColumnKey, string>> = {
-  group:    "group_asc",
-  feePaid:  "fee_unpaid_first",
-  checkedIn:"check_in_pending_first",
-  special:  "special_first",
+  group: "group_asc",
+  feePaid: "fee_unpaid_first",
+  checkedIn: "check_in_pending_first",
+  special: "special_first",
 };
 
 // ── Prefs keys ────────────────────────────────────────────────────────────────
 
 const PREFS_WIDTHS_KEY = "participantTableColWidthsV2";
-const PREFS_ORDER_KEY  = "participantTableColOrder";
-const MIN_COL_WIDTH    = 50;
+const PREFS_ORDER_KEY = "participantTableColOrder";
+const MIN_COL_WIDTH = 50;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -87,15 +87,15 @@ function useColumnCustomization() {
   const tableRef = useRef<HTMLTableElement>(null);
 
   const [colOrder, setColOrder] = useState<ColumnKey[] | null>(null);
-  const [widths,   setWidths]   = useState<Record<ColumnKey, number> | null>(null);
-  const [draggedKey,  setDraggedKey]  = useState<ColumnKey | null>(null);
+  const [widths, setWidths] = useState<Record<ColumnKey, number> | null>(null);
+  const [draggedKey, setDraggedKey] = useState<ColumnKey | null>(null);
   const [dragOverKey, setDragOverKey] = useState<ColumnKey | null>(null);
 
   // refs so mouse-event closures always read the latest values
   const colOrderRef = useRef<ColumnKey[] | null>(null);
-  const widthsRef   = useRef<Record<ColumnKey, number> | null>(null);
+  const widthsRef = useRef<Record<ColumnKey, number> | null>(null);
   useEffect(() => { colOrderRef.current = colOrder; }, [colOrder]);
-  useEffect(() => { widthsRef.current   = widths;   }, [widths]);
+  useEffect(() => { widthsRef.current = widths; }, [widths]);
 
   const prefsQuery = useQuery({
     queryKey: ["admin", "preferences"],
@@ -155,15 +155,15 @@ function useColumnCustomization() {
     const minThis = Math.max(MIN_COL_WIDTH, naturalWidths[colIndex] ?? 0);
     const minNext = Math.max(MIN_COL_WIDTH, naturalWidths[colIndex + 1] ?? 0);
     const tableWidth = table.offsetWidth;
-    const totalTwo   = startThis + startNext;
-    const clamp      = (raw: number) => Math.min(totalTwo - minNext, Math.max(minThis, raw));
+    const totalTwo = startThis + startNext;
+    const clamp = (raw: number) => Math.min(totalTwo - minNext, Math.max(minThis, raw));
 
     document.body.style.userSelect = "none";
     document.body.style.cursor = "col-resize";
 
     const onMouseMove = (e: MouseEvent) => {
       const t = clamp(startThis + (e.clientX - startX));
-      cols[colIndex].style.width     = `${t}px`;
+      cols[colIndex].style.width = `${t}px`;
       cols[colIndex + 1].style.width = `${totalTwo - t}px`;
     };
 
@@ -171,11 +171,11 @@ function useColumnCustomization() {
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
       document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup",   onMouseUp);
+      document.removeEventListener("mouseup", onMouseUp);
 
       const t = clamp(startThis + (e.clientX - startX));
       const finalPx = [...startWidths];
-      finalPx[colIndex]     = t;
+      finalPx[colIndex] = t;
       finalPx[colIndex + 1] = totalTwo - t;
       const pct = finalPx.map((w) => Math.round((w / tableWidth) * 1000) / 10);
 
@@ -188,7 +188,7 @@ function useColumnCustomization() {
     };
 
     document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup",   onMouseUp);
+    document.addEventListener("mouseup", onMouseUp);
   }, [saveMutation]);
 
   // DnD: reorder columns
@@ -256,9 +256,9 @@ export function AdminParticipantsPage() {
     placeholderData: keepPreviousData
   });
 
-  const page         = registrationsQuery.data;
+  const page = registrationsQuery.data;
   const participants = page?.content ?? [];
-  const currentPage  = filters.page ?? 0;
+  const currentPage = filters.page ?? 0;
 
   const updateFilters = (next: Partial<AdminRegistrationFilters>) => {
     setSearchParams(searchParamsFromFilters({ ...filters, ...next, page: next.page ?? 0 }));
@@ -279,7 +279,7 @@ export function AdminParticipantsPage() {
   const sortInfo = (primary: string, alternate: string) => {
     const pi = currentSorts.indexOf(primary);
     const ai = currentSorts.indexOf(alternate);
-    if (pi !== -1) return { direction: "asc" as const,  priority: currentSorts.length > 1 ? pi + 1 : undefined };
+    if (pi !== -1) return { direction: "asc" as const, priority: currentSorts.length > 1 ? pi + 1 : undefined };
     if (ai !== -1) return { direction: "desc" as const, priority: currentSorts.length > 1 ? ai + 1 : undefined };
     return { direction: undefined as undefined, priority: undefined };
   };
@@ -291,7 +291,7 @@ export function AdminParticipantsPage() {
   };
 
   const toggleSort = (asc: string, desc: string) => {
-    const hasAsc  = currentSorts.includes(asc);
+    const hasAsc = currentSorts.includes(asc);
     const hasDesc = currentSorts.includes(desc);
     if (hasAsc) {
       updateFilters({ sorts: currentSorts.map((s) => (s === asc ? desc : s)), page: 0 });
@@ -313,10 +313,10 @@ export function AdminParticipantsPage() {
   // Render sort header per column key
   const getSortHeader = (key: ColumnKey) => {
     const label = COL_LABEL[key];
-    const bi    = COL_BISORT[key];
-    const ow    = COL_ONEWAY[key];
-    if (bi)  return <SortableHeader {...sortInfo(bi[0], bi[1])} label={label} onClick={() => toggleSort(bi[0], bi[1])} />;
-    if (ow)  return <SortableHeader {...oneWayInfo(ow)}         label={label} onClick={() => toggleOneWaySort(ow)} />;
+    const bi = COL_BISORT[key];
+    const ow = COL_ONEWAY[key];
+    if (bi) return <SortableHeader {...sortInfo(bi[0], bi[1])} label={label} onClick={() => toggleSort(bi[0], bi[1])} />;
+    if (ow) return <SortableHeader {...oneWayInfo(ow)} label={label} onClick={() => toggleOneWaySort(ow)} />;
     return <span className="col-label">{label}</span>;
   };
 
@@ -472,8 +472,8 @@ export function AdminParticipantsPage() {
                   key={key}
                   className={
                     draggedKey === key ? "col-dragging"
-                    : dragOverKey === key ? "col-drag-over"
-                    : undefined
+                      : dragOverKey === key ? "col-drag-over"
+                        : undefined
                   }
                   draggable
                   onDragEnd={onDragEnd}
@@ -570,8 +570,8 @@ function SortableHeader({
   const cls = direction === "asc"
     ? "sort-header sort-header--asc"
     : direction === "desc"
-    ? "sort-header sort-header--desc"
-    : "sort-header";
+      ? "sort-header sort-header--desc"
+      : "sort-header";
   return (
     <button className={cls} onClick={onClick} type="button">
       <span>{label}</span>
@@ -660,21 +660,22 @@ function searchParamsFromFilters(filters: AdminRegistrationFilters) {
   const params = new URLSearchParams();
   params.set("page", String(filters.page ?? 0));
   if ((filters.size ?? PAGE_SIZE_DEFAULT) !== PAGE_SIZE_DEFAULT) params.set("size", String(filters.size));
-  if (filters.keyword)                   params.set("keyword",              filters.keyword);
-  if (filters.status)                    params.set("status",               filters.status);
-  if (filters.feePaid !== undefined)     params.set("feePaid",              String(filters.feePaid));
-  if (filters.newcomer !== undefined)    params.set("newcomer",             String(filters.newcomer));
-  if (filters.careTarget !== undefined)  params.set("careTarget",           String(filters.careTarget));
-  if (filters.checkedIn !== undefined)   params.set("checkedIn",            String(filters.checkedIn));
+  if (filters.keyword) params.set("keyword", filters.keyword);
+  if (filters.status) params.set("status", filters.status);
+  if (filters.feePaid !== undefined) params.set("feePaid", String(filters.feePaid));
+  if (filters.newcomer !== undefined) params.set("newcomer", String(filters.newcomer));
+  if (filters.careTarget !== undefined) params.set("careTarget", String(filters.careTarget));
+  if (filters.checkedIn !== undefined) params.set("checkedIn", String(filters.checkedIn));
   if (filters.retreatGroupAssigned !== undefined) params.set("retreatGroupAssigned", String(filters.retreatGroupAssigned));
-  if (filters.churchCellAssigned !== undefined)   params.set("churchCellAssigned",   String(filters.churchCellAssigned));
-  if (filters.attendanceType)            params.set("attendanceType",       filters.attendanceType);
-  if (filters.transportationNeed)        params.set("transportationNeed",   filters.transportationNeed);
+  if (filters.churchCellAssigned !== undefined) params.set("churchCellAssigned", String(filters.churchCellAssigned));
+  if (filters.attendanceType) params.set("attendanceType", filters.attendanceType);
+  if (filters.transportationNeed) params.set("transportationNeed", filters.transportationNeed);
   (filters.sorts ?? []).forEach((s) => params.append("sort", s));
   return params;
 }
 
 function numberParam(value: string | null, fallback: number) {
+  if (!value) return fallback;
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
 }
@@ -684,7 +685,7 @@ function valueOrUndefined(value: string) {
 }
 
 function booleanOrUndefined(value: string) {
-  if (value === "true")  return true;
+  if (value === "true") return true;
   if (value === "false") return false;
   return undefined;
 }
@@ -693,28 +694,28 @@ function booleanOrUndefined(value: string) {
 
 function formatAttendance(value: string) {
   switch (value) {
-    case "FULL":         return "전체 참석";
-    case "PARTIAL":      return "부분 참석";
+    case "FULL": return "전체 참석";
+    case "PARTIAL": return "부분 참석";
     case "WORSHIP_ONLY": return "예배만";
-    default:             return value;
+    default: return value;
   }
 }
 
 function formatTransportationSummary(item: Pick<AdminRegistration, "inboundTransportationMethod" | "outboundTransportationMethod">) {
-  const inbound  = formatTransportation(item.inboundTransportationMethod);
+  const inbound = formatTransportation(item.inboundTransportationMethod);
   const outbound = formatTransportation(item.outboundTransportationMethod);
   return inbound === outbound ? inbound : `${inbound} / ${outbound}`;
 }
 
 function formatTransportation(value: string | null) {
   switch (value) {
-    case "OWN_CAR":          return "개인차량";
-    case "GROUP_BUS":        return "단체버스";
-    case "WORSHIP_SHUTTLE":  return "경배 셔틀";
-    case "PUBLIC_TRANSIT":   return "대중교통";
-    case "CARPOOL_NEEDED":   return "카풀 필요";
-    case "NOT_DECIDED":      return "미정";
-    default:                 return "-";
+    case "OWN_CAR": return "개인차량";
+    case "GROUP_BUS": return "단체버스";
+    case "WORSHIP_SHUTTLE": return "집회차량";
+    case "PUBLIC_TRANSIT": return "대중교통";
+    case "CARPOOL_NEEDED": return "카풀 필요";
+    case "NOT_DECIDED": return "미정";
+    default: return "-";
   }
 }
 

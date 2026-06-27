@@ -134,7 +134,7 @@ h2 {
 
 .button--secondary {
   background: linear-gradient(135deg, #fff7e9 0%, #f3f4ef 100%);
-    box-shadow:
+  box-shadow:
     0 12px 22px rgba(116, 116, 22, 0.1),
     0 3px 0 #959455;
   color: var(--color-primary-dark);
@@ -834,6 +834,7 @@ h2 {
 }
 
 @keyframes hint-nudge {
+
   0%,
   100% {
     opacity: 0.55;
@@ -1087,6 +1088,7 @@ h2 {
   align-items: center;
   display: flex;
   gap: 0.6rem;
+  width: 340px;
 }
 
 .masking-badge {
@@ -1865,6 +1867,7 @@ th {
 }
 
 @keyframes step-shake {
+
   10%,
   90% {
     transform: translateX(-1px);
@@ -1904,6 +1907,7 @@ th {
 }
 
 @keyframes pass-float {
+
   0%,
   100% {
     transform: rotateX(9deg) rotateY(-13deg) rotateZ(-1deg) translateY(0);
@@ -1932,6 +1936,7 @@ th {
 }
 
 @keyframes pass-bar-pulse {
+
   0%,
   100% {
     filter: drop-shadow(0 0 4px rgba(23, 107, 91, 0.3));
@@ -1943,6 +1948,7 @@ th {
 }
 
 @keyframes pass-shine {
+
   0%,
   35% {
     opacity: 0;
@@ -2074,7 +2080,7 @@ th {
   opacity: 0.5;
 }
 
-.check-row input:disabled + span {
+.check-row input:disabled+span {
   color: var(--color-muted);
 }
 
@@ -2133,7 +2139,7 @@ th {
   border: 0;
 }
 
-.check-chip input:disabled + span {
+.check-chip input:disabled+span {
   color: var(--color-muted);
 }
 

@@ -9,7 +9,7 @@ import { brandInitials, useAppIdentity } from "../identity/appIdentity";
 const links = [
   { to: "/admin/dashboard", label: "대시보드" },
   { to: "/admin/participants", label: "참가자" },
-  { to: "/admin/community", label: "공동체" },
+  // { to: "/admin/community", label: "공동체" },
   { to: "/admin/retreat-groups", label: "수련회 조" },
   { to: "/admin/announcements", label: "공지" },
   { to: "/admin/schedules", label: "일정" },
@@ -65,10 +65,10 @@ export function AdminLayout() {
           ))}
           {profileQuery.data?.role === "SYSTEM_ADMIN"
             ? systemAdminLinks.map((link) => (
-                <NavLink key={link.to} to={link.to}>
-                  {link.label}
-                </NavLink>
-              ))
+              <NavLink key={link.to} to={link.to}>
+                {link.label}
+              </NavLink>
+            ))
             : null}
         </nav>
       </aside>

@@ -28,29 +28,29 @@ type AttendanceSlot =
   | "DAY3_MORNING" | "DAY3_AFTERNOON";
 
 const SLOTS: { slot: AttendanceSlot; day: string; part: string; short: string }[] = [
-  { slot: "DAY1_MORNING",    day: "1일차", part: "오전", short: "1오전" },
-  { slot: "DAY1_AFTERNOON",  day: "1일차", part: "오후", short: "1오후" },
-  { slot: "DAY1_WORSHIP",    day: "1일차", part: "집회", short: "1집회" },
-  { slot: "DAY2_MORNING",    day: "2일차", part: "오전", short: "2오전" },
-  { slot: "DAY2_AFTERNOON",  day: "2일차", part: "오후", short: "2오후" },
-  { slot: "DAY2_WORSHIP",    day: "2일차", part: "집회", short: "2집회" },
-  { slot: "DAY3_MORNING",    day: "3일차", part: "오전", short: "3오전" },
-  { slot: "DAY3_AFTERNOON",  day: "3일차", part: "오후", short: "3오후" },
+  { slot: "DAY1_MORNING", day: "1일차", part: "오전", short: "1오전" },
+  { slot: "DAY1_AFTERNOON", day: "1일차", part: "오후", short: "1오후" },
+  { slot: "DAY1_WORSHIP", day: "1일차", part: "집회", short: "1집회" },
+  { slot: "DAY2_MORNING", day: "2일차", part: "오전", short: "2오전" },
+  { slot: "DAY2_AFTERNOON", day: "2일차", part: "오후", short: "2오후" },
+  { slot: "DAY2_WORSHIP", day: "2일차", part: "집회", short: "2집회" },
+  { slot: "DAY3_MORNING", day: "3일차", part: "오전", short: "3오전" },
+  { slot: "DAY3_AFTERNOON", day: "3일차", part: "오후", short: "3오후" },
 ];
 
-const COLOR_FULL    = "#22c55e";
+const COLOR_FULL = "#22c55e";
 const COLOR_PARTIAL = "#f97316";
-const COLOR_EMPTY   = "#e5e7eb";
+const COLOR_EMPTY = "#e5e7eb";
 
 function getAttendanceSlots(reg: AdminRegistration): AttendanceSlot[] {
   const s: AttendanceSlot[] = [];
-  if (reg.attendDay1Morning)   s.push("DAY1_MORNING");
+  if (reg.attendDay1Morning) s.push("DAY1_MORNING");
   if (reg.attendDay1Afternoon) s.push("DAY1_AFTERNOON");
-  if (reg.attendDay1Worship)   s.push("DAY1_WORSHIP");
-  if (reg.attendDay2Morning)   s.push("DAY2_MORNING");
+  if (reg.attendDay1Worship) s.push("DAY1_WORSHIP");
+  if (reg.attendDay2Morning) s.push("DAY2_MORNING");
   if (reg.attendDay2Afternoon) s.push("DAY2_AFTERNOON");
-  if (reg.attendDay2Worship)   s.push("DAY2_WORSHIP");
-  if (reg.attendDay3Morning)   s.push("DAY3_MORNING");
+  if (reg.attendDay2Worship) s.push("DAY2_WORSHIP");
+  if (reg.attendDay3Morning) s.push("DAY3_MORNING");
   if (reg.attendDay3Afternoon) s.push("DAY3_AFTERNOON");
   return s;
 }
@@ -94,28 +94,28 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
 
   const [boardGroups, setBoardGroups] = useState<BoardGroup[]>([]);
   const [deletedGroupIds, setDeletedGroupIds] = useState<number[]>([]);
-  const [draft, setDraft]             = useState<DragDropState>({});
+  const [draft, setDraft] = useState<DragDropState>({});
   const [draftLeaders, setDraftLeaders] = useState<{ [groupId: number]: number | null }>({});
-  const [hasChanges, setHasChanges]   = useState(false);
-  const [showModal, setShowModal]     = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [expandedGroupId, setExpandedGroupId] = useState<number | null>(null);
 
-  const containerRef  = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const nextTempGroupIdRef = useRef(-1);
-  const [scrollOffset,   setScrollOffset]   = useState(0);
-  const [containerWidth, setContainerWidth] = useState(0);
+  const [scrollOffset, setScrollOffset] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(Infinity);
 
   // filters
-  const [keyword,        setKeyword]        = useState("");
-  const [fGender,        setFGender]        = useState<"" | "MALE" | "FEMALE">("");
-  const [fAttendance,    setFAttendance]    = useState<"" | "FULL" | "PARTIAL" | "WORSHIP_ONLY">("");
-  const [fNewcomer,      setFNewcomer]      = useState<"" | "true" | "false">("");
+  const [keyword, setKeyword] = useState("");
+  const [fGender, setFGender] = useState<"" | "MALE" | "FEMALE">("");
+  const [fAttendance, setFAttendance] = useState<"" | "FULL" | "PARTIAL" | "WORSHIP_ONLY">("");
+  const [fNewcomer, setFNewcomer] = useState<"" | "true" | "false">("");
 
   const registrationsQuery = useQuery({
     queryKey: ["admin", "registrations", "for-board"],
-    queryFn:  () => getAdminRegistrations({ size: 500 })
+    queryFn: () => getAdminRegistrations({ size: 500 })
   });
-  const allRegs    = useMemo(() => registrationsQuery.data?.content ?? [], [registrationsQuery.data]);
+  const allRegs = useMemo(() => registrationsQuery.data?.content ?? [], [registrationsQuery.data]);
   const activeRegs = useMemo(() => allRegs.filter(r => r.status === "REGISTERED"), [allRegs]);
 
   const activeGroups = useMemo(() =>
@@ -225,13 +225,13 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
       if (keyword.trim()) {
         const k = keyword.toLowerCase();
         if (!reg.name.toLowerCase().includes(k) &&
-            !reg.phoneNumber.slice(-4).includes(k) &&
-            !(reg.churchCellName ?? "").toLowerCase().includes(k)) return false;
+          !reg.phoneNumber.slice(-4).includes(k) &&
+          !(reg.churchCellName ?? "").toLowerCase().includes(k)) return false;
       }
-      if (fGender     && reg.gender !== fGender)             return false;
+      if (fGender && reg.gender !== fGender) return false;
       if (fAttendance && reg.attendanceType !== fAttendance) return false;
-      if (fNewcomer === "true"  && !reg.newcomer) return false;
-      if (fNewcomer === "false" &&  reg.newcomer) return false;
+      if (fNewcomer === "true" && !reg.newcomer) return false;
+      if (fNewcomer === "false" && reg.newcomer) return false;
       return true;
     });
   }, [activeRegs, keyword, fGender, fAttendance, fNewcomer, getAssignedGroupId]);
@@ -326,9 +326,9 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
       const curLeaderId = prev[groupId] !== undefined
         ? prev[groupId]
         : (activeRegs.find(r => {
-            const gid = draft[r.id] !== undefined ? draft[r.id] : r.retreatGroupId;
-            return gid === groupId && r.retreatGroupLeader;
-          })?.id ?? null);
+          const gid = draft[r.id] !== undefined ? draft[r.id] : r.retreatGroupId;
+          return gid === groupId && r.retreatGroupLeader;
+        })?.id ?? null);
       return { ...prev, [groupId]: curLeaderId === pid ? null : pid };
     });
     setHasChanges(true);
@@ -337,12 +337,11 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
   const CARD_WIDTH = 310;
   const CARD_GAP = 14;
   const ADD_WIDTH = 96;
-  const CARD_W   = CARD_WIDTH + CARD_GAP;
-  const ADD_W    = ADD_WIDTH + CARD_GAP;
-  const totalInnerWidth = sortedGroups.length * CARD_W + ADD_W;
-  const maxOffset       = Math.max(0, totalInnerWidth - containerWidth);
-  const canScrollLeft   = scrollOffset > 0;
-  const canScrollRight  = scrollOffset < maxOffset - 4;
+  const CARD_W = CARD_WIDTH + CARD_GAP;
+  const totalInnerWidth = sortedGroups.length * CARD_W + ADD_WIDTH;
+  const maxOffset = Math.max(0, totalInnerWidth - containerWidth);
+  const canScrollLeft = scrollOffset > 0;
+  const canScrollRight = scrollOffset < maxOffset;
 
   useEffect(() => {
     const el = containerRef.current;
@@ -351,7 +350,7 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
     const ro = new ResizeObserver(([e]) => setContainerWidth(e.contentRect.width));
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [registrationsQuery.isLoading]);
 
   // 조 개수 변경 시 offset이 범위 초과하면 클램프
   useEffect(() => {
@@ -372,8 +371,29 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
     setDraftLeaders({});
     setHasChanges(false);
   };
-  const handleReset  = () => {
-    if (window.confirm("모든 조 편성 변경사항을 초기화하시겠습니까?")) handleCancel();
+
+  const handleDeactivateAllGroups = () => {
+    setBoardGroups([]);
+    setDeletedGroupIds(activeGroups.map(g => g.id));
+    setDraft(prev => {
+      const next = { ...prev };
+      activeRegs.forEach(reg => {
+        const assignedGroupId = next[reg.id] !== undefined ? next[reg.id] : reg.retreatGroupId;
+        if (assignedGroupId !== null) {
+          next[reg.id] = null;
+        }
+      });
+      return next;
+    });
+    setHasChanges(true);
+  };
+
+  const handleReset = () => {
+    if (window.confirm("저장되지 않은 변경사항을 모두 취소하시겠습니까?")) handleCancel();
+  };
+
+  const handleTruncate = () => {
+    if (window.confirm("모든 조 편성을 초기화하고 참가자들의 조 배정을 해제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) handleDeactivateAllGroups();
   };
 
   if (registrationsQuery.isLoading) {
@@ -383,7 +403,7 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
   return (
     <>
       {/* ── Page heading ─────────────────────────────────────── */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "16px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", flex: "1 1 0%" }}>
         <div>
           <div className="page-heading-title-row">
             <h1>수련회 조 편성</h1>
@@ -393,12 +413,23 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
             아래 후보 목록의 참가자를 드래그하여 각 조에 배정해주세요.
           </p>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "8px", flexShrink: 0 }}>
+        {/* ── Unsaved changes banner ────────────────────────────── */}
+        {hasChanges && (
+          <div style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px",
+            background: "#fff3cd", border: "1px solid #ffc107", borderRadius: "8px",
+            padding: "10px 16px", fontSize: "0.88rem", fontWeight: 600, color: "#856404"
+          }}>
+            <span>저장되지 않은 변경사항이 있어요.</span>
+            <button className="button button--ghost button--sm" onClick={handleCancel}>변경 취소</button>
+          </div>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "8px", flexShrink: 0, width: "340px" }}>
           <div style={{ fontSize: "0.82rem", color: "var(--color-muted)", fontWeight: 600, whiteSpace: "nowrap" }}>
             전체 {activeRegs.length}명 &nbsp;·&nbsp; 배정 {assignedCount}명 &nbsp;·&nbsp; 미배정 {activeRegs.length - assignedCount}명
           </div>
           <div style={{ display: "flex", gap: "8px" }}>
-            <button className="button button--outline button--sm" onClick={handleReset}>↺ 초기화</button>
+            <button className="button button--outline button--sm" onClick={handleReset}>변경 취소</button>
             <button
               className="button button--primary button--sm"
               disabled={!hasChanges || saveMutation.isPending}
@@ -410,24 +441,14 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
         </div>
       </div>
 
-      {/* ── Unsaved changes banner ────────────────────────────── */}
-      {hasChanges && (
-        <div style={{
-          display: "flex", justifyContent: "space-between", alignItems: "center",
-          background: "#fff3cd", border: "1px solid #ffc107", borderRadius: "8px",
-          padding: "10px 16px", fontSize: "0.88rem", fontWeight: 600, color: "#856404"
-        }}>
-          <span>저장되지 않은 변경사항이 있습니다.</span>
-          <button className="button button--ghost button--sm" onClick={handleCancel}>변경 취소</button>
-        </div>
-      )}
+
 
       {/* ── Search + Filter card ──────────────────────────────── */}
       <div className="search-card">
         <div className="search-card-top">
           <div className="search-input-wrap" style={{ flex: 1, maxWidth: "none" }}>
             <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
             </svg>
             <input
               type="search"
@@ -442,7 +463,7 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
           {/* 참석유형 */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <span className="filter-label">참석유형</span>
-            {([ ["FULL", "전체참석"], ["PARTIAL", "부분참석"], ["WORSHIP_ONLY", "집회만"] ] as const).map(([val, lbl]) => (
+            {([["FULL", "전체참석"], ["PARTIAL", "부분참석"], ["WORSHIP_ONLY", "집회만"]] as const).map(([val, lbl]) => (
               <label key={val} style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", fontSize: "0.82rem", fontWeight: fAttendance === val ? 700 : 400, color: fAttendance === val ? "var(--color-primary-dark)" : "var(--color-muted)", userSelect: "none" }}>
                 <input
                   type="radio"
@@ -463,7 +484,7 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
           {/* 성별 */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <span className="filter-label">성별</span>
-            {([ ["MALE", "남"], ["FEMALE", "여"] ] as const).map(([val, lbl]) => (
+            {([["MALE", "남"], ["FEMALE", "여"]] as const).map(([val, lbl]) => (
               <label key={val} style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", fontSize: "0.82rem", fontWeight: fGender === val ? 700 : 400, color: fGender === val ? "var(--color-primary-dark)" : "var(--color-muted)", userSelect: "none" }}>
                 <input
                   type="radio"
@@ -524,77 +545,80 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
 
         {/* overflow:hidden으로 페이지 가로 확장 방지, transform으로 슬라이드 */}
         <div ref={containerRef} style={{ overflow: "hidden" }}>
-        <div style={{
-          display: "flex", gap: `${CARD_GAP}px`,
-          transform: `translateX(-${scrollOffset}px)`,
-          transition: "transform 0.3s ease",
-          willChange: "transform"
-        }}>
-          {sortedGroups.map(group => (
-            <GroupBoard
-              key={group.id}
-              group={group}
-              activeRegs={activeRegs}
-              draft={draft}
-              width={CARD_WIDTH}
-              leaderId={getGroupLeaderId(group.id)}
-              onDrop={pid => handleDrop(group.id, pid)}
-              onGroupDrop={draggedId => reorderGroupMutation.mutate({ draggedId, targetId: group.id })}
-              onToggleLeader={pid => handleToggleLeader(group.id, pid)}
-              onExpand={() => setExpandedGroupId(group.id)}
-              onDeactivate={() => {
-                if (window.confirm(`"${group.name}"을 제거하시겠습니까? 배정된 조원은 미배정 상태가 됩니다.`))
-                  deactivateGroupMutation.mutate(group);
-              }}
-            />
-          ))}
+          <div style={{
+            display: "flex", gap: `${CARD_GAP}px`,
+            transform: `translateX(-${scrollOffset}px)`,
+            transition: "transform 0.3s ease",
+            willChange: "transform"
+          }}>
+            {sortedGroups.map(group => (
+              <GroupBoard
+                key={group.id}
+                group={group}
+                activeRegs={activeRegs}
+                draft={draft}
+                width={CARD_WIDTH}
+                leaderId={getGroupLeaderId(group.id)}
+                onDrop={pid => handleDrop(group.id, pid)}
+                onGroupDrop={draggedId => reorderGroupMutation.mutate({ draggedId, targetId: group.id })}
+                onToggleLeader={pid => handleToggleLeader(group.id, pid)}
+                onExpand={() => setExpandedGroupId(group.id)}
+                onDeactivate={() => {
+                  if (window.confirm(`"${group.name}"을 제거하시겠습니까? 배정된 조원은 미배정 상태가 됩니다.`))
+                    deactivateGroupMutation.mutate(group);
+                }}
+              />
+            ))}
 
-          {/* 조 추가 */}
-          <button
-            onClick={() => addGroupMutation.mutate()}
-            disabled={addGroupMutation.isPending}
-            style={{
-              flexShrink: 0, width: `${ADD_WIDTH}px`, background: "transparent",
-              border: "2px dashed var(--color-border)", borderRadius: "12px",
-              cursor: addGroupMutation.isPending ? "default" : "pointer",
-              color: "var(--color-muted)", fontSize: "1.6rem",
-              fontWeight: 300, transition: "border-color 0.15s, color 0.15s",
-              display: "flex", flexDirection: "column", alignItems: "center",
-              justifyContent: "center", gap: "4px", minHeight: "120px"
-            }}
-            onMouseEnter={e => {
-              if (addGroupMutation.isPending) return;
-              (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-primary)";
-              (e.currentTarget as HTMLButtonElement).style.color = "var(--color-primary)";
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-border)";
-              (e.currentTarget as HTMLButtonElement).style.color = "var(--color-muted)";
-            }}
-            title="조 추가"
-          >
-            <span>{addGroupMutation.isPending ? "…" : "+"}</span>
-          </button>
-        </div>  {/* flex inner */}
+            {/* 조 추가 */}
+            <button
+              onClick={() => addGroupMutation.mutate()}
+              disabled={addGroupMutation.isPending}
+              style={{
+                flexShrink: 0, width: `${ADD_WIDTH}px`, background: "transparent",
+                border: "2px dashed var(--color-border)", borderRadius: "12px",
+                cursor: addGroupMutation.isPending ? "default" : "pointer",
+                color: "var(--color-muted)", fontSize: "1.6rem",
+                fontWeight: 300, transition: "border-color 0.15s, color 0.15s",
+                display: "flex", flexDirection: "column", alignItems: "center",
+                justifyContent: "center", gap: "4px", minHeight: "120px"
+              }}
+              onMouseEnter={e => {
+                if (addGroupMutation.isPending) return;
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-primary)";
+                (e.currentTarget as HTMLButtonElement).style.color = "var(--color-primary)";
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-border)";
+                (e.currentTarget as HTMLButtonElement).style.color = "var(--color-muted)";
+              }}
+              title="조 추가"
+            >
+              <span>{addGroupMutation.isPending ? "…" : "+"}</span>
+            </button>
+          </div>  {/* flex inner */}
         </div>  {/* overflow:hidden container */}
       </div>  {/* position:relative wrapper */}
 
       {/* ── Candidate list ───────────────────────────────────── */}
       <CandidateSection
-              registrations={filteredRegs}
+        registrations={filteredRegs}
         totalCount={activeRegs.length}
         sortedGroups={sortedGroups}
         getAssignedGroupId={getAssignedGroupId}
       />
 
       {/* ── Legend ───────────────────────────────────────────── */}
-      <div style={{ display: "flex", gap: "18px", alignItems: "center", padding: "4px 0", fontSize: "0.78rem", fontWeight: 600, color: "var(--color-muted)" }}>
-        <LegendItem color={COLOR_FULL}    label="전체참석 구간" />
-        <LegendItem color={COLOR_PARTIAL} label="부분참석 구간" />
-        <LegendItem color={COLOR_EMPTY}   label="미참석 구간" />
-        <span style={{ borderLeft: "1px solid var(--color-border)", paddingLeft: "18px" }}>
-          ★ = 조장 &nbsp;·&nbsp; 각 조 타임라인은 1일차 오전 → 오후 → 집회 → 2일차 오전 → … → 3일차 오후 순
-        </span>
+      <div style={{ display: "flex", gap: "18px", alignItems: "center", justifyContent: "space-between", padding: "4px 0", fontSize: "0.78rem", fontWeight: 600, color: "var(--color-muted)" }}>
+        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          <LegendItem color={COLOR_FULL} label="전체참석 구간" />
+          <LegendItem color={COLOR_PARTIAL} label="부분참석 구간" />
+          <LegendItem color={COLOR_EMPTY} label="미참석 구간" />
+          <span style={{ borderLeft: "1px solid var(--color-border)", paddingLeft: "18px" }}>
+            ♥ = 조장 &nbsp;·&nbsp; 각 조 타임라인은 1일차 오전 → 오후 → 집회 → 2일차 오전 → … → 3일차 오후 순
+          </span>
+        </div>
+        <button className="button button--outline button--sm" onClick={handleTruncate} style={{ color: "#dc2626", borderColor: "#dc2626" }}>전체 초기화</button>
       </div>
 
       {/* ── Save modal ───────────────────────────────────────── */}
@@ -666,9 +690,9 @@ function GroupBoard({
     });
   }, [activeRegs, draft, group.id]);
 
-  const maleCount    = members.filter(m => m.gender === "MALE").length;
-  const femaleCount  = members.filter(m => m.gender === "FEMALE").length;
-  const fullCount    = members.filter(m => m.attendanceType === "FULL").length;
+  const maleCount = members.filter(m => m.gender === "MALE").length;
+  const femaleCount = members.filter(m => m.gender === "FEMALE").length;
+  const fullCount = members.filter(m => m.attendanceType === "FULL").length;
   const partialCount = members.length - fullCount;
 
   const slotCounts = SLOTS.map(({ slot }) =>
@@ -724,7 +748,7 @@ function GroupBoard({
             display: "flex", alignItems: "center"
           }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
             </svg>
           </button>
 
@@ -736,11 +760,11 @@ function GroupBoard({
             display: "flex", alignItems: "center", gap: "3px",
             transition: "background 0.15s"
           }}
-          onMouseEnter={e => (e.currentTarget.style.background = "#fef2f2")}
-          onMouseLeave={e => (e.currentTarget.style.background = "none")}
+            onMouseEnter={e => (e.currentTarget.style.background = "#fef2f2")}
+            onMouseLeave={e => (e.currentTarget.style.background = "none")}
           >
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+              <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4h6v2" />
             </svg>
             삭제
           </button>
@@ -816,7 +840,7 @@ function GroupBoard({
       <div style={{ padding: "8px 14px 12px", borderTop: "1px solid var(--color-border)", background: "var(--color-background)" }}>
         <div style={{ display: "grid", gridTemplateColumns: `${NAME_COL_W}px 1fr` }}>
           <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--color-muted)", alignSelf: "center", lineHeight: 1.3 }}>
-            시간대별<br/>인원
+            시간대별<br />인원
           </span>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)" }}>
             {slotCounts.map((n, i) => (
@@ -841,9 +865,9 @@ function BoardMemberRow({
   isLeader: boolean;
   onToggleLeader: () => void;
 }) {
-  const slots    = getAttendanceSlots(participant);
-  const isFull   = participant.attendanceType === "FULL";
-  const color    = isFull ? COLOR_FULL : COLOR_PARTIAL;
+  const slots = getAttendanceSlots(participant);
+  const isFull = participant.attendanceType === "FULL";
+  const color = isFull ? COLOR_FULL : COLOR_PARTIAL;
   const segments = getSegments(slots);
 
   return (
@@ -855,7 +879,7 @@ function BoardMemberRow({
       }}
       style={{
         display: "grid",
-        gridTemplateColumns: `${NAME_COL_W}px 1fr`,
+        gridTemplateColumns: "93px 1fr",
         gap: "8px",
         alignItems: "center",
         cursor: "grab",
@@ -863,37 +887,36 @@ function BoardMemberRow({
         padding: "3px 0",
         paddingLeft: "4px",
         borderRadius: "6px",
-        borderLeft: isLeader ? "3px solid #f59e0b" : "3px solid transparent",
-        background: isLeader ? "rgba(245,158,11,0.07)" : "transparent",
         transition: "background 0.1s",
       }}
     >
       {/* Name column */}
-      <div style={{ display: "flex", alignItems: "center", gap: "5px", minWidth: 0 }}>
+      <div style={{
+        display: "flex", alignItems: "center", gap: "5px", minWidth: 0,
+        background: participant.gender === "MALE" ? "rgba(59,130,246,0.1)" : "rgba(236,72,153,0.1)",
+        borderRadius: "999px", padding: "2px 4px",
+      }}>
         {/* 조장 토글 버튼 */}
         <button
           onClick={e => { e.stopPropagation(); onToggleLeader(); }}
           title={isLeader ? "조장 해제" : "조장으로 지정"}
           style={{
             width: "18px", height: "18px", borderRadius: "50%", flexShrink: 0,
-            border: isLeader ? "1.5px solid #f59e0b" : "1.5px solid var(--color-border)",
-            background: isLeader ? "#fef3c7" : "transparent",
-            cursor: "pointer", display: "flex", alignItems: "center",
-            justifyContent: "center", fontSize: "10px", lineHeight: 1,
-            color: isLeader ? "#d97706" : "var(--color-muted)",
+            border: isLeader ? "1.5px solid #f50b0b" : "1.5px solid var(--color-border)",
+            background: isLeader ? "#fed9c7" : "transparent",
+            cursor: "pointer", display: "flex",
+            justifyContent: "center", fontSize: "10px", lineHeight: 1.6,
+            color: isLeader ? "#f50b0b" : "var(--color-muted)",
             transition: "all 0.15s", padding: 0
           }}
-        >★</button>
+        >♥</button>
         <div style={{ minWidth: 0 }}>
           <div style={{
             fontWeight: isLeader ? 800 : 700, fontSize: "0.82rem",
             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
             color: isLeader ? "#b45309" : "inherit"
           }}>
-            {participant.name}
-          </div>
-          <div style={{ fontSize: "0.68rem", color: "var(--color-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {participant.gender === "MALE" ? "남" : "여"} · {String(participant.birthYear).slice(2)} · {participant.churchCellName ?? "-"}
+            {String(participant.birthYear).slice(2)} {participant.name}
           </div>
         </div>
       </div>
@@ -974,9 +997,9 @@ function CandidateCard({
   participant: AdminRegistration;
   assignedGroup: RetreatGroup | undefined;
 }) {
-  const slots    = getAttendanceSlots(participant);
-  const isFull   = participant.attendanceType === "FULL";
-  const color    = isFull ? COLOR_FULL : COLOR_PARTIAL;
+  const slots = getAttendanceSlots(participant);
+  const isFull = participant.attendanceType === "FULL";
+  const color = isFull ? COLOR_FULL : COLOR_PARTIAL;
   const segments = getSegments(slots);
 
   return (
@@ -1043,7 +1066,7 @@ function SaveModal({
   isPending: boolean;
 }) {
   const unassignedCount = activeRegs.filter(r => getAssignedGroupId(r.id) === null).length;
-  const assignedCount   = activeRegs.length - unassignedCount;
+  const assignedCount = activeRegs.length - unassignedCount;
   const groupCounts = sortedGroups.map(g => ({
     name: g.name,
     count: activeRegs.filter(r => getAssignedGroupId(r.id) === g.id).length
@@ -1062,9 +1085,9 @@ function SaveModal({
 
         <div style={{ display: "grid", gap: "0" }}>
           {([
-            { label: "전체 인원",  value: `${activeRegs.length}명`,  highlight: false },
-            { label: "배정 인원",  value: `${assignedCount}명`,      highlight: "success" as const },
-            { label: "미배정 인원",value: `${unassignedCount}명`,    highlight: unassignedCount > 0 ? "danger" as const : false },
+            { label: "전체 인원", value: `${activeRegs.length}명`, highlight: false },
+            { label: "배정 인원", value: `${assignedCount}명`, highlight: "success" as const },
+            { label: "미배정 인원", value: `${unassignedCount}명`, highlight: unassignedCount > 0 ? "danger" as const : false },
           ] as const).map(row => (
             <div key={row.label} style={{
               display: "flex", justifyContent: "space-between",
@@ -1132,11 +1155,11 @@ function GroupDetailModal({
   leaderId: number | null;
   onClose: () => void;
 }) {
-  const maleCount    = members.filter(m => m.gender === "MALE").length;
-  const femaleCount  = members.filter(m => m.gender === "FEMALE").length;
-  const fullCount    = members.filter(m => m.attendanceType === "FULL").length;
+  const maleCount = members.filter(m => m.gender === "MALE").length;
+  const femaleCount = members.filter(m => m.gender === "FEMALE").length;
+  const fullCount = members.filter(m => m.attendanceType === "FULL").length;
   const partialCount = members.length - fullCount;
-  const slotCounts   = SLOTS.map(({ slot }) =>
+  const slotCounts = SLOTS.map(({ slot }) =>
     members.filter(reg => getAttendanceSlots(reg).includes(slot)).length
   );
 
@@ -1213,10 +1236,10 @@ function GroupDetailModal({
                 배정된 조원이 없습니다.
               </p>
             ) : members.map(member => {
-              const isLeader  = leaderId === member.id;
-              const isFull    = member.attendanceType === "FULL";
-              const color     = isFull ? COLOR_FULL : COLOR_PARTIAL;
-              const segments  = getSegments(getAttendanceSlots(member));
+              const isLeader = leaderId === member.id;
+              const isFull = member.attendanceType === "FULL";
+              const color = isFull ? COLOR_FULL : COLOR_PARTIAL;
+              const segments = getSegments(getAttendanceSlots(member));
               return (
                 <div key={member.id} style={{
                   display: "grid", gridTemplateColumns: `${MODAL_NAME_COL_W}px 1fr`,
