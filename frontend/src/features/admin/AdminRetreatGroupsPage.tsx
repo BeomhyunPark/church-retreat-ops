@@ -22,6 +22,27 @@ type DragDropState = { [participantId: number]: number | null };
 
 type BoardGroup = RetreatGroup & { isNew?: boolean };
 
+function renumberBoardGroups(orderedGroups: BoardGroup[]) {
+  return orderedGroups.map((group, index) => ({
+    ...group,
+    name: `${index + 1}조`,
+    displayOrder: index + 1
+  }));
+}
+
+function createEmptyBoardGroup(id: number): BoardGroup {
+  return {
+    id,
+    name: "1조",
+    description: "",
+    displayOrder: 1,
+    active: true,
+    createdAt: "",
+    updatedAt: "",
+    isNew: true
+  };
+}
+
 type AttendanceSlot =
   | "DAY1_MORNING" | "DAY1_AFTERNOON" | "DAY1_WORSHIP"
   | "DAY2_MORNING" | "DAY2_AFTERNOON" | "DAY2_WORSHIP"
@@ -81,7 +102,7 @@ export function AdminRetreatGroupsPage() {
     <section className="page-stack">
       <RetreatGroupBoard
         groups={groups}
-        onChanged={() => void queryClient.invalidateQueries({ queryKey: ["admin", "retreat-groups"] })}
+        onChanged={() => queryClient.invalidateQueries({ queryKey: ["admin", "retreat-groups"] })}
       />
     </section>
   );
@@ -89,10 +110,22 @@ export function AdminRetreatGroupsPage() {
 
 // ─── Board ────────────────────────────────────────────────────────────────────
 
-function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onChanged: () => void }) {
+function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onChanged: () => Promise<void> }) {
   const queryClient = useQueryClient();
 
-  const [boardGroups, setBoardGroups] = useState<BoardGroup[]>([]);
+  const nextTempGroupIdRef = useRef(-2);
+  const ensureMinimumGroup = useCallback((orderedGroups: BoardGroup[]) => {
+    const renumbered = renumberBoardGroups(orderedGroups);
+    return renumbered.length > 0
+      ? renumbered
+      : [createEmptyBoardGroup(nextTempGroupIdRef.current--)];
+  }, []);
+  const [boardGroups, setBoardGroups] = useState<BoardGroup[]>(() => {
+    const initialGroups = renumberBoardGroups([...groups]
+      .filter(group => group.active)
+      .sort((a, b) => a.displayOrder - b.displayOrder || a.id - b.id));
+    return initialGroups.length > 0 ? initialGroups : [createEmptyBoardGroup(-1)];
+  });
   const [deletedGroupIds, setDeletedGroupIds] = useState<number[]>([]);
   const [draft, setDraft] = useState<DragDropState>({});
   const [draftLeaders, setDraftLeaders] = useState<{ [groupId: number]: number | null }>({});
@@ -101,7 +134,6 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
   const [expandedGroupId, setExpandedGroupId] = useState<number | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const nextTempGroupIdRef = useRef(-1);
   const [scrollOffset, setScrollOffset] = useState(0);
   const [containerWidth, setContainerWidth] = useState(Infinity);
 
@@ -125,24 +157,21 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
     [groups]
   );
 
-  const renumberBoardGroups = useCallback((orderedGroups: BoardGroup[]) => {
-    return orderedGroups.map((group, index) => ({
-      ...group,
-      name: `${index + 1}조`,
-      displayOrder: index + 1
-    }));
-  }, []);
-
   useEffect(() => {
     if (hasChanges) return;
-    setBoardGroups(renumberBoardGroups(activeGroups));
-  }, [activeGroups, hasChanges, renumberBoardGroups]);
+    setBoardGroups(currentGroups => {
+      const alreadyHasEmptyPlaceholder = activeGroups.length === 0
+        && currentGroups.length === 1
+        && currentGroups[0].isNew;
+      return alreadyHasEmptyPlaceholder ? currentGroups : ensureMinimumGroup(activeGroups);
+    });
+  }, [activeGroups, ensureMinimumGroup, hasChanges]);
 
   const sortedGroups = boardGroups;
 
   const addGroupMutation = useMutation({
     mutationFn: async () => {
-      setBoardGroups(prev => renumberBoardGroups([
+      setBoardGroups(prev => ensureMinimumGroup([
         ...prev,
         {
           id: nextTempGroupIdRef.current--,
@@ -167,7 +196,7 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
       if (group.id > 0) {
         setDeletedGroupIds(prev => prev.includes(group.id) ? prev : [...prev, group.id]);
       }
-      setBoardGroups(prev => renumberBoardGroups(prev.filter(g => g.id !== group.id)));
+      setBoardGroups(prev => ensureMinimumGroup(prev.filter(g => g.id !== group.id)));
       setDraft(prev => {
         const next = { ...prev };
         activeRegs.forEach(reg => {
@@ -196,7 +225,7 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
       const nextGroups = [...sortedGroups];
       const [draggedGroup] = nextGroups.splice(draggedIndex, 1);
       nextGroups.splice(targetIndex, 0, draggedGroup);
-      setBoardGroups(renumberBoardGroups(nextGroups));
+      setBoardGroups(ensureMinimumGroup(nextGroups));
       setHasChanges(true);
     },
   });
@@ -304,15 +333,16 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
         }
       }
     },
-    onSuccess: () => {
-      setBoardGroups([]);
+    onSuccess: async () => {
       setDeletedGroupIds([]);
       setDraft({});
       setDraftLeaders({});
-      setHasChanges(false);
       setShowModal(false);
-      void queryClient.invalidateQueries({ queryKey: ["admin", "registrations"] });
-      onChanged();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin", "registrations"] }),
+        onChanged()
+      ]);
+      setHasChanges(false);
     }
   });
 
@@ -365,7 +395,7 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
   }, [containerWidth, maxOffset]);
 
   const handleCancel = () => {
-    setBoardGroups(renumberBoardGroups(activeGroups));
+    setBoardGroups(ensureMinimumGroup(activeGroups));
     setDeletedGroupIds([]);
     setDraft({});
     setDraftLeaders({});
@@ -373,7 +403,7 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
   };
 
   const handleDeactivateAllGroups = () => {
-    setBoardGroups([]);
+    setBoardGroups(ensureMinimumGroup([]));
     setDeletedGroupIds(activeGroups.map(g => g.id));
     setDraft(prev => {
       const next = { ...prev };

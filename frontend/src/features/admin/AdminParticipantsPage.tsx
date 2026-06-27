@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   getAdminRegistrations,
@@ -60,10 +60,27 @@ const COL_ONEWAY: Partial<Record<ColumnKey, string>> = {
   special: "special_first",
 };
 
+const TD_CLASS: Record<ColumnKey, string> = {
+  name:          "participant-name-cell",
+  birthYear:     "participant-birth-year-cell",
+  gender:        "participant-gender-cell",
+  phone:         "participant-phone-cell",
+  middleGroup:   "participant-middle-group-cell",
+  cell:          "participant-cell-cell",
+  attendance:    "participant-attendance-cell",
+  group:         "participant-group-cell",
+  transportation:"participant-transportation-cell",
+  feePaid:       "participant-fee-paid-cell",
+  checkedIn:     "participant-checked-in-cell",
+  createdAt:     "participant-created-at-cell",
+  special:       "participant-special-cell",
+};
+
 // ── Prefs keys ────────────────────────────────────────────────────────────────
 
 const PREFS_WIDTHS_KEY = "participantTableColWidthsV2";
 const PREFS_ORDER_KEY = "participantTableColOrder";
+const PREFERENCES_QUERY_KEY = ["admin", "preferences"] as const;
 const MIN_COL_WIDTH = 50;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -90,15 +107,18 @@ function useColumnCustomization() {
   const [widths, setWidths] = useState<Record<ColumnKey, number> | null>(null);
   const [draggedKey, setDraggedKey] = useState<ColumnKey | null>(null);
   const [dragOverKey, setDragOverKey] = useState<ColumnKey | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // refs so mouse-event closures always read the latest values
   const colOrderRef = useRef<ColumnKey[] | null>(null);
   const widthsRef = useRef<Record<ColumnKey, number> | null>(null);
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const saveVersionRef = useRef(0);
   useEffect(() => { colOrderRef.current = colOrder; }, [colOrder]);
   useEffect(() => { widthsRef.current = widths; }, [widths]);
 
   const prefsQuery = useQuery({
-    queryKey: ["admin", "preferences"],
+    queryKey: PREFERENCES_QUERY_KEY,
     queryFn: getAdminPreferences,
     staleTime: Infinity
   });
@@ -116,11 +136,24 @@ function useColumnCustomization() {
     }
   }, [prefsQuery.data]);
 
-  const saveMutation = useMutation({
-    mutationFn: (patch: Record<string, unknown>) =>
-      updateAdminPreferences({ ...prefsQuery.data, ...patch }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "preferences"] })
-  });
+  const savePreferences = useCallback((patch: Record<string, unknown>) => {
+    const current = queryClient.getQueryData<Record<string, unknown>>(PREFERENCES_QUERY_KEY) ?? {};
+    const next = { ...current, ...patch };
+    const version = ++saveVersionRef.current;
+
+    // Keep later changes based on the latest local preferences while requests are queued.
+    queryClient.setQueryData(PREFERENCES_QUERY_KEY, next);
+    setSaveError(null);
+    saveQueueRef.current = saveQueueRef.current
+      .catch(() => undefined)
+      .then(() => updateAdminPreferences(next))
+      .then(() => undefined)
+      .catch((error: unknown) => {
+        if (version !== saveVersionRef.current) return;
+        setSaveError(error instanceof Error ? error.message : "테이블 설정을 저장하지 못했습니다.");
+        void queryClient.invalidateQueries({ queryKey: PREFERENCES_QUERY_KEY });
+      });
+  }, [queryClient]);
 
   const effectiveOrder = colOrder ?? DEFAULT_COL_ORDER;
 
@@ -130,14 +163,16 @@ function useColumnCustomization() {
   }, [widths]);
 
   const resetOrder = useCallback(() => {
+    colOrderRef.current = null;
     setColOrder(null);
-    saveMutation.mutate({ [PREFS_ORDER_KEY]: null });
-  }, [saveMutation]);
+    savePreferences({ [PREFS_ORDER_KEY]: null });
+  }, [savePreferences]);
 
   const resetWidths = useCallback(() => {
+    widthsRef.current = null;
     setWidths(null);
-    saveMutation.mutate({ [PREFS_WIDTHS_KEY]: null });
-  }, [saveMutation]);
+    savePreferences({ [PREFS_WIDTHS_KEY]: null });
+  }, [savePreferences]);
 
   // Resize: same algorithm as before, widths now saved as Record<ColumnKey, number>
   const startResize = useCallback((colIndex: number, startX: number) => {
@@ -183,13 +218,14 @@ function useColumnCustomization() {
       const next: Record<string, number> = { ...(widthsRef.current ?? {}) };
       order.forEach((key, i) => { next[key] = pct[i]; });
 
+      widthsRef.current = next as Record<ColumnKey, number>;
       setWidths(next as Record<ColumnKey, number>);
-      saveMutation.mutate({ [PREFS_WIDTHS_KEY]: next });
+      savePreferences({ [PREFS_WIDTHS_KEY]: next });
     };
 
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
-  }, [saveMutation]);
+  }, [savePreferences]);
 
   // DnD: reorder columns
   const onDragStart = useCallback((key: ColumnKey, e: React.DragEvent) => {
@@ -215,9 +251,10 @@ function useColumnCustomization() {
     next.splice(next.indexOf(fromKey), 1);
     next.splice(next.indexOf(targetKey), 0, fromKey);
 
+    colOrderRef.current = next;
     setColOrder(next);
-    saveMutation.mutate({ [PREFS_ORDER_KEY]: next });
-  }, [draggedKey, saveMutation]);
+    savePreferences({ [PREFS_ORDER_KEY]: next });
+  }, [draggedKey, savePreferences]);
 
   const onDragEnd = useCallback(() => {
     setDraggedKey(null);
@@ -231,6 +268,7 @@ function useColumnCustomization() {
     startResize,
     resetOrder,
     resetWidths,
+    saveError,
     hasOrderCustomization: !!colOrder,
     hasWidthCustomization: !!widths,
     draggedKey,
@@ -270,7 +308,7 @@ export function AdminParticipantsPage() {
 
   const {
     tableRef, effectiveOrder, getColWidth, startResize,
-    resetOrder, resetWidths, hasOrderCustomization, hasWidthCustomization,
+    resetOrder, resetWidths, saveError, hasOrderCustomization, hasWidthCustomization,
     draggedKey, dragOverKey, onDragStart, onDragOver, onDrop, onDragEnd,
   } = useColumnCustomization();
 
@@ -346,6 +384,7 @@ export function AdminParticipantsPage() {
       {registrationsQuery.isError ? (
         <StatusMessage message={registrationsQuery.error.message} tone="error" />
       ) : null}
+      {saveError ? <StatusMessage message={saveError} tone="error" /> : null}
 
       <div className="search-card">
         <form
@@ -493,7 +532,7 @@ export function AdminParticipantsPage() {
             {participants.map((item) => (
               <tr key={item.id}>
                 {effectiveOrder.map((key, i) => (
-                  <td key={key} className={key === "name" ? "participant-name-cell" : undefined}>
+                  <td key={key} className={TD_CLASS[key]}>
                     {getBodyCell(item, key)}
                     {i < effectiveOrder.length - 1 && (
                       <ColResizeHandle onMouseDown={(e) => startResize(i, e.clientX)} />

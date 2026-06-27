@@ -1425,6 +1425,7 @@ table {
 
 .participant-table thead th {
   cursor: grab;
+  text-align: center;
 }
 
 .participant-table thead th:active {
@@ -1449,8 +1450,10 @@ table {
   width: 3px;
 }
 
-.participant-name-cell {
-  min-width: 180px;
+.participant-name-cell,
+.participant-phone-cell,
+.participant-created-at-cell {
+  text-align: center;
 }
 
 th,
