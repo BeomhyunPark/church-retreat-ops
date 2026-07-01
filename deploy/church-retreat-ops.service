@@ -1,0 +1,22 @@
+[Unit]
+Description=GMC Retreat App backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=church-retreat-ops
+Group=church-retreat-ops
+EnvironmentFile=/etc/church-retreat-ops/church-retreat-ops.env
+ExecStart=/usr/bin/java -jar /opt/church-retreat-ops/app.jar --spring.profiles.active=prod
+Restart=on-failure
+RestartSec=5
+SuccessExitStatus=143
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,14 @@
+retreat.greengroove.app {
+	encode zstd gzip
+
+	@api path /api /api/*
+	handle @api {
+		reverse_proxy {$WSL_BACKEND}:8080
+	}
+
+	handle {
+		root * C:/Users/dkrak/AppData/Local/church-retreat-ops/www
+		try_files {path} /index.html
+		file_server
+	}
+}
