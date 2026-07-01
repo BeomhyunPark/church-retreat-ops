@@ -19,7 +19,8 @@ public record RetreatGroupTreeResponse(
             Long id,
             Long participantId,
             String participantName,
-            Boolean leader
+            Boolean leader,
+            Integer displayOrder
     ) {
     }
 }

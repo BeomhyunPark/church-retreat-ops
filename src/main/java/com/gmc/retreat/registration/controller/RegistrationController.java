@@ -3,6 +3,7 @@ package com.gmc.retreat.registration.controller;
 import com.gmc.retreat.api.ApiResponse;
 import com.gmc.retreat.registration.dto.RegistrationCreateRequest;
 import com.gmc.retreat.registration.dto.RegistrationCreateResponse;
+import com.gmc.retreat.registration.dto.RegistrationCheckInQrResponse;
 import com.gmc.retreat.registration.dto.RegistrationResponse;
 import com.gmc.retreat.registration.dto.RegistrationSelfLookupRequest;
 import com.gmc.retreat.registration.dto.RegistrationSelfUpdateRequest;
@@ -32,6 +33,13 @@ public class RegistrationController {
     @PostMapping("/self/lookup")
     public ApiResponse<RegistrationResponse> selfLookup(@Valid @RequestBody RegistrationSelfLookupRequest request) {
         return ApiResponse.success(registrationService.selfLookup(request));
+    }
+
+    @PostMapping("/self/check-in-qr")
+    public ApiResponse<RegistrationCheckInQrResponse> selfCheckInQr(
+            @Valid @RequestBody RegistrationSelfLookupRequest request
+    ) {
+        return ApiResponse.success(registrationService.selfCheckInQr(request));
     }
 
     @PutMapping("/self")

@@ -120,8 +120,9 @@
 - 체크인 취소/되돌리기와 취소 사유 필수 입력
 - 체크인/취소 이벤트 이력 저장
 - 체크인/취소 수행 관리자와 시각 기록
-- 향후 QR 체크인을 위한 관리자 토큰 발급/폐기 API
-- `STAFF` 이상 조회/수동 체크인, `CHAIR` 이상 체크인 취소와 QR 토큰 관리
+- 참가 신청/본인 확인 시 도착 체크인 QR 발급 및 이미지 저장
+- 관리자 카메라 QR 스캐너와 도착 체크인 처리
+- `STAFF` 이상 조회/수동·QR 체크인, `CHAIR` 이상 체크인 취소와 QR 토큰 관리
 
 자세한 내용은 [docs/phase8-check-in-domain.md](docs/phase8-check-in-domain.md)를 참고합니다.
 
@@ -490,7 +491,7 @@ curl -s -X PATCH http://localhost:8080/api/admin/schedules/1/active \
 
 ## 체크인 도메인 테스트
 
-체크인 관리는 JWT가 필요합니다. `STAFF`는 roster 조회와 수동 체크인을 수행할 수 있고, `CHAIR` 이상은 체크인 취소와 QR 토큰 발급/폐기를 수행할 수 있습니다.
+실제 체크인 처리는 JWT가 필요합니다. `STAFF`는 roster 조회와 수동·QR 도착 체크인을 수행할 수 있고, `CHAIR` 이상은 체크인 취소와 관리자 QR 토큰 발급/폐기를 수행할 수 있습니다. 참가자 QR은 2026년 8월 18일 23:59:59(한국 시간)에 만료됩니다.
 
 ```bash
 curl -s http://localhost:8080/api/admin/check-ins \
@@ -622,7 +623,7 @@ JWT가 필요한 API:
 - 카카오톡, SMS, 푸시, 이메일 공지 발송
 - 참가자 공개 공지 화면과 읽음 확인
 - 참가자 공개 일정 화면, 일정 알림, 캘린더 연동, 반복 일정, 출석 추적
-- 참가자 공개 체크인 화면, 공개 QR 스캔 API, QR scanner UI, 체크인 알림, 체크인 통계 dashboard
+- 참가자 공개 셀프 체크인 API, 퇴장 QR, 체크인 알림, 체크인 통계 dashboard
 - 실 결제 gateway, 영수증 업로드, 환불 workflow, 정산 자동화
 
 참가자는 관리자 계정이 아닙니다. 관리자 로그인 계정은 수련회 운영진과 시스템 관리자를 위한 `admin_users`에만 저장됩니다.

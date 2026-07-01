@@ -34,3 +34,5 @@ app:
       name: ${APP_SYSTEM_ADMIN_NAME:System Admin}
   registration:
     self-edit-enabled: ${APP_REGISTRATION_SELF_EDIT_ENABLED:true}
+  check-in:
+    qr-expires-at: ${APP_CHECK_IN_QR_EXPIRES_AT:2026-08-18T23:59:59+09:00}
