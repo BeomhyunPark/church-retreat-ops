@@ -81,6 +81,17 @@ export type RegistrationResponse = {
 export type RegistrationCreateResponse = {
   resultType: "CREATED" | "OVERWRITTEN";
   registration: RegistrationResponse;
+  checkInQr: CheckInQrCredential;
+};
+
+export type CheckInQrCredential = {
+  token: string;
+  expiresAt: string;
+};
+
+export type RegistrationCheckInQrResponse = {
+  registration: RegistrationResponse;
+  checkInQr: CheckInQrCredential;
 };
 
 export type RegistrationSelfLookupPayload = {
@@ -141,6 +152,13 @@ export function createRegistration(payload: RegistrationCreatePayload) {
 
 export function lookupRegistration(payload: RegistrationSelfLookupPayload) {
   return apiRequest<RegistrationResponse>("/registrations/self/lookup", {
+    method: "POST",
+    body: payload
+  });
+}
+
+export function lookupRegistrationWithCheckInQr(payload: RegistrationSelfLookupPayload) {
+  return apiRequest<RegistrationCheckInQrResponse>("/registrations/self/check-in-qr", {
     method: "POST",
     body: payload
   });

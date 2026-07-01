@@ -4,9 +4,9 @@
 
 ## 목적
 
-Phase 8은 수련회 운영자가 참가자 체크인 상태를 조회하고 관리할 수 있는 관리자용 MVP를 제공합니다.
+Phase 8은 참가자 도착 QR 발급과 수련회 운영자의 현장 QR 체크인을 제공합니다.
 
-이 단계는 관리자 roster/query, 수동 체크인, 체크인 취소, 이벤트 이력, 향후 QR 체크인을 위한 관리자 토큰 관리까지만 포함합니다. 프론트엔드 QR scanner UI, 참가자 공개 체크인 화면, 공개 QR 스캔 API, 알림, 통계 dashboard는 구현하지 않습니다.
+참가자는 신청 완료 또는 본인 조회에서 QR 이미지를 저장하고, 수련회장 도착 시 로그인한 운영자가 관리자 스캐너로 QR을 읽어 체크인합니다. 퇴장 체크인은 포함하지 않습니다.
 
 ## 도메인 모델
 
@@ -28,11 +28,12 @@ Phase 8은 수련회 운영자가 참가자 체크인 상태를 조회하고 관
 QR 토큰:
 
 - 테이블: `participant_check_in_tokens`
-- 향후 QR 체크인을 위한 관리자 발급 토큰을 저장합니다.
+- 참가자 도착 체크인을 위한 토큰을 저장합니다.
 - 원문 토큰은 발급 응답에서 한 번만 반환합니다.
 - DB에는 원문 토큰을 저장하지 않고, 검증용 해시만 저장합니다.
 - 토큰은 만료 시각과 폐기 시각을 가집니다.
-- Phase 8에서는 공개 QR 스캔/체크인 API를 구현하지 않습니다.
+- 자동 발급 QR은 `2026-08-18T23:59:59+09:00`에 만료됩니다.
+- 본인 조회에서 QR을 재발급하면 이전 활성 QR은 폐기됩니다.
 
 ## 역할 정책
 
@@ -45,6 +46,7 @@ STAFF < CHAIR < PASTOR < SYSTEM_ADMIN
 - 체크인 roster 조회: `STAFF` 이상
 - 체크인 상세 조회: `STAFF` 이상
 - 수동 체크인: `STAFF` 이상
+- QR 스캔 체크인: `STAFF` 이상
 - 체크인 취소: `CHAIR` 이상
 - QR 토큰 발급: `CHAIR` 이상
 - QR 토큰 폐기: `CHAIR` 이상
@@ -55,9 +57,11 @@ STAFF < CHAIR < PASTOR < SYSTEM_ADMIN
 GET   /api/admin/check-ins
 GET   /api/admin/check-ins/{participantId}
 POST  /api/admin/check-ins/{participantId}
+POST  /api/admin/check-ins/qr
 PATCH /api/admin/check-ins/{participantId}/cancel
 POST  /api/admin/check-ins/tokens/{participantId}
 PATCH /api/admin/check-ins/tokens/{participantId}/revoke
+POST  /api/registrations/self/check-in-qr
 ```
 
 Roster 필터:
@@ -72,6 +76,14 @@ size=20
 ```
 
 수동 체크인 요청은 본문이 없습니다.
+
+QR 스캔 체크인 요청:
+
+```json
+{
+  "token": "<scanned-qr-token>"
+}
+```
 
 체크인 취소 요청:
 
@@ -135,6 +147,7 @@ QR 토큰 발급 응답:
 ## 체크인 생명주기
 
 - 아직 체크인하지 않은 참가자는 `checkedIn=false`로 조회됩니다.
+- QR 스캔 체크인은 현재 상태를 `checkedIn=true`, method를 `QR`로 기록하고 이벤트를 추가합니다.
 - 수동 체크인은 현재 상태를 `checkedIn=true`로 변경하고 체크인 이벤트를 추가합니다.
 - 이미 체크인된 참가자를 다시 체크인하면 business error를 반환합니다.
 - 체크인 취소는 현재 상태를 `checkedIn=false`로 변경하고 취소 이벤트를 추가합니다.
@@ -143,18 +156,19 @@ QR 토큰 발급 응답:
 
 ## 보안과 개인정보
 
-- 모든 체크인 API는 관리자 JWT가 필요합니다.
+- 실제 체크인 처리 API는 관리자 JWT가 필요하며 `STAFF` 이상만 호출할 수 있습니다.
+- 참가자 본인 QR 재발급은 이름과 6자리 조회 키 검증 후에만 허용합니다.
 - 체크인 목록/상세 응답에는 full phone number를 포함하지 않고 `phoneLast4`만 포함합니다.
 - 참가자 lookup key, lookup key 저장값, QR 토큰 저장값은 API 응답, 문서 예시, HTTP 예시에 포함하지 않습니다.
 - QR 원문 토큰은 발급 응답에서 한 번만 반환합니다.
 - QR 토큰 폐기는 저장된 활성 토큰을 폐기 표시하며 저장값을 반환하지 않습니다.
-- 공개 QR 체크인 endpoint는 Phase 8에 포함하지 않습니다.
+- QR 원문만으로 호출 가능한 공개 체크인 endpoint는 제공하지 않습니다.
 
 ## 제외 범위
 
-- 프론트엔드 QR scanner UI
-- 참가자 공개 체크인 화면
 - 공개 QR 스캔/체크인 API
+- 퇴장 체크인과 퇴장 QR
+- GPS geofencing
 - 카카오톡, SMS, 이메일, 푸시 알림
 - 통계 dashboard
 - 출석 기반 일정/강의 세부 tracking

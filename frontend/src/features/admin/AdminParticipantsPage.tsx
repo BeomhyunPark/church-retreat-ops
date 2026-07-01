@@ -27,12 +27,6 @@ const DEFAULT_COL_ORDER: ColumnKey[] = [
   "attendance", "group", "transportation", "feePaid", "checkedIn", "createdAt", "special"
 ];
 
-const COL_DEFAULT_WIDTH: Record<ColumnKey, number> = {
-  name: 11, birthYear: 5, gender: 5, phone: 9, middleGroup: 9, cell: 9,
-  attendance: 7, group: 8, transportation: 7, feePaid: 7, checkedIn: 7,
-  createdAt: 8, special: 8
-};
-
 const COL_LABEL: Record<ColumnKey, string> = {
   name: "이름", birthYear: "또래", gender: "성별", phone: "연락처",
   middleGroup: "중그룹", cell: "셀", attendance: "참석여부", group: "조",
@@ -157,9 +151,9 @@ function useColumnCustomization() {
 
   const effectiveOrder = colOrder ?? DEFAULT_COL_ORDER;
 
-  const getColWidth = useCallback((key: ColumnKey): string => {
+  const getColWidth = useCallback((key: ColumnKey): string | undefined => {
     const w = widths?.[key];
-    return w !== undefined ? `${w}%` : `${COL_DEFAULT_WIDTH[key]}%`;
+    return w !== undefined ? `${w}%` : undefined;
   }, [widths]);
 
   const resetOrder = useCallback(() => {
@@ -498,11 +492,12 @@ export function AdminParticipantsPage() {
       </div>
 
       <div className="table-card participant-table-card">
-        <table className="participant-table" ref={tableRef}>
+        <table className={`participant-table${hasWidthCustomization ? " participant-table--custom-widths" : ""}`} ref={tableRef}>
           <colgroup>
-            {effectiveOrder.map((key) => (
-              <col key={key} style={{ width: getColWidth(key) }} />
-            ))}
+            {effectiveOrder.map((key) => {
+              const width = getColWidth(key);
+              return <col key={key} style={width ? { width } : undefined} />;
+            })}
           </colgroup>
           <thead>
             <tr>
@@ -663,7 +658,7 @@ function getBodyCell(item: AdminRegistration, key: ColumnKey) {
         </>
       );
     case "transportation":
-      return formatTransportationSummary(item);
+      return <span className="participant-transportation-value">{formatTransportationSummary(item)}</span>;
     case "feePaid":
       return <StatusPill tone={item.feePaid ? "success" : "warning"}>{item.feePaid ? "납부" : "미납"}</StatusPill>;
     case "checkedIn":

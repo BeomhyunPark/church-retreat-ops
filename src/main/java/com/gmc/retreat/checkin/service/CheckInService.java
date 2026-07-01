@@ -3,8 +3,11 @@ package com.gmc.retreat.checkin.service;
 import com.gmc.retreat.admin.domain.AdminRole;
 import com.gmc.retreat.checkin.domain.CheckInEventAction;
 import com.gmc.retreat.checkin.domain.CheckInMethod;
+import com.gmc.retreat.checkin.domain.CheckInTokenRecord;
 import com.gmc.retreat.checkin.dto.CheckInCancellationRequest;
 import com.gmc.retreat.checkin.dto.CheckInRosterResponse;
+import com.gmc.retreat.checkin.dto.CheckInQrCredentialResponse;
+import com.gmc.retreat.checkin.dto.CheckInQrScanRequest;
 import com.gmc.retreat.checkin.dto.CheckInTokenIssueRequest;
 import com.gmc.retreat.checkin.dto.CheckInTokenIssueResponse;
 import com.gmc.retreat.checkin.dto.CheckInTokenRevokeResponse;
@@ -32,11 +35,18 @@ public class CheckInService {
 
     private final CheckInMapper checkInMapper;
     private final CheckInTokenGenerator tokenGenerator;
+    private final CheckInProperties properties;
     private final Clock clock;
 
-    public CheckInService(CheckInMapper checkInMapper, CheckInTokenGenerator tokenGenerator, Clock clock) {
+    public CheckInService(
+            CheckInMapper checkInMapper,
+            CheckInTokenGenerator tokenGenerator,
+            CheckInProperties properties,
+            Clock clock
+    ) {
         this.checkInMapper = checkInMapper;
         this.tokenGenerator = tokenGenerator;
+        this.properties = properties;
         this.clock = clock;
     }
 
@@ -86,6 +96,36 @@ public class CheckInService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.CHECK_IN_ALREADY_COMPLETED));
         insertEvent(participantId, CheckInEventAction.CHECKED_IN, CheckInMethod.MANUAL, admin.id(), null);
         return CheckInRosterResponse.from(findRosterItemOrThrow(participantId));
+    }
+
+    @Transactional
+    public CheckInRosterResponse checkInByQr(AdminPrincipal admin, CheckInQrScanRequest request) {
+        requireRole(admin, AdminRole.STAFF);
+        CheckInTokenRecord token = checkInMapper.findTokenByHash(hashToken(request.token().trim()))
+                .orElseThrow(() -> new BusinessException(ErrorCode.CHECK_IN_TOKEN_INVALID));
+        if (token.revokedAt() != null) {
+            throw new BusinessException(ErrorCode.CHECK_IN_TOKEN_REVOKED);
+        }
+        if (!token.expiresAt().isAfter(OffsetDateTime.now(clock))) {
+            throw new BusinessException(ErrorCode.CHECK_IN_TOKEN_EXPIRED);
+        }
+        checkInMapper.upsertCheckInIfNotCheckedIn(token.participantId(), admin.id(), CheckInMethod.QR)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CHECK_IN_ALREADY_COMPLETED));
+        insertEvent(token.participantId(), CheckInEventAction.CHECKED_IN, CheckInMethod.QR, admin.id(), null);
+        return CheckInRosterResponse.from(findRosterItemOrThrow(token.participantId()));
+    }
+
+    @Transactional
+    public CheckInQrCredentialResponse issueParticipantQr(Long participantId) {
+        ensureParticipantExists(participantId);
+        OffsetDateTime expiresAt = properties.qrExpiresAt();
+        if (expiresAt == null || !expiresAt.isAfter(OffsetDateTime.now(clock))) {
+            throw new BusinessException(ErrorCode.CHECK_IN_TOKEN_EXPIRED);
+        }
+        String token = tokenGenerator.generate();
+        checkInMapper.revokeActiveTokensByParticipantId(participantId);
+        checkInMapper.insertToken(new CheckInTokenInsert(participantId, hashToken(token), expiresAt, null));
+        return new CheckInQrCredentialResponse(token, expiresAt);
     }
 
     @Transactional

@@ -30,6 +30,7 @@
             <arg column="middle_group_id" javaType="java.lang.Long" />
             <arg column="middle_group_name" javaType="java.lang.String" />
             <arg column="leader" javaType="java.lang.Boolean" />
+            <arg column="member_display_order" javaType="java.lang.Integer" />
             <arg column="created_at" javaType="java.time.OffsetDateTime" />
             <arg column="updated_at" javaType="java.time.OffsetDateTime" />
         </constructor>
@@ -44,7 +45,7 @@
         r.id AS participant_id, r.name AS participant_name, r.gender, r.birth_year,
         r.church_cell_department, r.church_cell_id, cc.name AS church_cell_name,
         mg.id AS middle_group_id, mg.name AS middle_group_name,
-        gm.leader, gm.created_at, gm.updated_at
+        gm.leader, gm.display_order AS member_display_order, gm.created_at, gm.updated_at
     </sql>
 
     <sql id="MemberJoins">
@@ -107,14 +108,14 @@
         <include refid="MemberColumns" />
         <include refid="MemberJoins" />
         WHERE gm.retreat_group_id = #{groupId}
-        ORDER BY gm.leader DESC, r.name ASC, r.id ASC
+        ORDER BY gm.display_order ASC, r.id ASC
     </select>
 
     <select id="findMembers" resultMap="RetreatGroupMemberResultMap">
         SELECT
         <include refid="MemberColumns" />
         <include refid="MemberJoins" />
-        ORDER BY rg.display_order ASC, rg.name ASC, gm.leader DESC, r.name ASC, r.id ASC
+        ORDER BY rg.display_order ASC, rg.name ASC, gm.display_order ASC, r.id ASC
     </select>
 
     <select id="findGroupIdByParticipantId" resultType="java.lang.Long">
@@ -124,14 +125,22 @@
     </select>
 
     <insert id="insertMember">
-        INSERT INTO retreat_group_members (retreat_group_id, registration_id, leader)
-        VALUES (#{groupId}, #{participantId}, #{leader})
+        INSERT INTO retreat_group_members (retreat_group_id, registration_id, leader, display_order)
+        SELECT #{groupId}, #{participantId}, #{leader}, COALESCE(MAX(display_order) + 1, 0)
+        FROM retreat_group_members
+        WHERE retreat_group_id = #{groupId}
     </insert>
 
     <update id="updateMemberGroup">
         UPDATE retreat_group_members
         SET retreat_group_id = #{groupId},
             leader = FALSE,
+            display_order = (
+                SELECT COALESCE(MAX(target.display_order) + 1, 0)
+                FROM retreat_group_members target
+                WHERE target.retreat_group_id = #{groupId}
+                  AND target.registration_id != #{participantId}
+            ),
             updated_at = now()
         WHERE registration_id = #{participantId}
     </update>
@@ -147,6 +156,24 @@
     <update id="markLeader">
         UPDATE retreat_group_members
         SET leader = TRUE,
+            updated_at = now()
+        WHERE retreat_group_id = #{groupId}
+          AND registration_id = #{participantId}
+    </update>
+
+    <update id="moveMemberToTop">
+        UPDATE retreat_group_members
+        SET display_order = CASE
+                WHEN registration_id = #{participantId} THEN 0
+                ELSE display_order + 1
+            END,
+            updated_at = now()
+        WHERE retreat_group_id = #{groupId}
+    </update>
+
+    <update id="updateMemberDisplayOrder">
+        UPDATE retreat_group_members
+        SET display_order = #{displayOrder},
             updated_at = now()
         WHERE retreat_group_id = #{groupId}
           AND registration_id = #{participantId}

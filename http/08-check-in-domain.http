@@ -41,3 +41,21 @@ Content-Type: application/json
 ### Revoke QR check-in token
 PATCH {{baseUrl}}/api/admin/check-ins/tokens/{{participantId}}/revoke
 Authorization: Bearer {{adminToken}}
+
+### Check in arrival by scanned QR
+POST {{baseUrl}}/api/admin/check-ins/qr
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "token": "{{checkInToken}}"
+}
+
+### Reissue participant arrival QR after self verification
+POST {{baseUrl}}/api/registrations/self/check-in-qr
+Content-Type: application/json
+
+{
+  "name": "Grace Kim",
+  "lookupKey": "{{participantLookupKey}}"
+}

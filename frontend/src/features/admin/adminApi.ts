@@ -141,6 +141,8 @@ export type FeeRosterItem = {
 };
 
 export type FeeRosterFilters = {
+  page?: number;
+  size?: number;
   feePaid?: boolean;
   keyword?: string;
 };
@@ -172,6 +174,8 @@ export type CheckInRosterItem = {
 };
 
 export type CheckInRosterFilters = {
+  page?: number;
+  size?: number;
   checkedIn?: boolean;
   keyword?: string;
 };
@@ -300,8 +304,26 @@ export type RetreatGroupMember = {
   middleGroupId?: number | null;
   middleGroupName?: string | null;
   leader: boolean;
+  displayOrder: number;
   createdAt: string;
   updatedAt: string;
+};
+
+export type RetreatGroupTree = {
+  groups: Array<{
+    id: number;
+    name: string;
+    description?: string | null;
+    displayOrder: number;
+    active: boolean;
+    members: Array<{
+      id: number;
+      participantId: number;
+      participantName: string;
+      leader: boolean;
+      displayOrder: number;
+    }>;
+  }>;
 };
 
 export type FeeEventItem = {
@@ -392,8 +414,8 @@ export function getAdminRegistration(id: number) {
 
 export function getFeeRoster(filters: FeeRosterFilters = {}) {
   const params = new URLSearchParams({
-    page: "0",
-    size: "20"
+    page: String(filters.page ?? 0),
+    size: String(filters.size ?? 50)
   });
 
   if (filters.feePaid !== undefined) {
@@ -420,8 +442,8 @@ export function updateFeeStatus(participantId: number, feePaid: boolean, reason?
 
 export function getCheckInRoster(filters: CheckInRosterFilters = {}) {
   const params = new URLSearchParams({
-    page: "0",
-    size: "20"
+    page: String(filters.page ?? 0),
+    size: String(filters.size ?? 50)
   });
 
   if (filters.checkedIn !== undefined) {
@@ -439,6 +461,14 @@ export function manuallyCheckIn(participantId: number) {
   return apiRequest<CheckInRosterItem>(`/admin/check-ins/${participantId}`, {
     auth: true,
     method: "POST"
+  });
+}
+
+export function checkInByQr(token: string) {
+  return apiRequest<CheckInRosterItem>("/admin/check-ins/qr", {
+    auth: true,
+    method: "POST",
+    body: { token }
   });
 }
 
@@ -646,6 +676,18 @@ export function deleteRetreatGroup(id: number) {
 
 export function getRetreatGroupMembers(groupId: number) {
   return apiRequest<RetreatGroupMember[]>(`/admin/retreat-groups/${groupId}/members`, { auth: true });
+}
+
+export function getRetreatGroupTree() {
+  return apiRequest<RetreatGroupTree>("/admin/retreat-groups/tree", { auth: true });
+}
+
+export function updateRetreatGroupMemberOrder(groupId: number, participantIds: number[]) {
+  return apiRequest<RetreatGroupMember[]>(`/admin/retreat-groups/${groupId}/members/order`, {
+    auth: true,
+    method: "PATCH",
+    body: { participantIds }
+  });
 }
 
 export function assignRetreatGroupLeader(groupId: number, participantId: number) {

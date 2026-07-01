@@ -28,6 +28,7 @@ public class SecurityConfig {
             "/api/admin/auth/login",
             "/api/registrations",
             "/api/registrations/self/lookup",
+            "/api/registrations/self/check-in-qr",
             "/api/registrations/self",
             "/v3/api-docs/**",
             "/swagger-ui/**",
@@ -47,7 +48,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/health", "/api/app/identity", "/api/admin/auth/login",
-                                "/api/registrations", "/api/registrations/self/lookup", "/api/registrations/self",
+                                "/api/registrations", "/api/registrations/self/lookup",
+                                "/api/registrations/self/check-in-qr", "/api/registrations/self",
                                 "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                         .permitAll()
                         .anyRequest().authenticated()

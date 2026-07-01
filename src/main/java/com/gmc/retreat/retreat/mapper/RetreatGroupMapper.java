@@ -42,6 +42,14 @@ public interface RetreatGroupMapper {
 
     int markLeader(@Param("groupId") Long groupId, @Param("participantId") Long participantId);
 
+    int moveMemberToTop(@Param("groupId") Long groupId, @Param("participantId") Long participantId);
+
+    int updateMemberDisplayOrder(
+            @Param("groupId") Long groupId,
+            @Param("participantId") Long participantId,
+            @Param("displayOrder") Integer displayOrder
+    );
+
     int deleteMembersByGroupId(@Param("groupId") Long groupId);
 
     int deleteMemberByParticipantId(@Param("participantId") Long participantId);
