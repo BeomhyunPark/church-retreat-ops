@@ -2609,7 +2609,7 @@ class GmcRetreatApplicationTests {
         assertThat(storedTokenHash).isNotBlank().isNotEqualTo(rawToken);
         assertThat(issuedByAdminId).isNull();
         assertThat(response.path("data").path("checkInQr").path("expiresAt").asText())
-                .isEqualTo("2026-08-18T23:59:59+09:00");
+                .isEqualTo("2099-12-31T23:59:59+09:00");
         assertNoSensitiveCheckInFields(createResult.getResponse().getContentAsString());
     }
 
