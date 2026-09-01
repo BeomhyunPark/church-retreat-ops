@@ -35,7 +35,6 @@ public class FeeManagementService {
             AdminPrincipal admin,
             Boolean feePaid,
             Long retreatGroupId,
-            Long churchCellId,
             String keyword,
             int page,
             int size
@@ -48,7 +47,6 @@ public class FeeManagementService {
                 feeMapper.findRoster(
                                 feePaid,
                                 retreatGroupId,
-                                churchCellId,
                                 normalizedKeyword,
                                 safeSize,
                                 safePage * safeSize
@@ -58,7 +56,7 @@ public class FeeManagementService {
                         .toList(),
                 safePage,
                 safeSize,
-                feeMapper.countRoster(feePaid, retreatGroupId, churchCellId, normalizedKeyword)
+                feeMapper.countRoster(feePaid, retreatGroupId, normalizedKeyword)
         );
     }
 

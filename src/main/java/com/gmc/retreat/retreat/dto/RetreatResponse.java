@@ -11,6 +11,7 @@ public record RetreatResponse(
         LocalDate startsOn,
         LocalDate endsOn,
         RetreatStatus status,
+        Boolean registrationOpen,
         Integer participantCount,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
@@ -22,6 +23,7 @@ public record RetreatResponse(
                 retreat.startsOn(),
                 retreat.endsOn(),
                 retreat.status(),
+                retreat.registrationOpen(),
                 retreat.participantCount(),
                 retreat.createdAt(),
                 retreat.updatedAt()

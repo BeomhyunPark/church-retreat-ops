@@ -5,7 +5,7 @@ GET {{baseUrl}}/api/admin/fees
 Authorization: Bearer {{adminToken}}
 
 ### Fee roster filters
-GET {{baseUrl}}/api/admin/fees?feePaid=false&retreatGroupId={{retreatGroupId}}&churchCellId={{churchCellId}}&keyword=Grace
+GET {{baseUrl}}/api/admin/fees?feePaid=false&retreatGroupId={{retreatGroupId}}&keyword=Grace
 Authorization: Bearer {{adminToken}}
 
 ### Fee detail

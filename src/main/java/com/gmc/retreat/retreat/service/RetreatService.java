@@ -3,16 +3,20 @@ package com.gmc.retreat.retreat.service;
 import com.gmc.retreat.admin.domain.AdminRole;
 import com.gmc.retreat.error.BusinessException;
 import com.gmc.retreat.error.ErrorCode;
+import com.gmc.retreat.participation.mapper.ParticipationOptionMapper;
+import com.gmc.retreat.schedule.mapper.ScheduleItemMapper;
 import com.gmc.retreat.retreat.domain.Retreat;
 import com.gmc.retreat.retreat.domain.RetreatStatus;
 import com.gmc.retreat.retreat.dto.RetreatCreateRequest;
 import com.gmc.retreat.retreat.dto.RetreatResponse;
+import com.gmc.retreat.retreat.dto.RetreatRegistrationOpenUpdateRequest;
 import com.gmc.retreat.retreat.dto.RetreatStatusUpdateRequest;
 import com.gmc.retreat.retreat.dto.RetreatUpdateRequest;
 import com.gmc.retreat.retreat.mapper.RetreatInsert;
 import com.gmc.retreat.retreat.mapper.RetreatMapper;
 import com.gmc.retreat.security.auth.AdminPrincipal;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,9 +26,17 @@ import org.springframework.util.StringUtils;
 public class RetreatService {
 
     private final RetreatMapper retreatMapper;
+    private final ScheduleItemMapper scheduleItemMapper;
+    private final ParticipationOptionMapper participationOptionMapper;
 
-    public RetreatService(RetreatMapper retreatMapper) {
+    public RetreatService(
+            RetreatMapper retreatMapper,
+            ScheduleItemMapper scheduleItemMapper,
+            ParticipationOptionMapper participationOptionMapper
+    ) {
         this.retreatMapper = retreatMapper;
+        this.scheduleItemMapper = scheduleItemMapper;
+        this.participationOptionMapper = participationOptionMapper;
     }
 
     @Transactional(readOnly = true)
@@ -65,6 +77,16 @@ public class RetreatService {
             throw new BusinessException(ErrorCode.INVALID_RETREAT_STATUS_TRANSITION);
         }
         validateDateRange(request.startsOn(), request.endsOn());
+        if (!retreat.startsOn().equals(request.startsOn()) || !retreat.endsOn().equals(request.endsOn())) {
+            long dayShift = ChronoUnit.DAYS.between(retreat.startsOn(), request.startsOn());
+            scheduleItemMapper.shiftScheduleItems(
+                    id, dayShift, request.startsOn(), request.endsOn(), admin.id()
+            );
+            participationOptionMapper.shiftUnlinkedOptions(
+                    id, dayShift, request.startsOn(), request.endsOn()
+            );
+            scheduleItemMapper.syncLinkedParticipationOptions(id);
+        }
         retreatMapper.updateMetadata(
                 id,
                 normalizeName(request.name()),
@@ -96,11 +118,33 @@ public class RetreatService {
         return RetreatResponse.from(findByIdOrThrow(id));
     }
 
+    @Transactional
+    public RetreatResponse updateRegistrationOpen(
+            AdminPrincipal admin,
+            Long id,
+            RetreatRegistrationOpenUpdateRequest request
+    ) {
+        requireRole(admin, AdminRole.CHAIR);
+        Retreat retreat = findByIdOrThrow(id);
+        if (retreat.status() != RetreatStatus.OPEN) {
+            throw new BusinessException(ErrorCode.INVALID_RETREAT_STATUS_TRANSITION);
+        }
+        retreatMapper.updateRegistrationOpen(id, request.registrationOpen());
+        return RetreatResponse.from(findByIdOrThrow(id));
+    }
+
     @Transactional(readOnly = true)
     public Long requireOpenRetreatId() {
-        return retreatMapper.findOpen()
+        return retreatMapper.findRegistrationOpen()
                 .map(Retreat::id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.REGISTRATION_NOT_OPEN));
+    }
+
+    @Transactional(readOnly = true)
+    public Long requireOperationalRetreatId() {
+        return retreatMapper.findOpen()
+                .map(Retreat::id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.REGISTRATION_EDIT_CLOSED));
     }
 
     @Transactional(readOnly = true)

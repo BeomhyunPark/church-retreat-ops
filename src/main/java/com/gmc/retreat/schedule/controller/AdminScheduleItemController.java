@@ -1,7 +1,7 @@
 package com.gmc.retreat.schedule.controller;
 
 import com.gmc.retreat.api.ApiResponse;
-import com.gmc.retreat.community.dto.ActiveUpdateRequest;
+import com.gmc.retreat.common.dto.ActiveUpdateRequest;
 import com.gmc.retreat.schedule.domain.ScheduleCategory;
 import com.gmc.retreat.schedule.dto.ScheduleItemRequest;
 import com.gmc.retreat.schedule.dto.ScheduleItemResponse;

@@ -16,7 +16,8 @@ public class RegistrationInsert {
     private final Integer birthYear;
     private final String phoneNumber;
     private final String phoneLastFour;
-    private final String churchCellDepartment;
+    private final String middleGroupName;
+    private final String cellName;
     private final String lookupKeyHash;
     private final Boolean privacyConsentAgreed;
     private final Boolean feePaid;
@@ -62,7 +63,8 @@ public class RegistrationInsert {
             Integer birthYear,
             String phoneNumber,
             String phoneLastFour,
-            String churchCellDepartment,
+            String middleGroupName,
+            String cellName,
             String lookupKeyHash,
             Boolean privacyConsentAgreed,
             Boolean feePaid,
@@ -107,7 +109,8 @@ public class RegistrationInsert {
         this.birthYear = birthYear;
         this.phoneNumber = phoneNumber;
         this.phoneLastFour = phoneLastFour;
-        this.churchCellDepartment = churchCellDepartment;
+        this.middleGroupName = middleGroupName;
+        this.cellName = cellName;
         this.lookupKeyHash = lookupKeyHash;
         this.privacyConsentAgreed = privacyConsentAgreed;
         this.feePaid = feePaid;
@@ -182,8 +185,12 @@ public class RegistrationInsert {
         return phoneLastFour;
     }
 
-    public String getChurchCellDepartment() {
-        return churchCellDepartment;
+    public String getMiddleGroupName() {
+        return middleGroupName;
+    }
+
+    public String getCellName() {
+        return cellName;
     }
 
     public String getLookupKeyHash() {

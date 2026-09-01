@@ -9,11 +9,10 @@ import { brandInitials, useAppIdentity } from "../identity/appIdentity";
 const links = [
   { to: "/admin/dashboard", label: "대시보드" },
   { to: "/admin/retreats", label: "수련회 관리" },
+  { to: "/admin/schedules", label: "시간표" },
   { to: "/admin/participants", label: "참가자" },
-  // { to: "/admin/community", label: "공동체" },
   { to: "/admin/retreat-groups", label: "수련회 조" },
   { to: "/admin/announcements", label: "공지" },
-  { to: "/admin/schedules", label: "일정" },
   { to: "/admin/check-ins", label: "체크인" }
 ];
 

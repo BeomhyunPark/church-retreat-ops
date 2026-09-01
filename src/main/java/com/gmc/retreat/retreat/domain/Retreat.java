@@ -9,6 +9,7 @@ public record Retreat(
         LocalDate startsOn,
         LocalDate endsOn,
         RetreatStatus status,
+        Boolean registrationOpen,
         Integer participantCount,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt

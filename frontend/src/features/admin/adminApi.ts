@@ -40,6 +40,7 @@ export type Retreat = {
   startsOn: string;
   endsOn: string;
   status: RetreatStatusValue;
+  registrationOpen: boolean;
   participantCount?: number | null;
   createdAt: string;
   updatedAt: string;
@@ -80,11 +81,8 @@ export type AdminRegistration = {
   gender: "MALE" | "FEMALE";
   birthYear: number;
   phoneNumber: string;
-  churchCellDepartment?: string | null;
-  churchCellId?: number | null;
-  middleGroupId?: number | null;
   middleGroupName?: string | null;
-  churchCellName?: string | null;
+  cellName?: string | null;
   retreatGroupId?: number | null;
   retreatGroupName?: string | null;
   retreatGroupLeader: boolean;
@@ -100,14 +98,7 @@ export type AdminRegistration = {
   partialAttendanceNote?: string | null;
   lodgingNight1?: boolean | null;
   lodgingNight2?: boolean | null;
-  attendDay1Morning?: boolean | null;
-  attendDay1Afternoon?: boolean | null;
-  attendDay1Worship?: boolean | null;
-  attendDay2Morning?: boolean | null;
-  attendDay2Afternoon?: boolean | null;
-  attendDay2Worship?: boolean | null;
-  attendDay3Morning?: boolean | null;
-  attendDay3Afternoon?: boolean | null;
+  selectedOptionIds: number[];
   inboundTransportationMethod: "OWN_CAR" | "GROUP_BUS" | "WORSHIP_SHUTTLE" | "PUBLIC_TRANSIT" | "CARPOOL_NEEDED" | "NOT_DECIDED" | null;
   inboundCarpoolAvailable?: boolean | null;
   inboundCarpoolSeats?: number | null;
@@ -128,6 +119,7 @@ export type AdminRegistration = {
   outboundWorshipBusRideSlot?: string | null;
   createdAt: string;
   updatedAt: string;
+  participantUpdatedAt?: string | null;
 };
 
 export type AdminRegistrationFilters = {
@@ -140,7 +132,7 @@ export type AdminRegistrationFilters = {
   careTarget?: boolean;
   checkedIn?: boolean;
   retreatGroupAssigned?: boolean;
-  churchCellAssigned?: boolean;
+  cellAssigned?: boolean;
   attendanceType?: "FULL" | "PARTIAL" | "WORSHIP_ONLY";
   transportationNeed?: "CARPOOL_NEEDED" | "CARPOOL_AVAILABLE";
   sorts?: string[];
@@ -154,7 +146,8 @@ export type FeeRosterItem = {
   phoneLast4: string;
   feePaid: boolean;
   retreatGroupName?: string | null;
-  churchCellName?: string | null;
+  middleGroupName?: string | null;
+  cellName?: string | null;
   feeStatusUpdatedAt?: string | null;
 };
 
@@ -174,10 +167,8 @@ export type CheckInRosterItem = {
   gender: "MALE" | "FEMALE";
   birthYear: number;
   phoneLast4: string;
-  churchCellId?: number | null;
-  churchCellName?: string | null;
-  middleGroupId?: number | null;
   middleGroupName?: string | null;
+  cellName?: string | null;
   retreatGroupId?: number | null;
   retreatGroupName?: string | null;
   retreatGroupLeader: boolean;
@@ -219,10 +210,11 @@ export type ScheduleItem = {
   title: string;
   description?: string | null;
   scheduleDate: string;
-  startsAt: string;
-  endsAt: string;
+  startsAt?: string | null;
+  endsAt?: string | null;
   location?: string | null;
   category:
+    | "PROGRAM"
     | "WORSHIP"
     | "PRAYER"
     | "MEAL"
@@ -237,8 +229,37 @@ export type ScheduleItem = {
   targetAudience: "ALL" | "STAFF_ONLY" | "LEADERS_ONLY" | "NEWCOMERS" | "CARE_TARGETS";
   active: boolean;
   displayOrder: number;
+  collectParticipation: boolean;
+  participationOptionId?: number | null;
+  selectionCount: number;
   createdBy?: { id: number; email: string; name: string; role: string } | null;
   updatedBy?: { id: number; email: string; name: string; role: string } | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SchedulePayload = {
+  title: string;
+  description?: string;
+  scheduleDate: string;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  location?: string;
+  category: ScheduleItem["category"];
+  targetAudience: ScheduleItem["targetAudience"];
+  active: boolean;
+  displayOrder: number;
+  collectParticipation: boolean;
+};
+
+export type ParticipationOption = {
+  id: number;
+  optionType: "PROGRAM" | "MEAL";
+  label: string;
+  eventDate: string;
+  displayOrder: number;
+  active: boolean;
+  selectionCount: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -248,45 +269,6 @@ export type ScheduleFilters = {
   active?: boolean;
   category?: string;
   date?: string;
-};
-
-export type ChurchMiddleGroup = {
-  id: number;
-  name: string;
-  elderName?: string | null;
-  description?: string | null;
-  displayOrder: number;
-  active: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type ChurchCell = {
-  id: number;
-  middleGroupId: number;
-  middleGroupName: string;
-  name: string;
-  cellLeaderName?: string | null;
-  description?: string | null;
-  displayOrder: number;
-  active: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type ChurchMiddleGroupPayload = {
-  name: string;
-  elderName?: string;
-  description?: string;
-  displayOrder: number;
-};
-
-export type ChurchCellPayload = {
-  middleGroupId: number;
-  name: string;
-  cellLeaderName?: string;
-  description?: string;
-  displayOrder: number;
 };
 
 export type RetreatGroup = {
@@ -313,11 +295,8 @@ export type RetreatGroupMember = {
   participantName: string;
   gender: "MALE" | "FEMALE";
   birthYear: number;
-  churchCellDepartment?: string | null;
-  churchCellId?: number | null;
-  churchCellName?: string | null;
-  middleGroupId?: number | null;
   middleGroupName?: string | null;
+  cellName?: string | null;
   leader: boolean;
   createdAt: string;
   updatedAt: string;
@@ -382,6 +361,14 @@ export function updateRetreatStatus(id: number, status: RetreatStatusValue) {
   });
 }
 
+export function updateRetreatRegistrationOpen(id: number, registrationOpen: boolean) {
+  return apiRequest<Retreat>(`/admin/retreats/${id}/registration-open`, {
+    auth: true,
+    method: "PATCH",
+    body: { registrationOpen }
+  });
+}
+
 export function getAdminRegistrations(filtersOrSize: AdminRegistrationFilters | number = {}) {
   const filters = typeof filtersOrSize === "number" ? { size: filtersOrSize } : filtersOrSize;
   const params = new URLSearchParams({
@@ -418,8 +405,8 @@ export function getAdminRegistrations(filtersOrSize: AdminRegistrationFilters | 
     params.set("retreatGroupAssigned", String(filters.retreatGroupAssigned));
   }
 
-  if (filters.churchCellAssigned !== undefined) {
-    params.set("churchCellAssigned", String(filters.churchCellAssigned));
+  if (filters.cellAssigned !== undefined) {
+    params.set("cellAssigned", String(filters.cellAssigned));
   }
 
   if (filters.attendanceType) {
@@ -540,6 +527,22 @@ export function getSchedules(filters: ScheduleFilters = {}) {
   return apiRequest<ScheduleItem[]>(`/admin/schedules${query ? `?${query}` : ""}`, { auth: true });
 }
 
+export function createSchedule(payload: SchedulePayload) {
+  return apiRequest<ScheduleItem>("/admin/schedules", {
+    auth: true,
+    method: "POST",
+    body: payload
+  });
+}
+
+export function updateSchedule(id: number, payload: SchedulePayload) {
+  return apiRequest<ScheduleItem>(`/admin/schedules/${id}`, {
+    auth: true,
+    method: "PATCH",
+    body: payload
+  });
+}
+
 export function updateScheduleActive(id: number, active: boolean) {
   return apiRequest<ScheduleItem>(`/admin/schedules/${id}/active`, {
     auth: true,
@@ -548,71 +551,8 @@ export function updateScheduleActive(id: number, active: boolean) {
   });
 }
 
-export function getMiddleGroups() {
-  return apiRequest<ChurchMiddleGroup[]>("/admin/community/middle-groups", { auth: true });
-}
-
-export function createMiddleGroup(payload: ChurchMiddleGroupPayload) {
-  return apiRequest<ChurchMiddleGroup>("/admin/community/middle-groups", {
-    auth: true,
-    method: "POST",
-    body: payload
-  });
-}
-
-export function updateMiddleGroup(id: number, payload: ChurchMiddleGroupPayload) {
-  return apiRequest<ChurchMiddleGroup>(`/admin/community/middle-groups/${id}`, {
-    auth: true,
-    method: "PATCH",
-    body: payload
-  });
-}
-
-export function updateMiddleGroupActive(id: number, active: boolean) {
-  return apiRequest<ChurchMiddleGroup>(`/admin/community/middle-groups/${id}/active`, {
-    auth: true,
-    method: "PATCH",
-    body: { active }
-  });
-}
-
-export function getCells(filters: { middleGroupId?: number; active?: boolean } = {}) {
-  const params = new URLSearchParams();
-
-  if (filters.middleGroupId !== undefined) {
-    params.set("middleGroupId", String(filters.middleGroupId));
-  }
-
-  if (filters.active !== undefined) {
-    params.set("active", String(filters.active));
-  }
-
-  const query = params.toString();
-  return apiRequest<ChurchCell[]>(`/admin/community/cells${query ? `?${query}` : ""}`, { auth: true });
-}
-
-export function createCell(payload: ChurchCellPayload) {
-  return apiRequest<ChurchCell>("/admin/community/cells", {
-    auth: true,
-    method: "POST",
-    body: payload
-  });
-}
-
-export function updateCell(id: number, payload: ChurchCellPayload) {
-  return apiRequest<ChurchCell>(`/admin/community/cells/${id}`, {
-    auth: true,
-    method: "PATCH",
-    body: payload
-  });
-}
-
-export function updateCellActive(id: number, active: boolean) {
-  return apiRequest<ChurchCell>(`/admin/community/cells/${id}/active`, {
-    auth: true,
-    method: "PATCH",
-    body: { active }
-  });
+export function getParticipationOptions() {
+  return apiRequest<ParticipationOption[]>("/admin/participation-options", { auth: true });
 }
 
 export function getAdminAccounts() {

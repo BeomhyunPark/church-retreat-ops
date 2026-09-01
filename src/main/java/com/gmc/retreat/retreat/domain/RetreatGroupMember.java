@@ -11,11 +11,8 @@ public record RetreatGroupMember(
         String participantName,
         Gender gender,
         Integer birthYear,
-        String churchCellDepartment,
-        Long churchCellId,
-        String churchCellName,
-        Long middleGroupId,
         String middleGroupName,
+        String cellName,
         Boolean leader,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt

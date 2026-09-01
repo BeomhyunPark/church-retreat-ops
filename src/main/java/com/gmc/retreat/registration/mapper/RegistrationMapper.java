@@ -33,7 +33,7 @@ public interface RegistrationMapper {
             @Param("careTarget") Boolean careTarget,
             @Param("checkedIn") Boolean checkedIn,
             @Param("retreatGroupAssigned") Boolean retreatGroupAssigned,
-            @Param("churchCellAssigned") Boolean churchCellAssigned,
+            @Param("cellAssigned") Boolean cellAssigned,
             @Param("attendanceType") AttendanceType attendanceType,
             @Param("transportationNeed") String transportationNeed,
             @Param("orderBy") String orderBy,
@@ -49,7 +49,7 @@ public interface RegistrationMapper {
             @Param("careTarget") Boolean careTarget,
             @Param("checkedIn") Boolean checkedIn,
             @Param("retreatGroupAssigned") Boolean retreatGroupAssigned,
-            @Param("churchCellAssigned") Boolean churchCellAssigned,
+            @Param("cellAssigned") Boolean cellAssigned,
             @Param("attendanceType") AttendanceType attendanceType,
             @Param("transportationNeed") String transportationNeed
     );
@@ -66,5 +66,4 @@ public interface RegistrationMapper {
 
     int updateManagement(RegistrationManagementUpdate registration);
 
-    int updateChurchCell(@Param("id") Long id, @Param("churchCellId") Long churchCellId);
 }

@@ -1,6 +1,7 @@
 package com.gmc.retreat.schedule.domain;
 
 public enum ScheduleCategory {
+    PROGRAM,
     WORSHIP,
     PRAYER,
     MEAL,

@@ -2,7 +2,7 @@ package com.gmc.retreat.retreat.controller;
 
 import com.gmc.retreat.api.ApiResponse;
 import com.gmc.retreat.common.dto.DeleteConfirmationRequest;
-import com.gmc.retreat.community.dto.ActiveUpdateRequest;
+import com.gmc.retreat.common.dto.ActiveUpdateRequest;
 import com.gmc.retreat.registration.dto.AdminRegistrationResponse;
 import com.gmc.retreat.retreat.dto.RetreatGroupLeaderRequest;
 import com.gmc.retreat.retreat.dto.RetreatGroupMemberResponse;

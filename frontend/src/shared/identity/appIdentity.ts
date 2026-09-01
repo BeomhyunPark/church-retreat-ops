@@ -5,12 +5,14 @@ export type AppIdentity = {
   appName: string;
   organizationName: string;
   eventName: string;
+  registrationOpen: boolean;
 };
 
 export const fallbackAppIdentity: AppIdentity = {
-  appName: "Retreat Ops",
-  organizationName: "Your Church",
-  eventName: "Your Retreat"
+  appName: "청년2부 수련회",
+  organizationName: "지구촌교회 드림공동체 청년2부",
+  eventName: "청년2부 수련회",
+  registrationOpen: false
 };
 
 export function getAppIdentity() {

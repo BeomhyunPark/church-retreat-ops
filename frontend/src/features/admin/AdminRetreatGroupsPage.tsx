@@ -6,11 +6,13 @@ import {
   createRetreatGroup,
   deleteRetreatGroup,
   getAdminRegistrations,
+  getParticipationOptions,
   getRetreatGroups,
   removeParticipantFromRetreatGroup,
   removeRetreatGroupLeader,
   updateRetreatGroup,
   type AdminRegistration,
+  type ParticipationOption,
   type RetreatGroup
 } from "./adminApi";
 import { EmptyState } from "../../shared/ui/EmptyState";
@@ -43,51 +45,28 @@ function createEmptyBoardGroup(id: number): BoardGroup {
   };
 }
 
-type AttendanceSlot =
-  | "DAY1_MORNING" | "DAY1_AFTERNOON" | "DAY1_WORSHIP"
-  | "DAY2_MORNING" | "DAY2_AFTERNOON" | "DAY2_WORSHIP"
-  | "DAY3_MORNING" | "DAY3_AFTERNOON";
-
-const SLOTS: { slot: AttendanceSlot; day: string; part: string; short: string }[] = [
-  { slot: "DAY1_MORNING", day: "1일차", part: "오전", short: "1오전" },
-  { slot: "DAY1_AFTERNOON", day: "1일차", part: "오후", short: "1오후" },
-  { slot: "DAY1_WORSHIP", day: "1일차", part: "집회", short: "1집회" },
-  { slot: "DAY2_MORNING", day: "2일차", part: "오전", short: "2오전" },
-  { slot: "DAY2_AFTERNOON", day: "2일차", part: "오후", short: "2오후" },
-  { slot: "DAY2_WORSHIP", day: "2일차", part: "집회", short: "2집회" },
-  { slot: "DAY3_MORNING", day: "3일차", part: "오전", short: "3오전" },
-  { slot: "DAY3_AFTERNOON", day: "3일차", part: "오후", short: "3오후" },
-];
+type AttendanceSlot = number;
 
 const COLOR_FULL = "#22c55e";
 const COLOR_PARTIAL = "#f97316";
 const COLOR_EMPTY = "#e5e7eb";
 
 function getAttendanceSlots(reg: AdminRegistration): AttendanceSlot[] {
-  const s: AttendanceSlot[] = [];
-  if (reg.attendDay1Morning) s.push("DAY1_MORNING");
-  if (reg.attendDay1Afternoon) s.push("DAY1_AFTERNOON");
-  if (reg.attendDay1Worship) s.push("DAY1_WORSHIP");
-  if (reg.attendDay2Morning) s.push("DAY2_MORNING");
-  if (reg.attendDay2Afternoon) s.push("DAY2_AFTERNOON");
-  if (reg.attendDay2Worship) s.push("DAY2_WORSHIP");
-  if (reg.attendDay3Morning) s.push("DAY3_MORNING");
-  if (reg.attendDay3Afternoon) s.push("DAY3_AFTERNOON");
-  return s;
+  return reg.selectedOptionIds;
 }
 
-function getSegments(attended: AttendanceSlot[]): { start: number; end: number }[] {
+function getSegments(attended: AttendanceSlot[], slots: ParticipationOption[]): { start: number; end: number }[] {
   const segs: { start: number; end: number }[] = [];
   let cur: number | null = null;
-  SLOTS.forEach(({ slot }, i) => {
-    if (attended.includes(slot)) {
+  slots.forEach(({ id }, i) => {
+    if (attended.includes(id)) {
       if (cur === null) cur = i;
     } else if (cur !== null) {
       segs.push({ start: cur, end: i - 1 });
       cur = null;
     }
   });
-  if (cur !== null) segs.push({ start: cur, end: SLOTS.length - 1 });
+  if (cur !== null) segs.push({ start: cur, end: slots.length - 1 });
   return segs;
 }
 
@@ -96,13 +75,23 @@ function getSegments(attended: AttendanceSlot[]): { start: number; end: number }
 export function AdminRetreatGroupsPage() {
   const queryClient = useQueryClient();
   const groupsQuery = useQuery({ queryKey: ["admin", "retreat-groups"], queryFn: getRetreatGroups });
+  const participationOptionsQuery = useQuery({
+    queryKey: ["admin", "participation-options"],
+    queryFn: getParticipationOptions
+  });
   const groups = groupsQuery.data ?? [];
+  const slots = (participationOptionsQuery.data ?? []).filter((option) => option.active);
+  const groupsKey = groups
+    .map((group) => `${group.id}:${group.name}:${group.displayOrder}:${group.active}`)
+    .join("|");
 
   return (
     <section className="page-stack">
       <RetreatGroupBoard
         groups={groups}
+        key={groupsKey}
         onChanged={() => queryClient.invalidateQueries({ queryKey: ["admin", "retreat-groups"] })}
+        slots={slots}
       />
     </section>
   );
@@ -110,7 +99,15 @@ export function AdminRetreatGroupsPage() {
 
 // ─── Board ────────────────────────────────────────────────────────────────────
 
-function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onChanged: () => Promise<void> }) {
+function RetreatGroupBoard({
+  groups,
+  onChanged,
+  slots
+}: {
+  groups: RetreatGroup[];
+  onChanged: () => Promise<void>;
+  slots: ParticipationOption[];
+}) {
   const queryClient = useQueryClient();
 
   const nextTempGroupIdRef = useRef(-2);
@@ -156,16 +153,6 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
       .sort((a, b) => a.displayOrder - b.displayOrder || a.id - b.id),
     [groups]
   );
-
-  useEffect(() => {
-    if (hasChanges) return;
-    setBoardGroups(currentGroups => {
-      const alreadyHasEmptyPlaceholder = activeGroups.length === 0
-        && currentGroups.length === 1
-        && currentGroups[0].isNew;
-      return alreadyHasEmptyPlaceholder ? currentGroups : ensureMinimumGroup(activeGroups);
-    });
-  }, [activeGroups, ensureMinimumGroup, hasChanges]);
 
   const sortedGroups = boardGroups;
 
@@ -255,7 +242,7 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
         const k = keyword.toLowerCase();
         if (!reg.name.toLowerCase().includes(k) &&
           !reg.phoneNumber.slice(-4).includes(k) &&
-          !(reg.churchCellName ?? "").toLowerCase().includes(k)) return false;
+          !(reg.cellName ?? "").toLowerCase().includes(k)) return false;
       }
       if (fGender && reg.gender !== fGender) return false;
       if (fAttendance && reg.attendanceType !== fAttendance) return false;
@@ -370,8 +357,9 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
   const CARD_W = CARD_WIDTH + CARD_GAP;
   const totalInnerWidth = sortedGroups.length * CARD_W + ADD_WIDTH;
   const maxOffset = Math.max(0, totalInnerWidth - containerWidth);
-  const canScrollLeft = scrollOffset > 0;
-  const canScrollRight = scrollOffset < maxOffset;
+  const visibleScrollOffset = Math.min(scrollOffset, maxOffset);
+  const canScrollLeft = visibleScrollOffset > 0;
+  const canScrollRight = visibleScrollOffset < maxOffset;
 
   useEffect(() => {
     const el = containerRef.current;
@@ -382,15 +370,10 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
     return () => ro.disconnect();
   }, [registrationsQuery.isLoading]);
 
-  // 조 개수 변경 시 offset이 범위 초과하면 클램프
-  useEffect(() => {
-    setScrollOffset(prev => Math.max(0, Math.min(prev, maxOffset)));
-  }, [maxOffset]);
-
   const scrollGroups = useCallback((dir: "left" | "right") => {
     const step = containerWidth * 0.85 || 900;
     setScrollOffset(prev =>
-      Math.max(0, Math.min(maxOffset, prev + (dir === "left" ? -step : step)))
+      Math.max(0, Math.min(maxOffset, Math.min(prev, maxOffset) + (dir === "left" ? -step : step)))
     );
   }, [containerWidth, maxOffset]);
 
@@ -577,7 +560,7 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
         <div ref={containerRef} style={{ overflow: "hidden" }}>
           <div style={{
             display: "flex", gap: `${CARD_GAP}px`,
-            transform: `translateX(-${scrollOffset}px)`,
+            transform: `translateX(-${visibleScrollOffset}px)`,
             transition: "transform 0.3s ease",
             willChange: "transform"
           }}>
@@ -589,6 +572,7 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
                 draft={draft}
                 width={CARD_WIDTH}
                 leaderId={getGroupLeaderId(group.id)}
+                slots={slots}
                 onDrop={pid => handleDrop(group.id, pid)}
                 onGroupDrop={draggedId => reorderGroupMutation.mutate({ draggedId, targetId: group.id })}
                 onToggleLeader={pid => handleToggleLeader(group.id, pid)}
@@ -636,6 +620,7 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
         totalCount={activeRegs.length}
         sortedGroups={sortedGroups}
         getAssignedGroupId={getAssignedGroupId}
+        slots={slots}
       />
 
       {/* ── Legend ───────────────────────────────────────────── */}
@@ -679,6 +664,7 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
             members={members}
             leaderId={getGroupLeaderId(group.id)}
             onClose={() => setExpandedGroupId(null)}
+            slots={slots}
           />
         );
       })()}
@@ -689,22 +675,16 @@ function RetreatGroupBoard({ groups, onChanged }: { groups: RetreatGroup[]; onCh
 // ─── Group Board ──────────────────────────────────────────────────────────────
 
 const NAME_COL_W = 108;
-// 타임라인 헤더: 1일차(3칸) / 2일차(3칸) / 3일차(2칸)
-const DAY_GROUPS = [
-  { label: "1일차", cols: 3 },
-  { label: "2일차", cols: 3 },
-  { label: "3일차", cols: 2 },
-];
-const SLOT_PARTS = ["오전", "오후", "집회", "오전", "오후", "집회", "오전", "오후"];
 
 function GroupBoard({
-  group, activeRegs, draft, width, leaderId, onDrop, onGroupDrop, onToggleLeader, onExpand, onDeactivate
+  group, activeRegs, draft, width, leaderId, slots, onDrop, onGroupDrop, onToggleLeader, onExpand, onDeactivate
 }: {
   group: RetreatGroup;
   activeRegs: AdminRegistration[];
   draft: DragDropState;
   width: number;
   leaderId: number | null;
+  slots: ParticipationOption[];
   onDrop: (pid: number) => void;
   onGroupDrop: (draggedGroupId: number) => void;
   onToggleLeader: (pid: number) => void;
@@ -725,9 +705,14 @@ function GroupBoard({
   const fullCount = members.filter(m => m.attendanceType === "FULL").length;
   const partialCount = members.length - fullCount;
 
-  const slotCounts = SLOTS.map(({ slot }) =>
-    members.filter(reg => getAttendanceSlots(reg).includes(slot)).length
+  const slotCounts = slots.map(({ id }) =>
+    members.filter(reg => getAttendanceSlots(reg).includes(id)).length
   );
+  const dayGroups = [...new Set(slots.map((slot) => slot.eventDate))].map((eventDate) => ({
+    label: eventDate.slice(5).replace("-", "/"),
+    cols: slots.filter((slot) => slot.eventDate === eventDate).length
+  }));
+  const slotCount = Math.max(slots.length, 1);
 
   return (
     <div
@@ -813,12 +798,12 @@ function GroupBoard({
         {/* 헤더 row 1: 일차 그룹 */}
         <div style={{ display: "grid", gridTemplateColumns: `${NAME_COL_W}px 1fr`, marginBottom: "1px" }}>
           <div />
-          <div style={{ display: "grid", gridTemplateColumns: "3fr 3fr 2fr", borderBottom: "1px solid var(--color-border)" }}>
-            {DAY_GROUPS.map((d, i) => (
+          <div style={{ display: "grid", gridTemplateColumns: dayGroups.map((day) => `${day.cols}fr`).join(" "), borderBottom: "1px solid var(--color-border)" }}>
+            {dayGroups.map((d, i) => (
               <div key={i} style={{
                 textAlign: "center", fontSize: "8px", fontWeight: 800,
                 color: "var(--color-primary-dark)", paddingBottom: "2px",
-                borderRight: i < 2 ? "1px solid var(--color-border)" : "none"
+                borderRight: i < dayGroups.length - 1 ? "1px solid var(--color-border)" : "none"
               }}>
                 {d.label}
               </div>
@@ -828,14 +813,14 @@ function GroupBoard({
         {/* 헤더 row 2: 슬롯 */}
         <div style={{ display: "grid", gridTemplateColumns: `${NAME_COL_W}px 1fr`, marginBottom: "6px" }}>
           <div />
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)" }}>
-            {SLOT_PARTS.map((p, i) => (
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${slotCount}, 1fr)` }}>
+            {slots.map((slot, i) => (
               <div key={i} style={{
                 textAlign: "center", fontSize: "8px", fontWeight: 600,
                 color: "var(--color-muted)", paddingTop: "2px",
-                borderRight: i < 7 ? "1px solid color-mix(in srgb, var(--color-border) 60%, transparent)" : "none"
+                borderRight: i < slots.length - 1 ? "1px solid color-mix(in srgb, var(--color-border) 60%, transparent)" : "none"
               }}>
-                {p}
+                {slot.label}
               </div>
             ))}
           </div>
@@ -847,6 +832,7 @@ function GroupBoard({
             <BoardMemberRow
               key={member.id}
               participant={member}
+              slots={slots}
               isLeader={leaderId === member.id}
               onToggleLeader={() => onToggleLeader(member.id)}
             />
@@ -872,11 +858,11 @@ function GroupBoard({
           <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--color-muted)", alignSelf: "center", lineHeight: 1.3 }}>
             시간대별<br />인원
           </span>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${slotCount}, 1fr)` }}>
             {slotCounts.map((n, i) => (
               <div key={i} style={{
                 textAlign: "center", fontSize: "0.78rem", fontWeight: 700,
-                borderRight: i < 7 ? "1px solid color-mix(in srgb, var(--color-border) 60%, transparent)" : "none"
+                borderRight: i < slotCounts.length - 1 ? "1px solid color-mix(in srgb, var(--color-border) 60%, transparent)" : "none"
               }}>{n}</div>
             ))}
           </div>
@@ -889,16 +875,16 @@ function GroupBoard({
 // ─── Board Member Row ─────────────────────────────────────────────────────────
 
 function BoardMemberRow({
-  participant, isLeader, onToggleLeader
+  participant, isLeader, onToggleLeader, slots
 }: {
   participant: AdminRegistration;
   isLeader: boolean;
   onToggleLeader: () => void;
+  slots: ParticipationOption[];
 }) {
-  const slots = getAttendanceSlots(participant);
   const isFull = participant.attendanceType === "FULL";
   const color = isFull ? COLOR_FULL : COLOR_PARTIAL;
-  const segments = getSegments(slots);
+  const segments = getSegments(getAttendanceSlots(participant), slots);
 
   return (
     <div
@@ -952,14 +938,24 @@ function BoardMemberRow({
       </div>
 
       {/* Timeline bar */}
-      <TimelineBar segments={segments} color={color} />
+      <TimelineBar segments={segments} color={color} slotCount={slots.length} />
     </div>
   );
 }
 
 // ─── Timeline Bar ─────────────────────────────────────────────────────────────
 
-function TimelineBar({ segments, color }: { segments: { start: number; end: number }[]; color: string }) {
+function TimelineBar({
+  segments,
+  color,
+  slotCount
+}: {
+  segments: { start: number; end: number }[];
+  color: string;
+  slotCount: number;
+}) {
+  const safeSlotCount = Math.max(slotCount, 1);
+  const gridWidth = 100 / safeSlotCount;
   return (
     <div style={{ position: "relative", height: "9px", background: COLOR_EMPTY, borderRadius: "5px", overflow: "hidden" }}>
       {segments.map((seg, i) => (
@@ -968,8 +964,8 @@ function TimelineBar({ segments, color }: { segments: { start: number; end: numb
           style={{
             position: "absolute",
             top: 0, bottom: 0,
-            left: `${(seg.start / 8) * 100}%`,
-            width: `${((seg.end - seg.start + 1) / 8) * 100}%`,
+            left: `${(seg.start / safeSlotCount) * 100}%`,
+            width: `${((seg.end - seg.start + 1) / safeSlotCount) * 100}%`,
             background: color,
             borderRadius: "5px"
           }}
@@ -978,7 +974,7 @@ function TimelineBar({ segments, color }: { segments: { start: number; end: numb
       {/* 슬롯 구분 그리드 오버레이 */}
       <div style={{
         position: "absolute", inset: 0,
-        backgroundImage: "repeating-linear-gradient(90deg, transparent, transparent calc(12.5% - 1px), rgba(255,255,255,0.55) calc(12.5% - 1px), rgba(255,255,255,0.55) 12.5%)",
+        backgroundImage: `repeating-linear-gradient(90deg, transparent, transparent calc(${gridWidth}% - 1px), rgba(255,255,255,0.55) calc(${gridWidth}% - 1px), rgba(255,255,255,0.55) ${gridWidth}%)`,
         borderRadius: "5px",
         pointerEvents: "none"
       }} />
@@ -989,12 +985,13 @@ function TimelineBar({ segments, color }: { segments: { start: number; end: numb
 // ─── Candidate Section ────────────────────────────────────────────────────────
 
 function CandidateSection({
-  registrations, totalCount, sortedGroups, getAssignedGroupId
+  registrations, totalCount, sortedGroups, getAssignedGroupId, slots
 }: {
   registrations: AdminRegistration[];
   totalCount: number;
   sortedGroups: RetreatGroup[];
   getAssignedGroupId: (pid: number) => number | null;
+  slots: ParticipationOption[];
 }) {
   return (
     <div>
@@ -1014,6 +1011,7 @@ function CandidateSection({
             key={reg.id}
             participant={reg}
             assignedGroup={sortedGroups.find(g => g.id === getAssignedGroupId(reg.id))}
+            slots={slots}
           />
         ))}
       </div>
@@ -1022,15 +1020,15 @@ function CandidateSection({
 }
 
 function CandidateCard({
-  participant, assignedGroup
+  participant, assignedGroup, slots
 }: {
   participant: AdminRegistration;
   assignedGroup: RetreatGroup | undefined;
+  slots: ParticipationOption[];
 }) {
-  const slots = getAttendanceSlots(participant);
   const isFull = participant.attendanceType === "FULL";
   const color = isFull ? COLOR_FULL : COLOR_PARTIAL;
-  const segments = getSegments(slots);
+  const segments = getSegments(getAttendanceSlots(participant), slots);
 
   return (
     <div
@@ -1066,14 +1064,14 @@ function CandidateCard({
 
       {/* Info */}
       <div style={{ fontSize: "0.73rem", color: "var(--color-muted)", marginBottom: "7px" }}>
-        {participant.gender === "MALE" ? "남" : "여"} · {String(participant.birthYear).slice(2)} · {participant.churchCellName ?? "-"}
+        {participant.gender === "MALE" ? "남" : "여"} · {String(participant.birthYear).slice(2)} · {participant.cellName ?? "-"}
         {participant.newcomer && (
           <span style={{ marginLeft: "4px", color: "var(--color-primary-dark)", fontWeight: 700 }}>새가족</span>
         )}
       </div>
 
       {/* Timeline bar */}
-      <TimelineBar segments={segments} color={color} />
+      <TimelineBar segments={segments} color={color} slotCount={slots.length} />
 
       {/* Assignment status */}
       <div style={{ marginTop: "6px", fontSize: "0.7rem", fontWeight: 600, color: assignedGroup ? "var(--color-primary-dark)" : "var(--color-muted)" }}>
@@ -1175,23 +1173,29 @@ function LegendItem({ color, label }: { color: string; label: string }) {
 // ─── Group Detail Modal ───────────────────────────────────────────────────────
 
 const MODAL_NAME_COL_W = 160;
-const MODAL_SLOT_PARTS = SLOT_PARTS; // 같은 8슬롯
 
 function GroupDetailModal({
-  group, members, leaderId, onClose
+  group, members, leaderId, onClose, slots
 }: {
   group: RetreatGroup;
   members: AdminRegistration[];
   leaderId: number | null;
   onClose: () => void;
+  slots: ParticipationOption[];
 }) {
   const maleCount = members.filter(m => m.gender === "MALE").length;
   const femaleCount = members.filter(m => m.gender === "FEMALE").length;
   const fullCount = members.filter(m => m.attendanceType === "FULL").length;
   const partialCount = members.length - fullCount;
-  const slotCounts = SLOTS.map(({ slot }) =>
-    members.filter(reg => getAttendanceSlots(reg).includes(slot)).length
+  const slotCounts = slots.map(({ id }) =>
+    members.filter(reg => getAttendanceSlots(reg).includes(id)).length
   );
+  const dayGroups = [...new Set(slots.map((slot) => slot.eventDate))].map((eventDate) => ({
+    label: eventDate.slice(5).replace("-", "/"),
+    cols: slots.filter((slot) => slot.eventDate === eventDate).length
+  }));
+  const slotCount = Math.max(slots.length, 1);
+  const gridWidth = 100 / slotCount;
 
   return (
     <div
@@ -1235,12 +1239,12 @@ function GroupDetailModal({
           {/* 타임라인 헤더 row 1 */}
           <div style={{ display: "grid", gridTemplateColumns: `${MODAL_NAME_COL_W}px 1fr`, marginBottom: "1px" }}>
             <div />
-            <div style={{ display: "grid", gridTemplateColumns: "3fr 3fr 2fr", borderBottom: "1px solid var(--color-border)" }}>
-              {DAY_GROUPS.map((d, i) => (
+            <div style={{ display: "grid", gridTemplateColumns: dayGroups.map((day) => `${day.cols}fr`).join(" "), borderBottom: "1px solid var(--color-border)" }}>
+              {dayGroups.map((d, i) => (
                 <div key={i} style={{
                   textAlign: "center", fontSize: "10px", fontWeight: 800,
                   color: "var(--color-primary-dark)", paddingBottom: "2px",
-                  borderRight: i < 2 ? "1px solid var(--color-border)" : "none"
+                  borderRight: i < dayGroups.length - 1 ? "1px solid var(--color-border)" : "none"
                 }}>{d.label}</div>
               ))}
             </div>
@@ -1248,13 +1252,13 @@ function GroupDetailModal({
           {/* 타임라인 헤더 row 2 */}
           <div style={{ display: "grid", gridTemplateColumns: `${MODAL_NAME_COL_W}px 1fr`, marginBottom: "10px" }}>
             <div />
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)" }}>
-              {MODAL_SLOT_PARTS.map((p, i) => (
+            <div style={{ display: "grid", gridTemplateColumns: `repeat(${slotCount}, 1fr)` }}>
+              {slots.map((slot, i) => (
                 <div key={i} style={{
                   textAlign: "center", fontSize: "10px", fontWeight: 600,
                   color: "var(--color-muted)", paddingTop: "2px",
-                  borderRight: i < 7 ? "1px solid color-mix(in srgb, var(--color-border) 60%, transparent)" : "none"
-                }}>{p}</div>
+                  borderRight: i < slots.length - 1 ? "1px solid color-mix(in srgb, var(--color-border) 60%, transparent)" : "none"
+                }}>{slot.label}</div>
               ))}
             </div>
           </div>
@@ -1269,7 +1273,7 @@ function GroupDetailModal({
               const isLeader = leaderId === member.id;
               const isFull = member.attendanceType === "FULL";
               const color = isFull ? COLOR_FULL : COLOR_PARTIAL;
-              const segments = getSegments(getAttendanceSlots(member));
+              const segments = getSegments(getAttendanceSlots(member), slots);
               return (
                 <div key={member.id} style={{
                   display: "grid", gridTemplateColumns: `${MODAL_NAME_COL_W}px 1fr`,
@@ -1290,7 +1294,7 @@ function GroupDetailModal({
                         {member.name}
                       </div>
                       <div style={{ fontSize: "0.78rem", color: "var(--color-muted)", whiteSpace: "nowrap" }}>
-                        {member.gender === "MALE" ? "남" : "여"} · {String(member.birthYear).slice(2)} · {member.churchCellName ?? "-"}
+                        {member.gender === "MALE" ? "남" : "여"} · {String(member.birthYear).slice(2)} · {member.cellName ?? "-"}
                         {member.newcomer && <span style={{ marginLeft: "4px", color: "var(--color-primary-dark)", fontWeight: 700 }}>새가족</span>}
                       </div>
                     </div>
@@ -1300,14 +1304,14 @@ function GroupDetailModal({
                     {segments.map((seg, i) => (
                       <div key={i} style={{
                         position: "absolute", top: 0, bottom: 0,
-                        left: `${(seg.start / 8) * 100}%`,
-                        width: `${((seg.end - seg.start + 1) / 8) * 100}%`,
+                        left: `${(seg.start / slotCount) * 100}%`,
+                        width: `${((seg.end - seg.start + 1) / slotCount) * 100}%`,
                         background: color, borderRadius: "8px"
                       }} />
                     ))}
                     <div style={{
                       position: "absolute", inset: 0,
-                      backgroundImage: "repeating-linear-gradient(90deg, transparent, transparent calc(12.5% - 1px), rgba(255,255,255,0.55) calc(12.5% - 1px), rgba(255,255,255,0.55) 12.5%)",
+                      backgroundImage: `repeating-linear-gradient(90deg, transparent, transparent calc(${gridWidth}% - 1px), rgba(255,255,255,0.55) calc(${gridWidth}% - 1px), rgba(255,255,255,0.55) ${gridWidth}%)`,
                       pointerEvents: "none"
                     }} />
                   </div>
@@ -1321,11 +1325,11 @@ function GroupDetailModal({
         <div style={{ padding: "10px 24px 14px", borderTop: "1px solid var(--color-border)", background: "var(--color-background)", flexShrink: 0 }}>
           <div style={{ display: "grid", gridTemplateColumns: `${MODAL_NAME_COL_W}px 1fr` }}>
             <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--color-muted)", alignSelf: "center" }}>시간대별 인원</span>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: `repeat(${slotCount}, 1fr)` }}>
               {slotCounts.map((n, i) => (
                 <div key={i} style={{
                   textAlign: "center", fontSize: "0.9rem", fontWeight: 700,
-                  borderRight: i < 7 ? "1px solid color-mix(in srgb, var(--color-border) 60%, transparent)" : "none"
+                  borderRight: i < slotCounts.length - 1 ? "1px solid color-mix(in srgb, var(--color-border) 60%, transparent)" : "none"
                 }}>{n}</div>
               ))}
             </div>

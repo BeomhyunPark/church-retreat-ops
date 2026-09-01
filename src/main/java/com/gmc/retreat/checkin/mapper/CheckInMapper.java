@@ -14,7 +14,6 @@ public interface CheckInMapper {
     List<CheckInRosterItem> findRoster(
             @Param("checkedIn") Boolean checkedIn,
             @Param("retreatGroupId") Long retreatGroupId,
-            @Param("churchCellId") Long churchCellId,
             @Param("keyword") String keyword,
             @Param("limit") int limit,
             @Param("offset") int offset
@@ -23,7 +22,6 @@ public interface CheckInMapper {
     long countRoster(
             @Param("checkedIn") Boolean checkedIn,
             @Param("retreatGroupId") Long retreatGroupId,
-            @Param("churchCellId") Long churchCellId,
             @Param("keyword") String keyword
     );
 

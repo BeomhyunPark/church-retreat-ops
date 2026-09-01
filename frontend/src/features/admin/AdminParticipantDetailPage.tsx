@@ -1,4 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+  type UseQueryResult
+} from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
@@ -9,7 +15,12 @@ import {
   manuallyCheckIn,
   cancelCheckIn,
   getRegistrationHistories,
-  getFeeEvents
+  getFeeEvents,
+  getParticipationOptions,
+  type AdminRegistration,
+  type CheckInRosterItem,
+  type FeeEventItem,
+  type RegistrationHistoryItem
 } from "./adminApi";
 import { StatusMessage } from "../../shared/ui/StatusMessage";
 
@@ -46,6 +57,10 @@ export function AdminParticipantDetailPage() {
     queryKey: ["admin", "registrations", participantId, "histories"],
     queryFn: () => getRegistrationHistories(participantId),
     enabled: validParticipantId
+  });
+  const participationOptionsQuery = useQuery({
+    queryKey: ["admin", "participation-options"],
+    queryFn: getParticipationOptions
   });
 
   if (!validParticipantId) {
@@ -87,9 +102,8 @@ export function AdminParticipantDetailPage() {
               <DetailRow label="돌봄 대상" value={participant.careTarget ? "예" : "아니오"} />
             </DetailCard>
             <DetailCard title="소속/배정">
-              <DetailRow label="자유 입력 셀" value={participant.churchCellDepartment ?? "-"} />
               <DetailRow label="중그룹" value={participant.middleGroupName ?? "-"} />
-              <DetailRow label="교회 셀" value={participant.churchCellName ?? "-"} />
+              <DetailRow label="셀" value={participant.cellName ?? "-"} />
               <DetailRow
                 label="수련회 조"
                 value={`${participant.retreatGroupName ?? "-"}${participant.retreatGroupLeader ? " / 조장" : ""}`}
@@ -106,6 +120,13 @@ export function AdminParticipantDetailPage() {
               )}
               <DetailRow label="1박" value={participant.lodgingNight1 ? "예" : "아니오"} />
               <DetailRow label="2박" value={participant.lodgingNight2 ? "예" : "아니오"} />
+              <DetailRow
+                label="선택 항목"
+                value={(participationOptionsQuery.data ?? [])
+                  .filter((option) => participant.selectedOptionIds.includes(option.id))
+                  .map((option) => `${option.eventDate.slice(5)} ${option.label}`)
+                  .join(", ") || "-"}
+              />
             </DetailCard>
             <DetailCard title="교통편 - 가는 길">
               <DetailRow label="교통편" value={formatTransportation(participant.inboundTransportationMethod)} />
@@ -164,6 +185,10 @@ export function AdminParticipantDetailPage() {
             <div className="detail-list">
               <DetailRow label="등록 시각" value={formatDateTime(participant.createdAt)} />
               <DetailRow label="수정 시각" value={formatDateTime(participant.updatedAt)} />
+              <DetailRow
+                label="마지막 본인 수정"
+                value={participant.participantUpdatedAt ? formatDateTime(participant.participantUpdatedAt) : "-"}
+              />
             </div>
           </section>
         </>
@@ -180,10 +205,10 @@ function FeeManagementSection({
   feeEventsQuery
 }: {
   participantId: number;
-  participant: any;
+  participant: AdminRegistration;
   isChairPlus: boolean;
-  queryClient: any;
-  feeEventsQuery: any;
+  queryClient: QueryClient;
+  feeEventsQuery: UseQueryResult<FeeEventItem[], Error>;
 }) {
   const [showReasonInput, setShowReasonInput] = useState(false);
   const [reason, setReason] = useState("");
@@ -297,7 +322,7 @@ function FeeManagementSection({
               </tr>
             </thead>
             <tbody>
-              {feeEventsQuery.data?.map((event: any) => (
+              {feeEventsQuery.data?.map((event) => (
                 <tr key={event.id} style={{ borderBottom: "1px solid var(--color-border)" }}>
                   <td style={{ padding: "0.5rem", fontSize: "0.85rem" }}>{formatDateTime(event.createdAt)}</td>
                   <td style={{ padding: "0.5rem", fontSize: "0.85rem" }}>{event.changedBy?.name ?? "-"}</td>
@@ -319,9 +344,9 @@ function CheckInManagementSection({
   queryClient
 }: {
   participantId: number;
-  checkInQuery: any;
+  checkInQuery: UseQueryResult<CheckInRosterItem, Error>;
   isChairPlus: boolean;
-  queryClient: any;
+  queryClient: QueryClient;
 }) {
   const [showCancelReason, setShowCancelReason] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
@@ -451,12 +476,12 @@ function CheckInManagementSection({
   );
 }
 
-function HistoriesSection({ historiesQuery }: { historiesQuery: any }) {
+function HistoriesSection({ historiesQuery }: { historiesQuery: UseQueryResult<RegistrationHistoryItem[], Error> }) {
   const changeTypeLabels: Record<string, string> = {
     FEE_PAYMENT_UPDATED: "참가비 변경",
     STATUS_UPDATED: "등록 상태 변경",
     ADMIN_MANAGEMENT_UPDATED: "관리 정보 변경",
-    CHURCH_CELL_UPDATED: "교회 셀 변경"
+    CHURCH_CELL_UPDATED: "소속 변경(이전 기록)"
   };
 
   return (
@@ -478,7 +503,7 @@ function HistoriesSection({ historiesQuery }: { historiesQuery: any }) {
             </tr>
           </thead>
           <tbody>
-            {historiesQuery.data?.map((history: any) => (
+            {historiesQuery.data?.map((history) => (
               <tr key={history.id} style={{ borderBottom: "1px solid var(--color-border)" }}>
                 <td style={{ padding: "0.5rem", fontSize: "0.85rem" }}>{formatDateTime(history.createdAt)}</td>
                 <td style={{ padding: "0.5rem", fontSize: "0.85rem" }}>{changeTypeLabels[history.changeType] ?? history.changeType}</td>
@@ -535,13 +560,13 @@ function formatTransportation(method: string | null): string {
     case "OWN_CAR":
       return "개인차량";
     case "GROUP_BUS":
-      return "단체버스";
+      return "단체 이동 차량";
     case "WORSHIP_SHUTTLE":
       return "집회차량";
     case "PUBLIC_TRANSIT":
       return "대중교통";
     case "CARPOOL_NEEDED":
-      return "카풀 필요";
+      return "이동 지원 요청";
     case "NOT_DECIDED":
       return "미정";
     default:

@@ -1,76 +1,68 @@
 @baseUrl = http://localhost:8080
 
-### Create schedule item
+### Add a meal to the timetable and registration form
 POST {{baseUrl}}/api/admin/schedules
 Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
-  "title": "Opening Worship",
-  "description": "Retreat opening worship in the main chapel.",
-  "scheduleDate": "2026-07-01",
-  "startsAt": "2026-07-01T09:00:00Z",
-  "endsAt": "2026-07-01T10:30:00Z",
-  "location": "Main Chapel",
-  "category": "WORSHIP",
+  "title": "저녁식사",
+  "description": "첫째 날 저녁 식사",
+  "scheduleDate": "2027-01-15",
+  "startsAt": "2027-01-15T18:00:00+09:00",
+  "endsAt": "2027-01-15T19:00:00+09:00",
+  "location": "식당",
+  "category": "MEAL",
   "targetAudience": "ALL",
   "active": true,
-  "displayOrder": 0
+  "displayOrder": 1080,
+  "collectParticipation": true
 }
 
 > {%
     client.global.set("scheduleId", response.body.data.id);
+    client.global.set("participationOptionId", response.body.data.participationOptionId);
 %}
 
-### Create staff-only schedule item
+### Add a time-unspecified program that is not shown on the registration form
 POST {{baseUrl}}/api/admin/schedules
 Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
-  "title": "Staff briefing",
-  "description": "Operations team briefing before participant arrival.",
-  "scheduleDate": "2026-07-01",
-  "startsAt": "2026-07-01T08:00:00Z",
-  "endsAt": "2026-07-01T08:30:00Z",
-  "location": "Staff Room",
+  "title": "운영진 안내",
+  "scheduleDate": "2027-01-15",
   "category": "NOTICE",
   "targetAudience": "STAFF_ONLY",
   "active": true,
-  "displayOrder": 0
+  "displayOrder": 0,
+  "collectParticipation": false
 }
 
-### List schedule items
+### View the current timetable with participation counts
 GET {{baseUrl}}/api/admin/schedules
 Authorization: Bearer {{adminToken}}
 
-### List active worship schedules for a date
-GET {{baseUrl}}/api/admin/schedules?date=2026-07-01&category=WORSHIP&active=true
-Authorization: Bearer {{adminToken}}
-
-### Schedule item detail
-GET {{baseUrl}}/api/admin/schedules/{{scheduleId}}
-Authorization: Bearer {{adminToken}}
-
-### Update schedule item
+### Update the linked schedule and registration item together
 PATCH {{baseUrl}}/api/admin/schedules/{{scheduleId}}
 Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
-  "title": "Opening Worship",
-  "description": "Opening worship starts after check-in.",
-  "scheduleDate": "2026-07-01",
-  "startsAt": "2026-07-01T09:30:00Z",
-  "endsAt": "2026-07-01T10:45:00Z",
-  "location": "Main Chapel",
-  "category": "WORSHIP",
+  "title": "저녁식사",
+  "description": "식수 인원 확인이 필요한 일정",
+  "scheduleDate": "2027-01-15",
+  "startsAt": "2027-01-15T18:30:00+09:00",
+  "endsAt": "2027-01-15T19:30:00+09:00",
+  "location": "식당",
+  "category": "MEAL",
   "targetAudience": "ALL",
   "active": true,
-  "displayOrder": 1
+  "displayOrder": 1110,
+  "collectParticipation": true
 }
 
-### Update schedule item active
+### Hide the schedule and its linked registration item without deleting selections
 PATCH {{baseUrl}}/api/admin/schedules/{{scheduleId}}/active
 Authorization: Bearer {{adminToken}}
 Content-Type: application/json

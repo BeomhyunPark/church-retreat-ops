@@ -2,7 +2,6 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AdminAccountsPage } from "../features/admin/AdminAccountsPage";
 import { AdminAnnouncementsPage } from "../features/admin/AdminAnnouncementsPage";
 import { AdminCheckInsPage } from "../features/admin/AdminCheckInsPage";
-import { AdminCommunityPage } from "../features/admin/AdminCommunityPage";
 import { AdminDashboardPage } from "../features/admin/AdminDashboardPage";
 import { AdminFeesPage } from "../features/admin/AdminFeesPage";
 import { AdminLoginPage } from "../features/admin/AdminLoginPage";
@@ -49,8 +48,8 @@ export const router = createBrowserRouter([
       { path: "retreats", element: <AdminRetreatsPage /> },
       { path: "participants", element: <AdminParticipantsPage /> },
       { path: "participants/:participantId", element: <AdminParticipantDetailPage /> },
+      { path: "participation-options", element: <Navigate to="/admin/schedules" replace /> },
       { path: "fees", element: <AdminFeesPage /> },
-      { path: "community", element: <AdminCommunityPage /> },
       { path: "retreat-groups", element: <AdminRetreatGroupsPage /> },
       { path: "announcements", element: <AdminAnnouncementsPage /> },
       { path: "schedules", element: <AdminSchedulesPage /> },

@@ -13,11 +13,8 @@
             <arg column="birth_year" javaType="java.lang.Integer" />
             <arg column="phone_number" javaType="java.lang.String" />
             <arg column="phone_last_four" javaType="java.lang.String" />
-            <arg column="church_cell_department" javaType="java.lang.String" />
-            <arg column="church_cell_id" javaType="java.lang.Long" />
-            <arg column="church_cell_name" javaType="java.lang.String" />
-            <arg column="middle_group_id" javaType="java.lang.Long" />
             <arg column="middle_group_name" javaType="java.lang.String" />
+            <arg column="cell_name" javaType="java.lang.String" />
             <arg column="retreat_group_id" javaType="java.lang.Long" />
             <arg column="retreat_group_name" javaType="java.lang.String" />
             <arg column="retreat_group_leader" javaType="java.lang.Boolean" />
@@ -31,6 +28,7 @@
             <arg column="checked_in" javaType="java.lang.Boolean" />
             <arg column="created_at" javaType="java.time.OffsetDateTime" />
             <arg column="updated_at" javaType="java.time.OffsetDateTime" />
+            <arg column="participant_updated_at" javaType="java.time.OffsetDateTime" />
             <arg column="attendance_type" javaType="com.gmc.retreat.registration.domain.AttendanceType" />
             <arg column="planned_arrival_at" javaType="java.time.OffsetDateTime" />
             <arg column="planned_departure_at" javaType="java.time.OffsetDateTime" />
@@ -68,12 +66,11 @@
 
     <sql id="selectColumns">
         r.id, r.name, r.normalized_name, r.gender, r.birth_year, r.phone_number, r.phone_last_four,
-        r.church_cell_department, r.church_cell_id, cc.name AS church_cell_name,
-        mg.id AS middle_group_id, mg.name AS middle_group_name,
+        r.middle_group_name, r.cell_name,
         rg.id AS retreat_group_id, rg.name AS retreat_group_name, rgm.leader AS retreat_group_leader,
         r.lookup_key_hash, r.privacy_consent_agreed, r.fee_paid,
         r.status, r.admin_memo, r.newcomer, r.care_target,
-        COALESCE(ci.checked_in, FALSE) AS checked_in, r.created_at, r.updated_at,
+        COALESCE(ci.checked_in, FALSE) AS checked_in, r.created_at, r.updated_at, r.participant_updated_at,
         r.attendance_type,
         r.planned_arrival_at, r.planned_departure_at, r.partial_attendance_note,
         r.lodging_night1, r.lodging_night2,
@@ -89,8 +86,6 @@
     </sql>
 
     <sql id="commonJoins">
-        LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
-        LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
         LEFT JOIN retreat_group_members rgm ON rgm.registration_id = r.id
         LEFT JOIN retreat_groups rg ON rg.id = rgm.retreat_group_id
         LEFT JOIN retreat_check_ins ci ON ci.participant_id = r.id
@@ -104,9 +99,8 @@
             AND (
                 lower(r.name) LIKE lower(concat('%', #{keyword}, '%'))
                 OR r.phone_last_four = #{keyword}
-                OR lower(r.church_cell_department) LIKE lower(concat('%', #{keyword}, '%'))
-                OR lower(cc.name) LIKE lower(concat('%', #{keyword}, '%'))
-                OR lower(mg.name) LIKE lower(concat('%', #{keyword}, '%'))
+                OR lower(r.middle_group_name) LIKE lower(concat('%', #{keyword}, '%'))
+                OR lower(r.cell_name) LIKE lower(concat('%', #{keyword}, '%'))
                 OR lower(rg.name) LIKE lower(concat('%', #{keyword}, '%'))
             )
         </if>
@@ -131,11 +125,11 @@
         <if test="retreatGroupAssigned != null and !retreatGroupAssigned">
             AND rg.id IS NULL
         </if>
-        <if test="churchCellAssigned != null and churchCellAssigned">
-            AND r.church_cell_id IS NOT NULL
+        <if test="cellAssigned != null and cellAssigned">
+            AND r.cell_name IS NOT NULL
         </if>
-        <if test="churchCellAssigned != null and !churchCellAssigned">
-            AND r.church_cell_id IS NULL
+        <if test="cellAssigned != null and !cellAssigned">
+            AND r.cell_name IS NULL
         </if>
         <if test="attendanceType != null">
             AND r.attendance_type = #{attendanceType}
@@ -220,7 +214,7 @@
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO registrations (
             retreat_id, name, normalized_name, gender, birth_year, phone_number, phone_last_four,
-            church_cell_department, lookup_key_hash, privacy_consent_agreed, fee_paid, status,
+            middle_group_name, cell_name, lookup_key_hash, privacy_consent_agreed, fee_paid, status,
             attendance_type,
             planned_arrival_at, planned_departure_at, partial_attendance_note,
             lodging_night1, lodging_night2,
@@ -236,7 +230,7 @@
         )
         VALUES (
             #{retreatId}, #{name}, #{normalizedName}, #{gender}, #{birthYear}, #{phoneNumber}, #{phoneLastFour},
-            #{churchCellDepartment}, #{lookupKeyHash}, #{privacyConsentAgreed}, #{feePaid}, #{status},
+            #{middleGroupName}, #{cellName}, #{lookupKeyHash}, #{privacyConsentAgreed}, #{feePaid}, #{status},
             #{attendanceType},
             #{plannedArrivalAt}, #{plannedDepartureAt}, #{partialAttendanceNote},
             #{lodgingNight1}, #{lodgingNight2},
@@ -260,7 +254,8 @@
             birth_year = #{birthYear},
             phone_number = #{phoneNumber},
             phone_last_four = #{phoneLastFour},
-            church_cell_department = #{churchCellDepartment},
+            middle_group_name = #{middleGroupName},
+            cell_name = #{cellName},
             lookup_key_hash = #{lookupKeyHash},
             privacy_consent_agreed = #{privacyConsentAgreed},
             attendance_type = #{attendanceType},
@@ -295,6 +290,7 @@
             outbound_carpool_preferred_area = #{outboundCarpoolPreferredArea},
             outbound_carpool_preferred_note = #{outboundCarpoolPreferredNote},
             outbound_worship_bus_ride_slot = #{outboundWorshipBusRideSlot},
+            participant_updated_at = now(),
             updated_at = now()
         WHERE id = #{id}
           AND retreat_id = (SELECT id FROM retreats WHERE status = 'OPEN')
@@ -306,7 +302,8 @@
             birth_year = #{birthYear},
             phone_number = #{phoneNumber},
             phone_last_four = #{phoneLastFour},
-            church_cell_department = #{churchCellDepartment},
+            middle_group_name = #{middleGroupName},
+            cell_name = #{cellName},
             attendance_type = #{attendanceType},
             planned_arrival_at = #{plannedArrivalAt},
             planned_departure_at = #{plannedDepartureAt},
@@ -339,6 +336,7 @@
             outbound_carpool_preferred_area = #{outboundCarpoolPreferredArea},
             outbound_carpool_preferred_note = #{outboundCarpoolPreferredNote},
             outbound_worship_bus_ride_slot = #{outboundWorshipBusRideSlot},
+            participant_updated_at = now(),
             updated_at = now()
         WHERE id = #{id}
           AND retreat_id = (SELECT id FROM retreats WHERE status = 'OPEN')
@@ -369,16 +367,6 @@
         SET admin_memo = #{adminMemo},
             newcomer = #{newcomer},
             care_target = #{careTarget},
-            updated_at = now()
-        WHERE id = #{id}
-          AND retreat_id = (
-              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
-          )
-    </update>
-
-    <update id="updateChurchCell">
-        UPDATE registrations
-        SET church_cell_id = #{churchCellId},
             updated_at = now()
         WHERE id = #{id}
           AND retreat_id = (

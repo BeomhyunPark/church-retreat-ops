@@ -19,6 +19,9 @@ public record ScheduleItemResponse(
         ScheduleTargetAudience targetAudience,
         Boolean active,
         Integer displayOrder,
+        Boolean collectParticipation,
+        Long participationOptionId,
+        Long selectionCount,
         AdminSummaryResponse createdBy,
         AdminSummaryResponse updatedBy,
         OffsetDateTime createdAt,
@@ -37,20 +40,24 @@ public record ScheduleItemResponse(
                 scheduleItem.targetAudience(),
                 scheduleItem.active(),
                 scheduleItem.displayOrder(),
-                new AdminSummaryResponse(
-                        scheduleItem.createdByAdminId(),
-                        scheduleItem.createdByAdminEmail(),
-                        scheduleItem.createdByAdminName(),
-                        scheduleItem.createdByAdminRole()
-                ),
-                new AdminSummaryResponse(
-                        scheduleItem.updatedByAdminId(),
-                        scheduleItem.updatedByAdminEmail(),
-                        scheduleItem.updatedByAdminName(),
-                        scheduleItem.updatedByAdminRole()
-                ),
+                scheduleItem.collectParticipation(),
+                scheduleItem.participationOptionId(),
+                scheduleItem.selectionCount(),
+                actor(scheduleItem.createdByAdminId(), scheduleItem.createdByAdminEmail(),
+                        scheduleItem.createdByAdminName(), scheduleItem.createdByAdminRole()),
+                actor(scheduleItem.updatedByAdminId(), scheduleItem.updatedByAdminEmail(),
+                        scheduleItem.updatedByAdminName(), scheduleItem.updatedByAdminRole()),
                 scheduleItem.createdAt(),
                 scheduleItem.updatedAt()
         );
+    }
+
+    private static AdminSummaryResponse actor(
+            Long id,
+            String email,
+            String name,
+            com.gmc.retreat.admin.domain.AdminRole role
+    ) {
+        return id == null ? null : new AdminSummaryResponse(id, email, name, role);
     }
 }

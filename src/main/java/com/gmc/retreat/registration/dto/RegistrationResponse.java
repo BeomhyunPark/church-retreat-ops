@@ -8,6 +8,7 @@ import com.gmc.retreat.registration.domain.TransportationMethod;
 import com.gmc.retreat.registration.domain.WorshipBusRideSlot;
 import com.gmc.retreat.registration.service.PhoneNumberNormalizer;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 public record RegistrationResponse(
         Long id,
@@ -15,7 +16,8 @@ public record RegistrationResponse(
         Gender gender,
         Integer birthYear,
         String phoneNumber,
-        String churchCellDepartment,
+        String middleGroupName,
+        String cellName,
         Boolean feePaid,
         RegistrationStatus status,
         AttendanceType attendanceType,
@@ -24,14 +26,7 @@ public record RegistrationResponse(
         String partialAttendanceNote,
         Boolean lodgingNight1,
         Boolean lodgingNight2,
-        Boolean attendDay1Morning,
-        Boolean attendDay1Afternoon,
-        Boolean attendDay1Worship,
-        Boolean attendDay2Morning,
-        Boolean attendDay2Afternoon,
-        Boolean attendDay2Worship,
-        Boolean attendDay3Morning,
-        Boolean attendDay3Afternoon,
+        List<Long> selectedOptionIds,
         TransportationMethod inboundTransportationMethod,
         Boolean inboundCarpoolAvailable,
         Integer inboundCarpoolSeats,
@@ -51,14 +46,15 @@ public record RegistrationResponse(
         String outboundCarpoolPreferredNote,
         WorshipBusRideSlot outboundWorshipBusRideSlot
 ) {
-    public static RegistrationResponse from(Registration registration) {
+    public static RegistrationResponse from(Registration registration, List<Long> selectedOptionIds) {
         return new RegistrationResponse(
                 registration.id(),
                 registration.name(),
                 registration.gender(),
                 registration.birthYear(),
                 PhoneNumberNormalizer.mask(registration.phoneNumber()),
-                registration.churchCellDepartment(),
+                registration.middleGroupName(),
+                registration.cellName(),
                 registration.feePaid(),
                 registration.status(),
                 registration.attendanceType(),
@@ -67,14 +63,7 @@ public record RegistrationResponse(
                 registration.partialAttendanceNote(),
                 registration.lodgingNight1(),
                 registration.lodgingNight2(),
-                registration.attendDay1Morning(),
-                registration.attendDay1Afternoon(),
-                registration.attendDay1Worship(),
-                registration.attendDay2Morning(),
-                registration.attendDay2Afternoon(),
-                registration.attendDay2Worship(),
-                registration.attendDay3Morning(),
-                registration.attendDay3Afternoon(),
+                List.copyOf(selectedOptionIds),
                 registration.inboundTransportationMethod(),
                 registration.inboundCarpoolAvailable(),
                 registration.inboundCarpoolSeats(),

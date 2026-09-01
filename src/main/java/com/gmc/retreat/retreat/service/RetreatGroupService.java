@@ -2,9 +2,10 @@ package com.gmc.retreat.retreat.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gmc.retreat.admin.domain.AdminRole;
-import com.gmc.retreat.community.dto.ActiveUpdateRequest;
+import com.gmc.retreat.common.dto.ActiveUpdateRequest;
 import com.gmc.retreat.error.BusinessException;
 import com.gmc.retreat.error.ErrorCode;
+import com.gmc.retreat.participation.mapper.ParticipationOptionMapper;
 import com.gmc.retreat.registration.domain.Registration;
 import com.gmc.retreat.registration.domain.RegistrationActorType;
 import com.gmc.retreat.registration.domain.RegistrationHistoryChangeType;
@@ -36,6 +37,7 @@ public class RetreatGroupService {
 
     private final RetreatGroupMapper retreatGroupMapper;
     private final RegistrationMapper registrationMapper;
+    private final ParticipationOptionMapper participationOptionMapper;
     private final RegistrationHistoryMapper registrationHistoryMapper;
     private final ObjectMapper objectMapper;
     private final RetreatService retreatService;
@@ -43,12 +45,14 @@ public class RetreatGroupService {
     public RetreatGroupService(
             RetreatGroupMapper retreatGroupMapper,
             RegistrationMapper registrationMapper,
+            ParticipationOptionMapper participationOptionMapper,
             RegistrationHistoryMapper registrationHistoryMapper,
             ObjectMapper objectMapper,
             RetreatService retreatService
     ) {
         this.retreatGroupMapper = retreatGroupMapper;
         this.registrationMapper = registrationMapper;
+        this.participationOptionMapper = participationOptionMapper;
         this.registrationHistoryMapper = registrationHistoryMapper;
         this.objectMapper = objectMapper;
         this.retreatService = retreatService;
@@ -163,7 +167,7 @@ public class RetreatGroupService {
         findGroupOrThrow(request.retreatGroupId());
         Long assignedGroupId = retreatGroupMapper.findGroupIdByParticipantId(participantId).orElse(null);
         if (request.retreatGroupId().equals(assignedGroupId)) {
-            return AdminRegistrationResponse.detail(registration);
+            return response(registration);
         }
 
         String previousSnapshot = snapshot(registration);
@@ -227,7 +231,14 @@ public class RetreatGroupService {
         Registration updated = registrationMapper.findById(participantId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
         insertAdminHistory(updated.id(), previousSnapshot, snapshot(updated), adminUserId);
-        return AdminRegistrationResponse.detail(updated);
+        return response(updated);
+    }
+
+    private AdminRegistrationResponse response(Registration registration) {
+        return AdminRegistrationResponse.detail(
+                registration,
+                participationOptionMapper.findSelectedOptionIds(registration.id())
+        );
     }
 
     private RetreatGroup findGroupOrThrow(Long id) {
@@ -273,12 +284,8 @@ public class RetreatGroupService {
                     Map.entry("birthYear", registration.birthYear()),
                     Map.entry("phoneNumber", registration.phoneNumber()),
                     Map.entry("phoneLastFour", registration.phoneLastFour()),
-                    Map.entry("churchCellDepartment", registration.churchCellDepartment() == null
-                            ? "" : registration.churchCellDepartment()),
-                    Map.entry("churchCellId", registration.churchCellId() == null ? "" : registration.churchCellId()),
-                    Map.entry("churchCellName", registration.churchCellName() == null ? "" : registration.churchCellName()),
-                    Map.entry("middleGroupId", registration.middleGroupId() == null ? "" : registration.middleGroupId()),
                     Map.entry("middleGroupName", registration.middleGroupName() == null ? "" : registration.middleGroupName()),
+                    Map.entry("cellName", registration.cellName() == null ? "" : registration.cellName()),
                     Map.entry("retreatGroupId", registration.retreatGroupId() == null ? "" : registration.retreatGroupId()),
                     Map.entry("retreatGroupName", registration.retreatGroupName() == null ? "" : registration.retreatGroupName()),
                     Map.entry("retreatGroupLeader", registration.retreatGroupLeader() == null

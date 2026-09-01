@@ -11,8 +11,7 @@ import com.gmc.retreat.announcement.dto.PinnedUpdateRequest;
 import com.gmc.retreat.announcement.mapper.AnnouncementMapper;
 import com.gmc.retreat.announcement.mapper.AnnouncementTargetInsert;
 import com.gmc.retreat.announcement.mapper.AnnouncementUpsert;
-import com.gmc.retreat.community.dto.ActiveUpdateRequest;
-import com.gmc.retreat.community.mapper.CommunityMapper;
+import com.gmc.retreat.common.dto.ActiveUpdateRequest;
 import com.gmc.retreat.error.BusinessException;
 import com.gmc.retreat.error.ErrorCode;
 import com.gmc.retreat.registration.domain.RegistrationStatus;
@@ -35,18 +34,15 @@ public class AnnouncementService {
     private static final Set<String> BOOLEAN_TARGET_VALUES = Set.of("TRUE", "FALSE");
 
     private final AnnouncementMapper announcementMapper;
-    private final CommunityMapper communityMapper;
     private final RetreatGroupMapper retreatGroupMapper;
     private final RetreatService retreatService;
 
     public AnnouncementService(
             AnnouncementMapper announcementMapper,
-            CommunityMapper communityMapper,
             RetreatGroupMapper retreatGroupMapper,
             RetreatService retreatService
     ) {
         this.announcementMapper = announcementMapper;
-        this.communityMapper = communityMapper;
         this.retreatGroupMapper = retreatGroupMapper;
         this.retreatService = retreatService;
     }
@@ -176,8 +172,7 @@ public class AnnouncementService {
             case REGISTRATION_STATUS -> new ValidatedTarget(type, validateRegistrationStatus(value));
             case PAYMENT_STATUS -> new ValidatedTarget(type, validateValueIn(value, PAYMENT_STATUS_VALUES));
             case NEWCOMER, CARE_TARGET -> new ValidatedTarget(type, validateValueIn(value, BOOLEAN_TARGET_VALUES));
-            case CHURCH_MIDDLE_GROUP -> new ValidatedTarget(type, validateMiddleGroupId(value));
-            case CHURCH_CELL -> new ValidatedTarget(type, validateCellId(value));
+            case CHURCH_MIDDLE_GROUP, CHURCH_CELL -> throw new BusinessException(ErrorCode.INVALID_REQUEST);
             case RETREAT_GROUP -> new ValidatedTarget(type, validateRetreatGroupId(value));
             case ADMIN_ROLE -> new ValidatedTarget(type, validateAdminRole(value));
             case ALL -> throw new BusinessException(ErrorCode.INVALID_REQUEST);
@@ -210,22 +205,6 @@ public class AnnouncementService {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
         return normalized;
-    }
-
-    private String validateMiddleGroupId(String value) {
-        Long id = parsePositiveId(value);
-        if (communityMapper.findMiddleGroupById(id).isEmpty()) {
-            throw new BusinessException(ErrorCode.COMMUNITY_NOT_FOUND);
-        }
-        return id.toString();
-    }
-
-    private String validateCellId(String value) {
-        Long id = parsePositiveId(value);
-        if (communityMapper.findCellById(id).isEmpty()) {
-            throw new BusinessException(ErrorCode.COMMUNITY_NOT_FOUND);
-        }
-        return id.toString();
     }
 
     private String validateRetreatGroupId(String value) {

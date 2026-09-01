@@ -1,14 +1,16 @@
 import { useState, type KeyboardEvent } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useForm, useWatch } from "react-hook-form";
 import {
   lookupRegistration,
+  getParticipationOptions,
   selfUpdateRegistration,
   type RegistrationResponse,
   type RegistrationSelfUpdatePayload,
   type TransportationMethod,
   type WorshipBusRideSlot
 } from "./publicApi";
+import { ParticipationOptionChecklist } from "./ParticipationOptionChecklist";
 import { StatusMessage } from "../../shared/ui/StatusMessage";
 
 // Validation helper functions
@@ -19,7 +21,7 @@ const ValidationHelpers = {
   // Filter to Korean and English only - remove digits, spaces, hyphen, and dangerous chars
   filterTextOnly: (value: string): string => {
     // Remove digits, spaces, hyphen, and dangerous characters
-    return value.replace(/[0-9!@#$%^&*()+=\[\]{};:'"<>,.?/\\|`~\s\-]/g, "");
+    return value.replace(/[^가-힣a-zA-Z]/g, "");
   },
 
   // Normalize whitespace (remove leading spaces, collapse multiple spaces)
@@ -37,7 +39,8 @@ type FormValues = {
   gender: "MALE" | "FEMALE";
   birthYear: number;
   phoneNumber: string;
-  churchCellDepartment?: string;
+  middleGroupName?: string;
+  cellName?: string;
   attendanceType: AttendanceType;
   plannedArrivalAt?: string;
   plannedDepartureAt?: string;
@@ -62,26 +65,8 @@ type FormValues = {
   outboundWorshipBusRideSlot?: WorshipBusRideSlot;
   lodgingNight1?: boolean;
   lodgingNight2?: boolean;
-  attendDay1Morning?: boolean;
-  attendDay1Afternoon?: boolean;
-  attendDay1Worship?: boolean;
-  attendDay2Morning?: boolean;
-  attendDay2Afternoon?: boolean;
-  attendDay2Worship?: boolean;
-  attendDay3Morning?: boolean;
-  attendDay3Afternoon?: boolean;
+  selectedOptionIds: number[];
 };
-
-function formatPhoneNumber(value: string) {
-  const digits = value.replace(/\D/g, "").slice(0, 11);
-  if (digits.length <= 3) {
-    return digits;
-  }
-  if (digits.length <= 7) {
-    return `${digits.slice(0, 3)}-${digits.slice(3)}`;
-  }
-  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-}
 
 function toOffsetDateTime(value?: string) {
   if (!value) {
@@ -104,18 +89,18 @@ function getTransportationOptions(attendanceType: AttendanceType): Transportatio
     return ["GROUP_BUS", "OWN_CAR", "PUBLIC_TRANSIT", "CARPOOL_NEEDED"];
   }
   if (attendanceType === "WORSHIP_ONLY") {
-    return ["WORSHIP_SHUTTLE", "OWN_CAR", "PUBLIC_TRANSIT", "CARPOOL_NEEDED", "NOT_DECIDED"];
+    return ["WORSHIP_SHUTTLE", "OWN_CAR", "PUBLIC_TRANSIT", "CARPOOL_NEEDED"];
   }
-  return ["GROUP_BUS", "WORSHIP_SHUTTLE", "OWN_CAR", "PUBLIC_TRANSIT", "CARPOOL_NEEDED", "NOT_DECIDED"];
+  return ["GROUP_BUS", "WORSHIP_SHUTTLE", "OWN_CAR", "PUBLIC_TRANSIT", "CARPOOL_NEEDED"];
 }
 
 function getTransportationLabel(method: TransportationMethod): string {
   const labels: Record<TransportationMethod, string> = {
     OWN_CAR: "자차",
-    GROUP_BUS: "함께 이동해요",
+    GROUP_BUS: "단체 이동 차량",
     WORSHIP_SHUTTLE: "집회 차량",
     PUBLIC_TRANSIT: "대중교통",
-    CARPOOL_NEEDED: "카풀 희망",
+    CARPOOL_NEEDED: "이동 지원 요청",
     NOT_DECIDED: "미정"
   };
   return labels[method];
@@ -159,7 +144,7 @@ function buildSteps(
   }
 
   // After loading, include edit steps
-  const editSteps: Array<keyof FormValues> = ["attendanceType"];
+  const editSteps: Array<keyof FormValues> = ["middleGroupName", "cellName", "attendanceType"];
 
   if (!attendanceType) {
     return [...lookupSteps, ...editSteps];
@@ -169,7 +154,7 @@ function buildSteps(
   const steps: Array<keyof FormValues> = [...lookupSteps, ...editSteps];
 
   if (attendanceType === "FULL") {
-    // FULL: 자차 또는 함께 이동
+    // FULL: 자차 또는 단체 이동 차량
     steps.push("inboundTransportationMethod");
     if (inboundTransportation === "OWN_CAR") {
       steps.push("inboundCarpoolAvailable");
@@ -192,7 +177,7 @@ function buildSteps(
     }
   } else if (attendanceType === "PARTIAL") {
     // PARTIAL: 숙박 + 일정 + 교통수단
-    steps.push("plannedArrivalAt", "plannedDepartureAt", "partialAttendanceNote", "lodgingNight1", "attendDay1Morning");
+    steps.push("plannedArrivalAt", "plannedDepartureAt", "partialAttendanceNote", "lodgingNight1", "selectedOptionIds");
     steps.push("inboundTransportationMethod");
     if (inboundTransportation === "OWN_CAR") {
       steps.push("inboundCarpoolAvailable");
@@ -221,7 +206,7 @@ function buildSteps(
     }
   } else {
     // WORSHIP_ONLY: 집회 차량 또는 자차
-    steps.push("attendDay1Morning");
+    steps.push("selectedOptionIds");
     steps.push("inboundTransportationMethod");
     if (inboundTransportation === "OWN_CAR") {
       steps.push("inboundCarpoolAvailable");
@@ -256,29 +241,22 @@ export function PublicSelfEditPage() {
   const [step, setStep] = useState(0);
   const [shake, setShake] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [loadedData, setLoadedData] = useState<RegistrationResponse | null>(null);
 
   const {
     register,
     handleSubmit,
     trigger,
     setValue,
-    watch,
+    control,
     formState,
-    getValues
+    getValues,
+    resetField
   } = useForm<FormValues>({
     mode: "onBlur",
     defaultValues: {
       lodgingNight1: false,
       lodgingNight2: false,
-      attendDay1Morning: false,
-      attendDay1Afternoon: false,
-      attendDay1Worship: false,
-      attendDay2Morning: false,
-      attendDay2Afternoon: false,
-      attendDay2Worship: false,
-      attendDay3Morning: false,
-      attendDay3Afternoon: false
+      selectedOptionIds: []
     }
   });
 
@@ -288,7 +266,6 @@ export function PublicSelfEditPage() {
       return lookupRegistration({ name, lookupKey });
     },
     onSuccess: (data) => {
-      setLoadedData(data);
       setIsLoaded(true);
       // Prefill form with existing data
       prefillFormWithData(data);
@@ -299,6 +276,10 @@ export function PublicSelfEditPage() {
     mutationFn: selfUpdateRegistration,
     onSuccess: () => setUpdated(true)
   });
+  const participationOptionsQuery = useQuery({
+    queryKey: ["public", "participation-options"],
+    queryFn: getParticipationOptions
+  });
 
   function prefillFormWithData(data: RegistrationResponse) {
     // We'll need to parse phoneNumber to get the last 4 digits
@@ -307,10 +288,15 @@ export function PublicSelfEditPage() {
     // Prefill only the editable fields - others remain as is
     setValue("phoneNumber", data.phoneNumber);
     setValue("phoneLastFour", phoneLastFour);
+    setValue("gender", data.gender);
+    setValue("birthYear", data.birthYear);
+    setValue("middleGroupName", data.middleGroupName ?? undefined);
+    setValue("cellName", data.cellName ?? undefined);
     setValue("attendanceType", data.attendanceType);
     setValue("plannedArrivalAt", toDatetimeLocal(data.plannedArrivalAt ?? undefined));
     setValue("plannedDepartureAt", toDatetimeLocal(data.plannedDepartureAt ?? undefined));
     setValue("partialAttendanceNote", data.partialAttendanceNote ?? undefined);
+    setValue("selectedOptionIds", data.selectedOptionIds);
     setValue("inboundTransportationMethod", data.inboundTransportationMethod);
     setValue("outboundTransportationMethod", data.outboundTransportationMethod);
     setValue("inboundCarpoolAvailable", data.inboundCarpoolAvailable ?? undefined);
@@ -331,12 +317,14 @@ export function PublicSelfEditPage() {
     setValue("outboundWorshipBusRideSlot", data.outboundWorshipBusRideSlot ?? undefined);
   }
 
-  const attendanceType = watch("attendanceType");
-  const inboundTransportation = watch("inboundTransportationMethod");
-  const outboundTransportation = watch("outboundTransportationMethod");
-  const inboundCarpoolAvailable = watch("inboundCarpoolAvailable");
-  const outboundCarpoolAvailable = watch("outboundCarpoolAvailable");
-  const gender = watch("gender");
+  const attendanceType = useWatch({ control, name: "attendanceType" });
+  const inboundTransportation = useWatch({ control, name: "inboundTransportationMethod" });
+  const outboundTransportation = useWatch({ control, name: "outboundTransportationMethod" });
+  const inboundCarpoolAvailable = useWatch({ control, name: "inboundCarpoolAvailable" });
+  const outboundCarpoolAvailable = useWatch({ control, name: "outboundCarpoolAvailable" });
+  const inboundWorshipBusRideSlot = useWatch({ control, name: "inboundWorshipBusRideSlot" });
+  const outboundWorshipBusRideSlot = useWatch({ control, name: "outboundWorshipBusRideSlot" });
+  const selectedOptionIds = useWatch({ control, name: "selectedOptionIds" }) ?? [];
 
   const currentSteps = buildSteps(
     isLoaded,
@@ -354,11 +342,12 @@ export function PublicSelfEditPage() {
 
 
   function onSubmit(values: FormValues) {
-    const update: any = {
+    const update: RegistrationSelfUpdatePayload["update"] = {
       gender: values.gender,
       birthYear: values.birthYear,
       phoneNumber: values.phoneNumber,
-      churchCellDepartment: values.churchCellDepartment,
+      middleGroupName: values.middleGroupName,
+      cellName: values.cellName,
       attendanceType: values.attendanceType,
       plannedArrivalAt: values.plannedArrivalAt,
       plannedDepartureAt: values.plannedDepartureAt,
@@ -383,14 +372,7 @@ export function PublicSelfEditPage() {
       outboundWorshipBusRideSlot: values.outboundWorshipBusRideSlot,
       lodgingNight1: values.lodgingNight1,
       lodgingNight2: values.lodgingNight2,
-      attendDay1Morning: values.attendDay1Morning,
-      attendDay1Afternoon: values.attendDay1Afternoon,
-      attendDay1Worship: values.attendDay1Worship,
-      attendDay2Morning: values.attendDay2Morning,
-      attendDay2Afternoon: values.attendDay2Afternoon,
-      attendDay2Worship: values.attendDay2Worship,
-      attendDay3Morning: values.attendDay3Morning,
-      attendDay3Afternoon: values.attendDay3Afternoon
+      selectedOptionIds: values.selectedOptionIds
     };
 
     if (values.inboundTransportationMethod === "OWN_CAR") {
@@ -428,14 +410,7 @@ export function PublicSelfEditPage() {
     if (values.attendanceType === "FULL") {
       delete payload.update.lodgingNight1;
       delete payload.update.lodgingNight2;
-      delete payload.update.attendDay1Morning;
-      delete payload.update.attendDay1Afternoon;
-      delete payload.update.attendDay1Worship;
-      delete payload.update.attendDay2Morning;
-      delete payload.update.attendDay2Afternoon;
-      delete payload.update.attendDay2Worship;
-      delete payload.update.attendDay3Morning;
-      delete payload.update.attendDay3Afternoon;
+      payload.update.selectedOptionIds = [];
     }
 
     if (values.attendanceType !== "PARTIAL") {
@@ -486,11 +461,6 @@ export function PublicSelfEditPage() {
       goNext();
     }
   }
-
-  const { onChange: onPhoneChange, ...phoneField } = register("phoneNumber", {
-    required: true,
-    pattern: /^[0-9]{3}-[0-9]{3,4}-[0-9]{4}$/
-  });
 
   return (
     <section className="register-flow">
@@ -595,6 +565,34 @@ export function PublicSelfEditPage() {
               </label>
             ) : null}
 
+            {currentSteps[step] === "middleGroupName" && isLoaded ? (
+              <label className="flow-field flow-field--lg">
+                <span>중그룹 (선택)</span>
+                <input
+                  {...register("middleGroupName", {
+                    maxLength: { value: 100, message: "100자 이하로 입력해주세요." }
+                  })}
+                  placeholder="예: 임마누엘 중그룹"
+                  autoFocus
+                />
+                {formState.errors.middleGroupName ? <span className="field-error">{formState.errors.middleGroupName.message}</span> : null}
+              </label>
+            ) : null}
+
+            {currentSteps[step] === "cellName" && isLoaded ? (
+              <label className="flow-field flow-field--lg">
+                <span>셀 (선택)</span>
+                <input
+                  {...register("cellName", {
+                    maxLength: { value: 100, message: "100자 이하로 입력해주세요." }
+                  })}
+                  placeholder="예: 유성현 셀"
+                  autoFocus
+                />
+                {formState.errors.cellName ? <span className="field-error">{formState.errors.cellName.message}</span> : null}
+              </label>
+            ) : null}
+
             {/* Step: attendanceType */}
             {currentSteps[step] === "attendanceType" && isLoaded ? (
               <div className="flow-field flow-field--lg">
@@ -612,8 +610,8 @@ export function PublicSelfEditPage() {
                       onClick={() => {
                         setValue("attendanceType", type, { shouldValidate: true });
                         // Reset dependent fields when changing attendance type
-                        setValue("inboundTransportationMethod", undefined as any);
-                        setValue("outboundTransportationMethod", undefined as any);
+                        resetField("inboundTransportationMethod");
+                        resetField("outboundTransportationMethod");
                         setValue("inboundCarpoolAvailable", undefined);
                         setValue("inboundCarpoolSeats", undefined);
                         setValue("inboundCarpoolArea", undefined);
@@ -628,26 +626,14 @@ export function PublicSelfEditPage() {
                         setValue("outboundCarpoolPreferredNote", undefined);
                         setValue("lodgingNight1", false);
                         setValue("lodgingNight2", false);
-                        // 집회만 선택시 다른 일정은 자동으로 false
-                        if (type === "WORSHIP_ONLY") {
-                          setValue("attendDay1Morning", false);
-                          setValue("attendDay1Afternoon", false);
-                          setValue("attendDay1Worship", true);
-                          setValue("attendDay2Morning", false);
-                          setValue("attendDay2Afternoon", false);
-                          setValue("attendDay2Worship", true);
-                          setValue("attendDay3Morning", false);
-                          setValue("attendDay3Afternoon", false);
-                        } else {
-                          setValue("attendDay1Morning", false);
-                          setValue("attendDay1Afternoon", false);
-                          setValue("attendDay1Worship", false);
-                          setValue("attendDay2Morning", false);
-                          setValue("attendDay2Afternoon", false);
-                          setValue("attendDay2Worship", false);
-                          setValue("attendDay3Morning", false);
-                          setValue("attendDay3Afternoon", false);
-                        }
+                        setValue(
+                          "selectedOptionIds",
+                          type === "WORSHIP_ONLY"
+                            ? (participationOptionsQuery.data ?? [])
+                              .filter((option) => option.optionType === "PROGRAM" && option.label.includes("집회"))
+                              .map((option) => option.id)
+                            : []
+                        );
                       }}
                     >
                       {getAttendanceLabel(type)}
@@ -736,7 +722,7 @@ export function PublicSelfEditPage() {
                           }
                           // Car isn't there for the return trip - clear a stale OWN_CAR pick
                           if (outboundTransportation === "OWN_CAR") {
-                            setValue("outboundTransportationMethod", undefined as any);
+                            resetField("outboundTransportationMethod");
                           }
                           setValue("outboundCarpoolAvailable", undefined);
                           setValue("outboundCarpoolSeats", undefined);
@@ -762,7 +748,7 @@ export function PublicSelfEditPage() {
                     <button
                       key={slot}
                       type="button"
-                      className={watch("inboundWorshipBusRideSlot") === slot ? "option-card option-card--active" : "option-card"}
+                      className={inboundWorshipBusRideSlot === slot ? "option-card option-card--active" : "option-card"}
                       onClick={() => setValue("inboundWorshipBusRideSlot", slot, { shouldValidate: true })}
                     >
                       {getWorshipBusRideSlotLabel(slot)}
@@ -825,7 +811,7 @@ export function PublicSelfEditPage() {
                       min: { value: 1, message: "최소 1명 이상이어야 합니다." },
                       max: { value: 10, message: "최대 10명까지 입력 가능합니다." },
                       validate: (value) => {
-                        const numValue = parseInt(value as any, 10);
+                        const numValue = Number(value);
                         if (isNaN(numValue)) return "숫자만 입력 가능합니다.";
                         return true;
                       }
@@ -900,6 +886,7 @@ export function PublicSelfEditPage() {
               inboundTransportation === "CARPOOL_NEEDED" ? (
                 <label className="flow-field flow-field--lg">
                   <span>가는 길 탑승 희망 지역</span>
+                  <p className="muted">이동 지원은 매칭이 보장되지 않으며, 탑승 위치가 희망 지역과 달라질 수 있습니다.</p>
                   <p className="muted">정확한 자택 주소보다는 역명, 동네, 교회, 주요 건물 등으로 입력해 주세요.</p>
                   <input
                     {...register("inboundCarpoolPreferredArea", {
@@ -974,7 +961,7 @@ export function PublicSelfEditPage() {
                     <button
                       key={slot}
                       type="button"
-                      className={watch("outboundWorshipBusRideSlot") === slot ? "option-card option-card--active" : "option-card"}
+                      className={outboundWorshipBusRideSlot === slot ? "option-card option-card--active" : "option-card"}
                       onClick={() => setValue("outboundWorshipBusRideSlot", slot, { shouldValidate: true })}
                     >
                       {getWorshipBusRideSlotLabel(slot)}
@@ -1110,6 +1097,7 @@ export function PublicSelfEditPage() {
               outboundTransportation === "CARPOOL_NEEDED" ? (
                 <label className="flow-field flow-field--lg">
                   <span>오는 길 하차 희망 지역</span>
+                  <p className="muted">이동 지원은 매칭이 보장되지 않으며, 하차 위치가 희망 지역과 달라질 수 있습니다.</p>
                   <p className="muted">정확한 자택 주소보다는 역명, 동네, 교회, 주요 건물 등으로 입력해 주세요.</p>
                   <input
                     {...register("outboundCarpoolPreferredArea", {
@@ -1158,85 +1146,16 @@ export function PublicSelfEditPage() {
               </div>
             ) : null}
 
-            {/* Step: attendance checklist */}
-            {currentSteps[step] === "attendDay1Morning" && (attendanceType === "PARTIAL" || attendanceType === "WORSHIP_ONLY") && isLoaded ? (
+            {/* Step: dynamic program and meal checklist */}
+            {currentSteps[step] === "selectedOptionIds" && (attendanceType === "PARTIAL" || attendanceType === "WORSHIP_ONLY") && isLoaded ? (
               <div className="flow-field flow-field--lg">
-                <span>참석 시간</span>
-                {attendanceType === "WORSHIP_ONLY" ? (
-                  <div className="checklist-worship-only">
-                    <p className="checklist-note">집회 시간만 참석합니다</p>
-                    <div className="check-grid">
-                      <div>
-                        <h3 className="checklist-day-label">Day 1</h3>
-                        <div className="check-chip-row">
-                          <label className="check-chip">
-                            <input {...register("attendDay1Worship")} type="checkbox" disabled={true} checked={true} readOnly={true} />
-                            <span className="disabled-text">집회</span>
-                          </label>
-                        </div>
-                      </div>
-                      <div>
-                        <h3 className="checklist-day-label">Day 2</h3>
-                        <div className="check-chip-row">
-                          <label className="check-chip">
-                            <input {...register("attendDay2Worship")} type="checkbox" disabled={true} checked={true} readOnly={true} />
-                            <span className="disabled-text">집회</span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="check-grid">
-                    <div>
-                      <h3 className="checklist-day-label">Day 1</h3>
-                      <div className="check-chip-row">
-                        <label className="check-chip">
-                          <input {...register("attendDay1Morning")} type="checkbox" />
-                          <span>오전</span>
-                        </label>
-                        <label className="check-chip">
-                          <input {...register("attendDay1Afternoon")} type="checkbox" />
-                          <span>오후</span>
-                        </label>
-                        <label className="check-chip">
-                          <input {...register("attendDay1Worship")} type="checkbox" />
-                          <span>집회</span>
-                        </label>
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="checklist-day-label">Day 2</h3>
-                      <div className="check-chip-row">
-                        <label className="check-chip">
-                          <input {...register("attendDay2Morning")} type="checkbox" />
-                          <span>오전</span>
-                        </label>
-                        <label className="check-chip">
-                          <input {...register("attendDay2Afternoon")} type="checkbox" />
-                          <span>오후</span>
-                        </label>
-                        <label className="check-chip">
-                          <input {...register("attendDay2Worship")} type="checkbox" />
-                          <span>집회</span>
-                        </label>
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="checklist-day-label">Day 3</h3>
-                      <div className="check-chip-row">
-                        <label className="check-chip">
-                          <input {...register("attendDay3Morning")} type="checkbox" />
-                          <span>오전</span>
-                        </label>
-                        <label className="check-chip">
-                          <input {...register("attendDay3Afternoon")} type="checkbox" />
-                          <span>오후</span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <span>참석할 프로그램과 식사를 선택해주세요</span>
+                <p className="muted">식수 인원 확인을 위해 식사도 빠짐없이 골라주세요.</p>
+                <ParticipationOptionChecklist
+                  options={participationOptionsQuery.data ?? []}
+                  selectedIds={selectedOptionIds}
+                  onChange={(ids) => setValue("selectedOptionIds", ids, { shouldDirty: true })}
+                />
               </div>
             ) : null}
           </div>

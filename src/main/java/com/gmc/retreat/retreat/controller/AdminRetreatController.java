@@ -3,6 +3,7 @@ package com.gmc.retreat.retreat.controller;
 import com.gmc.retreat.api.ApiResponse;
 import com.gmc.retreat.retreat.dto.RetreatCreateRequest;
 import com.gmc.retreat.retreat.dto.RetreatResponse;
+import com.gmc.retreat.retreat.dto.RetreatRegistrationOpenUpdateRequest;
 import com.gmc.retreat.retreat.dto.RetreatStatusUpdateRequest;
 import com.gmc.retreat.retreat.dto.RetreatUpdateRequest;
 import com.gmc.retreat.retreat.service.RetreatService;
@@ -62,5 +63,14 @@ public class AdminRetreatController {
             @Valid @RequestBody RetreatStatusUpdateRequest request
     ) {
         return ApiResponse.success(retreatService.updateStatus(admin, id, request));
+    }
+
+    @PatchMapping("/{id}/registration-open")
+    public ApiResponse<RetreatResponse> updateRegistrationOpen(
+            @AuthenticationPrincipal AdminPrincipal admin,
+            @PathVariable Long id,
+            @Valid @RequestBody RetreatRegistrationOpenUpdateRequest request
+    ) {
+        return ApiResponse.success(retreatService.updateRegistrationOpen(admin, id, request));
     }
 }

@@ -2,13 +2,21 @@ import { apiRequest } from "../../shared/api/client";
 
 export type TransportationMethod = "OWN_CAR" | "GROUP_BUS" | "WORSHIP_SHUTTLE" | "PUBLIC_TRANSIT" | "CARPOOL_NEEDED" | "NOT_DECIDED";
 export type WorshipBusRideSlot = "DAY1_BEFORE_WORSHIP" | "DAY1_AFTER_WORSHIP" | "DAY2_BEFORE_WORSHIP" | "DAY2_AFTER_WORSHIP";
+export type ParticipationOption = {
+  id: number;
+  optionType: "PROGRAM" | "MEAL";
+  label: string;
+  eventDate: string;
+  displayOrder: number;
+};
 
 export type RegistrationCreatePayload = {
   name: string;
   gender: "MALE" | "FEMALE";
   birthYear: number;
   phoneNumber: string;
-  churchCellDepartment?: string;
+  middleGroupName?: string;
+  cellName?: string;
   privacyConsentAgreed: boolean;
   lookupKey: string;
   attendanceType: "FULL" | "PARTIAL" | "WORSHIP_ONLY";
@@ -35,14 +43,7 @@ export type RegistrationCreatePayload = {
   outboundWorshipBusRideSlot?: WorshipBusRideSlot;
   lodgingNight1?: boolean;
   lodgingNight2?: boolean;
-  attendDay1Morning?: boolean;
-  attendDay1Afternoon?: boolean;
-  attendDay1Worship?: boolean;
-  attendDay2Morning?: boolean;
-  attendDay2Afternoon?: boolean;
-  attendDay2Worship?: boolean;
-  attendDay3Morning?: boolean;
-  attendDay3Afternoon?: boolean;
+  selectedOptionIds: number[];
 };
 
 export type RegistrationResponse = {
@@ -51,13 +52,15 @@ export type RegistrationResponse = {
   gender: "MALE" | "FEMALE";
   birthYear: number;
   phoneNumber: string;
-  churchCellDepartment?: string | null;
+  middleGroupName?: string | null;
+  cellName?: string | null;
   feePaid: boolean;
   status: string;
   attendanceType: "FULL" | "PARTIAL" | "WORSHIP_ONLY";
   plannedArrivalAt?: string | null;
   plannedDepartureAt?: string | null;
   partialAttendanceNote?: string | null;
+  selectedOptionIds: number[];
   inboundTransportationMethod: TransportationMethod;
   outboundTransportationMethod: TransportationMethod;
   inboundCarpoolAvailable?: boolean | null;
@@ -96,7 +99,8 @@ export type RegistrationSelfUpdatePayload = {
     gender: "MALE" | "FEMALE";
     birthYear: number;
     phoneNumber: string;
-    churchCellDepartment?: string;
+    middleGroupName?: string;
+    cellName?: string;
     attendanceType: "FULL" | "PARTIAL" | "WORSHIP_ONLY";
     plannedArrivalAt?: string;
     plannedDepartureAt?: string;
@@ -121,14 +125,7 @@ export type RegistrationSelfUpdatePayload = {
     outboundWorshipBusRideSlot?: WorshipBusRideSlot;
     lodgingNight1?: boolean;
     lodgingNight2?: boolean;
-    attendDay1Morning?: boolean;
-    attendDay1Afternoon?: boolean;
-    attendDay1Worship?: boolean;
-    attendDay2Morning?: boolean;
-    attendDay2Afternoon?: boolean;
-    attendDay2Worship?: boolean;
-    attendDay3Morning?: boolean;
-    attendDay3Afternoon?: boolean;
+    selectedOptionIds: number[];
   };
 };
 
@@ -137,6 +134,10 @@ export function createRegistration(payload: RegistrationCreatePayload) {
     method: "POST",
     body: payload
   });
+}
+
+export function getParticipationOptions() {
+  return apiRequest<ParticipationOption[]>("/participation-options");
 }
 
 export function lookupRegistration(payload: RegistrationSelfLookupPayload) {

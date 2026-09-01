@@ -1,0 +1,11 @@
+@baseUrl = http://localhost:8080
+
+# 참석·식사 항목은 관리자 시간표에서 collectParticipation으로 관리합니다.
+# 생성·수정 예시는 07-schedule-domain.http를 참고합니다.
+
+### Public active options used by registration and self update
+GET {{baseUrl}}/api/participation-options
+
+### Internal option projection and participant counts used by operations views
+GET {{baseUrl}}/api/admin/participation-options
+Authorization: Bearer {{adminToken}}

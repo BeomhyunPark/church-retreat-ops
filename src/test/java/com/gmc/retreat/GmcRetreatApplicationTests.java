@@ -96,16 +96,39 @@ class GmcRetreatApplicationTests {
         jdbcTemplate.update("DELETE FROM registration_histories");
         jdbcTemplate.update("DELETE FROM announcement_targets");
         jdbcTemplate.update("DELETE FROM announcements");
-        jdbcTemplate.update("DELETE FROM retreat_schedule_items");
         jdbcTemplate.update("DELETE FROM retreat_group_members");
+        jdbcTemplate.update("DELETE FROM registration_participation_options");
         jdbcTemplate.update("DELETE FROM registrations");
+        jdbcTemplate.update("DELETE FROM retreat_participation_options");
+        jdbcTemplate.update("DELETE FROM retreat_schedule_items");
         jdbcTemplate.update("DELETE FROM retreat_groups");
         jdbcTemplate.update("DELETE FROM church_cells");
         jdbcTemplate.update("DELETE FROM church_middle_groups");
         jdbcTemplate.update("DELETE FROM retreats");
         jdbcTemplate.update("""
-                INSERT INTO retreats (name, starts_on, ends_on, status)
-                VALUES ('Test Retreat', DATE '2026-08-14', DATE '2026-08-16', 'OPEN')
+                INSERT INTO retreats (name, starts_on, ends_on, status, registration_open)
+                VALUES ('Test Retreat', DATE '2026-08-14', DATE '2026-08-16', 'OPEN', TRUE)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO retreat_participation_options
+                    (retreat_id, option_type, label, event_date, display_order)
+                SELECT id, option_type, label, event_date, display_order
+                FROM retreats
+                CROSS JOIN (VALUES
+                    ('PROGRAM', '오후 프로그램', DATE '2026-08-14', 10),
+                    ('MEAL', '저녁식사', DATE '2026-08-14', 20),
+                    ('PROGRAM', '집회', DATE '2026-08-14', 30),
+                    ('MEAL', '아침식사', DATE '2026-08-15', 40),
+                    ('PROGRAM', '오전 프로그램', DATE '2026-08-15', 50),
+                    ('MEAL', '점심식사', DATE '2026-08-15', 60),
+                    ('PROGRAM', '오후 프로그램', DATE '2026-08-15', 70),
+                    ('PROGRAM', '집회', DATE '2026-08-15', 80),
+                    ('MEAL', '아침식사', DATE '2026-08-16', 90),
+                    ('PROGRAM', '오전 프로그램', DATE '2026-08-16', 100),
+                    ('MEAL', '점심식사', DATE '2026-08-16', 110),
+                    ('PROGRAM', '오후 프로그램', DATE '2026-08-16', 120)
+                ) AS defaults(option_type, label, event_date, display_order)
+                WHERE status = 'OPEN'
                 """);
     }
 
@@ -120,13 +143,24 @@ class GmcRetreatApplicationTests {
     }
 
     @Test
+    void flywayMigrationCreatesDynamicParticipationOptionTables() {
+        assertThat(tableExists("retreat_participation_options")).isTrue();
+        assertThat(tableExists("registration_participation_options")).isTrue();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM retreat_participation_options",
+                Integer.class
+        )).isEqualTo(12);
+    }
+
+    @Test
     void appIdentityEndpointIsPublicAndReturnsConfiguredIdentity() throws Exception {
         mockMvc.perform(get("/api/app/identity"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.appName").value("Retreat Ops"))
-                .andExpect(jsonPath("$.data.organizationName").value("Your Church"))
-                .andExpect(jsonPath("$.data.eventName").value("Your Retreat"));
+                .andExpect(jsonPath("$.data.appName").value("청년2부 수련회"))
+                .andExpect(jsonPath("$.data.organizationName").value("지구촌교회 드림공동체 청년2부"))
+                .andExpect(jsonPath("$.data.eventName").value("Test Retreat"))
+                .andExpect(jsonPath("$.data.registrationOpen").value(true));
     }
 
     @Test
@@ -145,39 +179,19 @@ class GmcRetreatApplicationTests {
     }
 
     @Test
-    void flywayMigrationCreatesCommunityTablesAndRegistrationChurchCellLink() {
-        Integer middleGroupTableCount = jdbcTemplate.queryForObject(
-                """
-                        SELECT COUNT(*)
-                        FROM information_schema.tables
-                        WHERE table_schema = 'public'
-                          AND table_name = 'church_middle_groups'
-                        """,
-                Integer.class
-        );
-        Integer cellTableCount = jdbcTemplate.queryForObject(
-                """
-                        SELECT COUNT(*)
-                        FROM information_schema.tables
-                        WHERE table_schema = 'public'
-                          AND table_name = 'church_cells'
-                        """,
-                Integer.class
-        );
-        Integer registrationChurchCellColumnCount = jdbcTemplate.queryForObject(
+    void flywayMigrationCreatesRegistrationAffiliationSnapshotColumns() {
+        Integer affiliationColumnCount = jdbcTemplate.queryForObject(
                 """
                         SELECT COUNT(*)
                         FROM information_schema.columns
                         WHERE table_schema = 'public'
                           AND table_name = 'registrations'
-                          AND column_name = 'church_cell_id'
+                          AND column_name IN ('middle_group_name', 'cell_name')
                         """,
                 Integer.class
         );
 
-        assertThat(middleGroupTableCount).isEqualTo(1);
-        assertThat(cellTableCount).isEqualTo(1);
-        assertThat(registrationChurchCellColumnCount).isEqualTo(1);
+        assertThat(affiliationColumnCount).isEqualTo(2);
     }
 
     @Test
@@ -243,6 +257,18 @@ class GmcRetreatApplicationTests {
         );
 
         assertThat(scheduleTableCount).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM information_schema.columns
+                        WHERE table_schema = 'public'
+                          AND (table_name, column_name) IN (
+                              ('retreat_schedule_items', 'collect_participation'),
+                              ('retreat_participation_options', 'schedule_item_id')
+                          )
+                        """,
+                Integer.class
+        )).isEqualTo(2);
     }
 
     @Test
@@ -386,6 +412,45 @@ class GmcRetreatApplicationTests {
                         .header("Authorization", "Bearer " + chairToken))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("REGISTRATION_NOT_FOUND"));
+    }
+
+    @Test
+    void closingNewApplicationsStillAllowsParticipantUpdatesDuringOperations() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long retreatId = jdbcTemplate.queryForObject(
+                "SELECT id FROM retreats WHERE status = 'OPEN'",
+                Long.class
+        );
+        createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true);
+
+        mockMvc.perform(patch("/api/admin/retreats/" + retreatId + "/registration-open")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("registrationOpen", false))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("OPEN"))
+                .andExpect(jsonPath("$.data.registrationOpen").value(false));
+
+        mockMvc.perform(post("/api/registrations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registrationRequest("New Applicant", "010-7777-9999", "Young Adults", true)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("REGISTRATION_NOT_OPEN"));
+
+        mockMvc.perform(put("/api/registrations/self")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(selfUpdateRequest(DEFAULT_LOOKUP_KEY, "010-1234-5678")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.cellName").value("Updated Cell"));
+
+        mockMvc.perform(get("/api/admin/registrations")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].participantUpdatedAt").exists());
+
+        mockMvc.perform(get("/api/app/identity"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.registrationOpen").value(false));
     }
 
     @Test
@@ -717,7 +782,7 @@ class GmcRetreatApplicationTests {
 
         assertThat(duplicate.path("data").path("resultType").asText()).isEqualTo("OVERWRITTEN");
         assertThat(duplicate.path("data").path("registration").path("id").asLong()).isEqualTo(registrationId);
-        assertThat(duplicate.path("data").path("registration").path("churchCellDepartment").asText())
+        assertThat(duplicate.path("data").path("registration").path("cellName").asText())
                 .isEqualTo("College");
         assertThat(activeCount).isEqualTo(1);
         assertThat(overwrittenHistoryCount).isEqualTo(1);
@@ -772,7 +837,8 @@ class GmcRetreatApplicationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.phoneNumber").value("010****0000"))
-                .andExpect(jsonPath("$.data.churchCellDepartment").value("Updated Cell"));
+                .andExpect(jsonPath("$.data.middleGroupName").value("Updated Middle Group"))
+                .andExpect(jsonPath("$.data.cellName").value("Updated Cell"));
 
         Integer updatedCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM registration_histories WHERE change_type = 'SELF_UPDATED'",
@@ -813,29 +879,30 @@ class GmcRetreatApplicationTests {
     }
 
     @Test
-    void fullAttendanceForcesAllScheduleSlotsAndLodgingTrue() throws Exception {
+    void fullAttendanceSelectsAllActiveOptionsAndForcesLodgingTrue() throws Exception {
         MvcResult result = createRegistration(
                 "Grace Kim",
                 "010-1234-5678",
-                Map.of("attendDay1Morning", false, "lodgingNight1", false, "lodgingNight2", false)
+                Map.of("selectedOptionIds", List.of(), "lodgingNight1", false, "lodgingNight2", false)
         );
         result.getResponse().getContentAsString();
         assertThat(result.getResponse().getStatus()).isEqualTo(200);
 
         Map<String, Object> row = jdbcTemplate.queryForMap(
-                """
-                        SELECT lodging_night1, lodging_night2,
-                               attend_day1_morning, attend_day1_afternoon, attend_day1_worship,
-                               attend_day2_morning, attend_day2_afternoon, attend_day2_worship,
-                               attend_day3_morning, attend_day3_afternoon
-                        FROM registrations WHERE name = 'Grace Kim'
-                        """
+                "SELECT id, lodging_night1, lodging_night2 FROM registrations WHERE name = 'Grace Kim'"
         );
-        assertThat(row.values()).allSatisfy(value -> assertThat(value).isEqualTo(true));
+        assertThat(row.get("lodging_night1")).isEqualTo(true);
+        assertThat(row.get("lodging_night2")).isEqualTo(true);
+        Integer selectionCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM registration_participation_options WHERE registration_id = ?",
+                Integer.class,
+                row.get("id")
+        );
+        assertThat(selectionCount).isEqualTo(12);
     }
 
     @Test
-    void worshipOnlyKeepsScheduleButForcesLodgingFalse() throws Exception {
+    void worshipOnlyKeepsSelectedOptionsButForcesLodgingFalse() throws Exception {
         MvcResult result = createRegistration(
                 "Grace Kim",
                 "010-1234-5678",
@@ -845,28 +912,29 @@ class GmcRetreatApplicationTests {
                         "outboundTransportationMethod", "PUBLIC_TRANSIT",
                         "lodgingNight1", true,
                         "lodgingNight2", true,
-                        "attendDay1Worship", true,
-                        "attendDay2Worship", true
+                        "selectedOptionIds", List.of(
+                                participationOptionId("2026-08-14", "집회"),
+                                participationOptionId("2026-08-15", "집회")
+                        )
                 )
         );
         assertThat(result.getResponse().getStatus()).isEqualTo(200);
 
         Map<String, Object> row = jdbcTemplate.queryForMap(
-                """
-                        SELECT lodging_night1, lodging_night2, attend_day1_worship, attend_day2_worship,
-                               attend_day1_morning
-                        FROM registrations WHERE name = 'Grace Kim'
-                        """
+                "SELECT id, lodging_night1, lodging_night2 FROM registrations WHERE name = 'Grace Kim'"
         );
         assertThat(row.get("lodging_night1")).isEqualTo(false);
         assertThat(row.get("lodging_night2")).isEqualTo(false);
-        assertThat(row.get("attend_day1_worship")).isEqualTo(true);
-        assertThat(row.get("attend_day2_worship")).isEqualTo(true);
-        assertThat(row.get("attend_day1_morning")).isEqualTo(false);
+        Integer selectionCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM registration_participation_options WHERE registration_id = ?",
+                Integer.class,
+                row.get("id")
+        );
+        assertThat(selectionCount).isEqualTo(2);
     }
 
     @Test
-    void partialAttendancePersistsScheduleAndLodgingAsSubmitted() throws Exception {
+    void partialAttendancePersistsSelectedOptionsAndLodgingAsSubmitted() throws Exception {
         MvcResult result = createRegistration(
                 "Grace Kim",
                 "010-1234-5678",
@@ -875,24 +943,25 @@ class GmcRetreatApplicationTests {
                         "transportation", "PUBLIC_TRANSIT",
                         "lodgingNight1", true,
                         "lodgingNight2", false,
-                        "attendDay2Morning", true,
-                        "attendDay2Afternoon", true
+                        "selectedOptionIds", List.of(
+                                participationOptionId("2026-08-15", "오전 프로그램"),
+                                participationOptionId("2026-08-15", "오후 프로그램")
+                        )
                 )
         );
         assertThat(result.getResponse().getStatus()).isEqualTo(200);
 
         Map<String, Object> row = jdbcTemplate.queryForMap(
-                """
-                        SELECT lodging_night1, lodging_night2, attend_day2_morning, attend_day2_afternoon,
-                               attend_day1_morning
-                        FROM registrations WHERE name = 'Grace Kim'
-                        """
+                "SELECT id, lodging_night1, lodging_night2 FROM registrations WHERE name = 'Grace Kim'"
         );
         assertThat(row.get("lodging_night1")).isEqualTo(true);
         assertThat(row.get("lodging_night2")).isEqualTo(false);
-        assertThat(row.get("attend_day2_morning")).isEqualTo(true);
-        assertThat(row.get("attend_day2_afternoon")).isEqualTo(true);
-        assertThat(row.get("attend_day1_morning")).isEqualTo(false);
+        Integer selectionCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM registration_participation_options WHERE registration_id = ?",
+                Integer.class,
+                row.get("id")
+        );
+        assertThat(selectionCount).isEqualTo(2);
     }
 
     @Test
@@ -902,7 +971,8 @@ class GmcRetreatApplicationTests {
         missingTimes.put("gender", "FEMALE");
         missingTimes.put("birthYear", 1991);
         missingTimes.put("phoneNumber", "010-1234-5678");
-        missingTimes.put("churchCellDepartment", "Young Adults");
+        missingTimes.put("middleGroupName", "Dream");
+        missingTimes.put("cellName", "Young Adults");
         missingTimes.put("privacyConsentAgreed", true);
         missingTimes.put("lookupKey", DEFAULT_LOOKUP_KEY);
         missingTimes.put("attendanceType", "PARTIAL");
@@ -982,6 +1052,24 @@ class GmcRetreatApplicationTests {
                 )
         );
         assertThat(result.getResponse().getStatus()).isEqualTo(200);
+    }
+
+    @Test
+    void undecidedTransportationIsRejectedForNewApplications() throws Exception {
+        MvcResult result = createRegistration(
+                "Grace Kim",
+                "010-1234-5678",
+                Map.of(
+                        "attendanceType", "WORSHIP_ONLY",
+                        "selectedOptionIds", List.of(),
+                        "inboundTransportationMethod", "NOT_DECIDED",
+                        "outboundTransportationMethod", "NOT_DECIDED"
+                )
+        );
+
+        assertThat(result.getResponse().getStatus()).isEqualTo(400);
+        assertThat(objectMapper.readTree(result.getResponse().getContentAsString())
+                .path("error").path("code").asText()).isEqualTo("INVALID_REQUEST");
     }
 
     @Test
@@ -1241,19 +1329,26 @@ class GmcRetreatApplicationTests {
                                         "inboundTransportationMethod", "PUBLIC_TRANSIT",
                                         "outboundTransportationMethod", "PUBLIC_TRANSIT",
                                         "lodgingNight1", true,
-                                        "attendDay1Morning", true
+                                        "selectedOptionIds", List.of(
+                                                participationOptionId("2026-08-14", "오후 프로그램")
+                                        )
                                 )
                         )))
                 .andExpect(status().isOk());
 
         Map<String, Object> row = jdbcTemplate.queryForMap(
-                "SELECT attendance_type, inbound_transportation_method, lodging_night1, attend_day1_morning "
+                "SELECT id, attendance_type, inbound_transportation_method, lodging_night1 "
                         + "FROM registrations WHERE name = 'Grace Kim'"
         );
         assertThat(row.get("attendance_type")).isEqualTo("PARTIAL");
         assertThat(row.get("inbound_transportation_method")).isEqualTo("PUBLIC_TRANSIT");
         assertThat(row.get("lodging_night1")).isEqualTo(true);
-        assertThat(row.get("attend_day1_morning")).isEqualTo(true);
+        Integer selectionCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM registration_participation_options WHERE registration_id = ?",
+                Integer.class,
+                row.get("id")
+        );
+        assertThat(selectionCount).isEqualTo(1);
 
         Integer selfUpdatedCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM registration_histories WHERE change_type = 'SELF_UPDATED'",
@@ -1567,193 +1662,55 @@ class GmcRetreatApplicationTests {
     }
 
     @Test
-    void staffCanReadCommunityDataButCannotCreateOrUpdateIt() throws Exception {
-        String chairToken = accessTokenForRole(AdminRole.CHAIR);
-        Long middleGroupId = createMiddleGroup(chairToken, "Alpha", "Elder A");
-        Long cellId = createCell(chairToken, middleGroupId, "A1", "Leader A1");
-        String staffToken = accessTokenForRole(AdminRole.STAFF);
-
-        mockMvc.perform(get("/api/admin/community/middle-groups")
-                        .header("Authorization", "Bearer " + staffToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].name").value("Alpha"));
-
-        mockMvc.perform(get("/api/admin/community/cells/" + cellId)
-                        .header("Authorization", "Bearer " + staffToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.name").value("A1"))
-                .andExpect(jsonPath("$.data.middleGroupName").value("Alpha"));
-
-        mockMvc.perform(post("/api/admin/community/middle-groups")
-                        .header("Authorization", "Bearer " + staffToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(middleGroupRequest("Beta", "Elder B", 1)))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
-
-        mockMvc.perform(patch("/api/admin/community/cells/" + cellId)
-                        .header("Authorization", "Bearer " + staffToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(cellRequest(middleGroupId, "A1 Updated", "Leader A1", 0)))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
-    }
-
-    @Test
-    void chairCanCreateAndPastorCanUpdateCommunityStructure() throws Exception {
-        String chairToken = accessTokenForRole(AdminRole.CHAIR);
-        String pastorToken = accessTokenForRole(AdminRole.PASTOR);
-        Long middleGroupId = createMiddleGroup(chairToken, "Alpha", "Elder A");
-        Long cellId = createCell(chairToken, middleGroupId, "A1", "Leader A1");
-
-        mockMvc.perform(patch("/api/admin/community/middle-groups/" + middleGroupId)
-                        .header("Authorization", "Bearer " + pastorToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(middleGroupRequest("Alpha Updated", "Elder A", 2)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.name").value("Alpha Updated"))
-                .andExpect(jsonPath("$.data.displayOrder").value(2));
-
-        mockMvc.perform(patch("/api/admin/community/cells/" + cellId)
-                        .header("Authorization", "Bearer " + pastorToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(cellRequest(middleGroupId, "A1 Updated", "Leader A2", 3)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.name").value("A1 Updated"))
-                .andExpect(jsonPath("$.data.cellLeaderName").value("Leader A2"));
-
-        mockMvc.perform(patch("/api/admin/community/middle-groups/" + middleGroupId + "/active")
-                        .header("Authorization", "Bearer " + pastorToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("active", false))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.active").value(false));
-
-        mockMvc.perform(patch("/api/admin/community/cells/" + cellId + "/active")
-                        .header("Authorization", "Bearer " + pastorToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("active", false))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.active").value(false));
-    }
-
-    @Test
-    void duplicateCommunityNamesFollowMiddleGroupAndCellRules() throws Exception {
-        String chairToken = accessTokenForRole(AdminRole.CHAIR);
-        Long alphaId = createMiddleGroup(chairToken, "Alpha", "Elder A");
-        Long betaId = createMiddleGroup(chairToken, "Beta", "Elder B");
-        createCell(chairToken, alphaId, "Shared", "Leader A");
-
-        mockMvc.perform(post("/api/admin/community/middle-groups")
-                        .header("Authorization", "Bearer " + chairToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(middleGroupRequest("Alpha", "Another Elder", 5)))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error.code").value("DUPLICATE_COMMUNITY_NAME"));
-
-        mockMvc.perform(post("/api/admin/community/cells")
-                        .header("Authorization", "Bearer " + chairToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(cellRequest(alphaId, "Shared", "Leader B", 1)))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error.code").value("DUPLICATE_COMMUNITY_NAME"));
-
-        mockMvc.perform(post("/api/admin/community/cells")
-                        .header("Authorization", "Bearer " + chairToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(cellRequest(betaId, "Shared", "Leader C", 1)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.middleGroupId").value(betaId))
-                .andExpect(jsonPath("$.data.name").value("Shared"));
-    }
-
-    @Test
-    void communityTreeIncludesMiddleGroupsAndCells() throws Exception {
-        String chairToken = accessTokenForRole(AdminRole.CHAIR);
-        Long middleGroupId = createMiddleGroup(chairToken, "Alpha", "Elder A");
-        createCell(chairToken, middleGroupId, "A1", "Leader A1");
-        String staffToken = accessTokenForRole(AdminRole.STAFF);
-
-        mockMvc.perform(get("/api/admin/community/tree")
-                        .header("Authorization", "Bearer " + staffToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.middleGroups[0].name").value("Alpha"))
-                .andExpect(jsonPath("$.data.middleGroups[0].cells[0].name").value("A1"))
-                .andExpect(jsonPath("$.data.middleGroups[0].cells[0].cellLeaderName").value("Leader A1"));
-    }
-
-    @Test
-    void chairCanLinkAndUnlinkParticipantChurchCellWithoutChangingFreeTextDepartment() throws Exception {
+    void registrationStoresAffiliationNamesWithoutCommunityMasterData() throws Exception {
         JsonNode created = objectMapper.readTree(
-                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                createRegistration("Grace Kim", "010-1234-5678", "Joy Cell", true)
                         .getResponse()
                         .getContentAsString()
         );
         Long participantId = created.path("data").path("registration").path("id").asLong();
-        String chairToken = accessTokenForRole(AdminRole.CHAIR);
-        Long middleGroupId = createMiddleGroup(chairToken, "Alpha", "Elder A");
-        Long cellId = createCell(chairToken, middleGroupId, "A1", "Leader A1");
 
-        mockMvc.perform(patch("/api/admin/participants/" + participantId + "/church-cell")
-                        .header("Authorization", "Bearer " + chairToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("churchCellId", cellId))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.churchCellDepartment").value("Young Adults"))
-                .andExpect(jsonPath("$.data.churchCellId").value(cellId))
-                .andExpect(jsonPath("$.data.churchCellName").value("A1"))
-                .andExpect(jsonPath("$.data.middleGroupId").value(middleGroupId))
-                .andExpect(jsonPath("$.data.middleGroupName").value("Alpha"));
-
-        mockMvc.perform(get("/api/admin/registrations")
-                        .header("Authorization", "Bearer " + chairToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.content[0].churchCellId").value(cellId))
-                .andExpect(jsonPath("$.data.content[0].churchCellName").value("A1"))
-                .andExpect(jsonPath("$.data.content[0].middleGroupName").value("Alpha"))
-                .andExpect(jsonPath("$.data.content[0].churchCellDepartment").value("Young Adults"));
-
-        mockMvc.perform(patch("/api/admin/participants/" + participantId + "/church-cell")
-                        .header("Authorization", "Bearer " + chairToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"churchCellId\":null}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.churchCellDepartment").value("Young Adults"))
-                .andExpect(jsonPath("$.data.churchCellId").doesNotExist())
-                .andExpect(jsonPath("$.data.churchCellName").doesNotExist());
-
-        String freeTextDepartment = jdbcTemplate.queryForObject(
-                "SELECT church_cell_department FROM registrations WHERE id = ?",
-                String.class,
+        assertThat(created.path("data").path("registration").path("middleGroupName").asText())
+                .isEqualTo("Dream");
+        assertThat(created.path("data").path("registration").path("cellName").asText())
+                .isEqualTo("Joy Cell");
+        Map<String, Object> affiliation = jdbcTemplate.queryForMap(
+                "SELECT middle_group_name, cell_name FROM registrations WHERE id = ?",
                 participantId
         );
-        assertThat(freeTextDepartment).isEqualTo("Young Adults");
+        assertThat(affiliation.get("middle_group_name")).isEqualTo("Dream");
+        assertThat(affiliation.get("cell_name")).isEqualTo("Joy Cell");
     }
 
     @Test
-    void staffCannotLinkParticipantChurchCellAndInvalidChurchCellFails() throws Exception {
-        JsonNode created = objectMapper.readTree(
-                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
-                        .getResponse()
-                        .getContentAsString()
-        );
-        Long participantId = created.path("data").path("registration").path("id").asLong();
+    void legacyCommunityAdminEndpointIsRemoved() throws Exception {
         String chairToken = accessTokenForRole(AdminRole.CHAIR);
+
+        mockMvc.perform(get("/api/admin/community/tree")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void adminRegistrationFiltersUseEnteredAffiliationNames() throws Exception {
+        createRegistration("Grace Kim", "010-1234-5678", "Joy Cell", true);
+        createRegistration("Hope Lee", "010-2222-3333", "", true);
         String staffToken = accessTokenForRole(AdminRole.STAFF);
 
-        mockMvc.perform(patch("/api/admin/participants/" + participantId + "/church-cell")
-                        .header("Authorization", "Bearer " + staffToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("churchCellId", 999L))))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+        mockMvc.perform(get("/api/admin/registrations")
+                        .param("keyword", "Joy Cell")
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].middleGroupName").value("Dream"))
+                .andExpect(jsonPath("$.data.content[0].cellName").value("Joy Cell"));
 
-        mockMvc.perform(patch("/api/admin/participants/" + participantId + "/church-cell")
-                        .header("Authorization", "Bearer " + chairToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("churchCellId", 999L))))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error.code").value("COMMUNITY_NOT_FOUND"));
+        mockMvc.perform(get("/api/admin/registrations")
+                        .param("cellAssigned", "false")
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].name").value("Hope Lee"));
     }
 
     @Test
@@ -1880,7 +1837,8 @@ class GmcRetreatApplicationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("retreatGroupId", groupId))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.churchCellDepartment").value("Young Adults"))
+                .andExpect(jsonPath("$.data.middleGroupName").value("Dream"))
+                .andExpect(jsonPath("$.data.cellName").value("Young Adults"))
                 .andExpect(jsonPath("$.data.retreatGroupId").value(groupId))
                 .andExpect(jsonPath("$.data.retreatGroupName").value("Group 1"))
                 .andExpect(jsonPath("$.data.retreatGroupLeader").value(false));
@@ -1890,7 +1848,8 @@ class GmcRetreatApplicationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[0].retreatGroupId").value(groupId))
                 .andExpect(jsonPath("$.data.content[0].retreatGroupName").value("Group 1"))
-                .andExpect(jsonPath("$.data.content[0].churchCellDepartment").value("Young Adults"));
+                .andExpect(jsonPath("$.data.content[0].middleGroupName").value("Dream"))
+                .andExpect(jsonPath("$.data.content[0].cellName").value("Young Adults"));
 
         mockMvc.perform(get("/api/admin/retreat-groups/" + groupId + "/members")
                         .header("Authorization", "Bearer " + chairToken))
@@ -2119,28 +2078,30 @@ class GmcRetreatApplicationTests {
     }
 
     @Test
-    void createAnnouncementSupportsRetreatGroupAndChurchTargets() throws Exception {
+    void createAnnouncementSupportsRetreatGroupAndRejectsRemovedCommunityTargets() throws Exception {
         String chairToken = accessTokenForRole(AdminRole.CHAIR);
         Long retreatGroupId = createRetreatGroup(chairToken, "Group 1");
-        Long middleGroupId = createMiddleGroup(chairToken, "Alpha", "Elder A");
-        Long cellId = createCell(chairToken, middleGroupId, "A1", "Leader A1");
 
         mockMvc.perform(post("/api/admin/announcements")
                         .header("Authorization", "Bearer " + chairToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(announcementRequest(
                                 "Targeted Notice",
-                                List.of(
-                                        target("RETREAT_GROUP", retreatGroupId.toString()),
-                                        target("CHURCH_MIDDLE_GROUP", middleGroupId.toString()),
-                                        target("CHURCH_CELL", cellId.toString())
-                                )
+                                List.of(target("RETREAT_GROUP", retreatGroupId.toString()))
                         )))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.targets[0].targetType").value("RETREAT_GROUP"))
-                .andExpect(jsonPath("$.data.targets[0].targetValue").value(retreatGroupId.toString()))
-                .andExpect(jsonPath("$.data.targets[1].targetType").value("CHURCH_MIDDLE_GROUP"))
-                .andExpect(jsonPath("$.data.targets[2].targetType").value("CHURCH_CELL"));
+                .andExpect(jsonPath("$.data.targets[0].targetValue").value(retreatGroupId.toString()));
+
+        mockMvc.perform(post("/api/admin/announcements")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(announcementRequest(
+                                "Removed Community Target",
+                                List.of(target("CHURCH_CELL", "1"))
+                        )))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
     }
 
     @Test
@@ -2258,6 +2219,95 @@ class GmcRetreatApplicationTests {
     }
 
     @Test
+    void publicParticipationOptionsAreAvailableOnlyAsPublicFields() throws Exception {
+        mockMvc.perform(get("/api/participation-options"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(12))
+                .andExpect(jsonPath("$.data[0].label").value("오후 프로그램"))
+                .andExpect(jsonPath("$.data[0].selectionCount").doesNotExist())
+                .andExpect(jsonPath("$.data[0].createdAt").doesNotExist());
+    }
+
+    @Test
+    void staffCanReadParticipationOptionsButCannotChangeThem() throws Exception {
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+
+        mockMvc.perform(get("/api/admin/participation-options")
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(12));
+
+        mockMvc.perform(post("/api/admin/participation-options")
+                        .header("Authorization", "Bearer " + staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(participationOptionRequest("MEAL", "야식", "2026-08-16", 999, true)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    void chairCanManageParticipationOptionsAndSeeSelectionCount() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        MvcResult createdOption = mockMvc.perform(post("/api/admin/participation-options")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(participationOptionRequest("MEAL", "야식", "2026-08-16", 999, true)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.selectionCount").value(0))
+                .andReturn();
+        Long optionId = objectMapper.readTree(createdOption.getResponse().getContentAsString())
+                .path("data").path("id").asLong();
+
+        MvcResult registration = createRegistration(
+                "Meal Counter",
+                "010-7777-8888",
+                Map.of(
+                        "attendanceType", "PARTIAL",
+                        "inboundTransportationMethod", "PUBLIC_TRANSIT",
+                        "outboundTransportationMethod", "PUBLIC_TRANSIT",
+                        "selectedOptionIds", List.of(optionId)
+                )
+        );
+        assertThat(registration.getResponse().getStatus()).isEqualTo(200);
+
+        mockMvc.perform(get("/api/admin/participation-options")
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[12].label").value("야식"))
+                .andExpect(jsonPath("$.data[12].selectionCount").value(1));
+
+        mockMvc.perform(patch("/api/admin/participation-options/" + optionId + "/active")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("active", false))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.active").value(false));
+
+        mockMvc.perform(get("/api/participation-options"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(12));
+    }
+
+    @Test
+    void participationOptionsRejectOutsideDatesAndDuplicateLabels() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+
+        mockMvc.perform(post("/api/admin/participation-options")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(participationOptionRequest("MEAL", "외부 식사", "2026-08-17", 1, true)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+
+        mockMvc.perform(post("/api/admin/participation-options")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(participationOptionRequest("PROGRAM", "오후 프로그램", "2026-08-14", 999, true)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("DUPLICATE_PARTICIPATION_OPTION"));
+    }
+
+    @Test
     void chairPastorAndSystemAdminCanCreateScheduleItems() throws Exception {
         String chairToken = accessTokenForRole(AdminRole.CHAIR);
         String pastorToken = accessTokenForRole(AdminRole.PASTOR);
@@ -2334,15 +2384,15 @@ class GmcRetreatApplicationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "title", "Invalid Range",
-                                "description", "Ends before starts.",
-                                "scheduleDate", "2026-07-01",
-                                "startsAt", "2026-07-01T11:00:00Z",
-                                "endsAt", "2026-07-01T10:00:00Z",
+                                "scheduleDate", "2026-08-14",
+                                "startsAt", "2026-08-14T11:00:00+09:00",
+                                "endsAt", "2026-08-14T10:00:00+09:00",
                                 "location", "Chapel",
                                 "category", "WORSHIP",
                                 "targetAudience", "ALL",
                                 "active", true,
-                                "displayOrder", 0
+                                "displayOrder", 0,
+                                "collectParticipation", false
                         ))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
@@ -2357,15 +2407,15 @@ class GmcRetreatApplicationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "title", "Invalid Start Date",
-                                "description", "Schedule date does not match startsAt.",
-                                "scheduleDate", "2026-07-02",
-                                "startsAt", "2026-07-01T09:00:00Z",
-                                "endsAt", "2026-07-01T10:00:00Z",
+                                "scheduleDate", "2026-08-15",
+                                "startsAt", "2026-08-14T09:00:00+09:00",
+                                "endsAt", "2026-08-14T10:00:00+09:00",
                                 "location", "Chapel",
                                 "category", "WORSHIP",
                                 "targetAudience", "ALL",
                                 "active", true,
-                                "displayOrder", 0
+                                "displayOrder", 0,
+                                "collectParticipation", false
                         ))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
@@ -2380,15 +2430,15 @@ class GmcRetreatApplicationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "title", "Cross Date Schedule",
-                                "description", "Cross-date schedule items are not allowed in MVP.",
-                                "scheduleDate", "2026-07-01",
-                                "startsAt", "2026-07-01T23:30:00Z",
-                                "endsAt", "2026-07-02T00:30:00Z",
+                                "scheduleDate", "2026-08-14",
+                                "startsAt", "2026-08-14T23:30:00+09:00",
+                                "endsAt", "2026-08-15T00:30:00+09:00",
                                 "location", "Chapel",
                                 "category", "PRAYER",
                                 "targetAudience", "ALL",
                                 "active", true,
-                                "displayOrder", 0
+                                "displayOrder", 0,
+                                "collectParticipation", false
                         ))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
@@ -2418,6 +2468,111 @@ class GmcRetreatApplicationTests {
     }
 
     @Test
+    void scheduleCanCollectParticipationAndPreserveSelectionsWhenHidden() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+
+        MvcResult created = mockMvc.perform(post("/api/admin/schedules")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(scheduleRequestWithParticipation(
+                                "선택 프로그램", "PROGRAM", "2026-08-14", null, null, true
+                        )))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.startsAt").doesNotExist())
+                .andExpect(jsonPath("$.data.collectParticipation").value(true))
+                .andExpect(jsonPath("$.data.selectionCount").value(0))
+                .andReturn();
+
+        JsonNode createdData = objectMapper.readTree(created.getResponse().getContentAsString()).path("data");
+        long scheduleId = createdData.path("id").asLong();
+        long optionId = createdData.path("participationOptionId").asLong();
+
+        createParticipant("Schedule Participant", "010-2345-6789");
+
+        mockMvc.perform(get("/api/admin/schedules/" + scheduleId)
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.participationOptionId").value(optionId))
+                .andExpect(jsonPath("$.data.selectionCount").value(1));
+
+        mockMvc.perform(patch("/api/admin/schedules/" + scheduleId)
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(scheduleRequestWithParticipation(
+                                "선택 프로그램 수정", "PROGRAM", "2026-08-15", "14:00", "15:00", false
+                        )))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collectParticipation").value(false))
+                .andExpect(jsonPath("$.data.participationOptionId").value(optionId))
+                .andExpect(jsonPath("$.data.selectionCount").value(1));
+
+        Map<String, Object> option = jdbcTemplate.queryForMap(
+                "SELECT label, event_date, is_active FROM retreat_participation_options WHERE id = ?",
+                optionId
+        );
+        assertThat(option.get("label")).isEqualTo("선택 프로그램 수정");
+        assertThat(option.get("event_date").toString()).isEqualTo("2026-08-15");
+        assertThat(option.get("is_active")).isEqualTo(false);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM registration_participation_options WHERE option_id = ?",
+                Integer.class,
+                optionId
+        )).isEqualTo(1);
+    }
+
+    @Test
+    void retreatDateChangeMovesTimetableAndHidesItemsOutsideShortenedPeriod() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long secondDayScheduleId = createScheduleWithParticipation(
+                chairToken, "둘째 날 일정", "PROGRAM", "2026-08-15"
+        );
+        Long thirdDayScheduleId = createScheduleWithParticipation(
+                chairToken, "셋째 날 일정", "MEAL", "2026-08-16"
+        );
+        Long retreatId = jdbcTemplate.queryForObject(
+                "SELECT id FROM retreats WHERE status = 'OPEN'",
+                Long.class
+        );
+
+        mockMvc.perform(patch("/api/admin/retreats/" + retreatId)
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "Moved Retreat",
+                                "startsOn", "2026-09-01",
+                                "endsOn", "2026-09-02"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.startsOn").value("2026-09-01"))
+                .andExpect(jsonPath("$.data.endsOn").value("2026-09-02"));
+
+        mockMvc.perform(get("/api/admin/schedules/" + secondDayScheduleId)
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.scheduleDate").value("2026-09-02"))
+                .andExpect(jsonPath("$.data.active").value(true));
+
+        mockMvc.perform(get("/api/admin/schedules/" + thirdDayScheduleId)
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.scheduleDate").value("2026-09-03"))
+                .andExpect(jsonPath("$.data.active").value(false));
+
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM retreat_participation_options option
+                        JOIN retreat_schedule_items schedule ON schedule.id = option.schedule_item_id
+                        WHERE schedule.id = ?
+                          AND option.event_date = DATE '2026-09-03'
+                          AND option.is_active = FALSE
+                        """,
+                Integer.class,
+                thirdDayScheduleId
+        )).isEqualTo(1);
+    }
+
+    @Test
     void scheduleListFilteringByDateCategoryAndActiveWorks() throws Exception {
         String chairToken = accessTokenForRole(AdminRole.CHAIR);
         createSchedule(chairToken, "Visible Meal", "MEAL", "ALL", true, 0);
@@ -2425,7 +2580,7 @@ class GmcRetreatApplicationTests {
         createSchedule(chairToken, "Visible Prayer", "PRAYER", "ALL", true, 2);
 
         mockMvc.perform(get("/api/admin/schedules")
-                        .param("date", "2026-07-01")
+                        .param("date", "2026-08-14")
                         .param("category", "MEAL")
                         .param("active", "true")
                         .header("Authorization", "Bearer " + chairToken))
@@ -2629,15 +2784,8 @@ class GmcRetreatApplicationTests {
     @Test
     void checkInRosterSupportsFilters() throws Exception {
         String chairToken = accessTokenForRole(AdminRole.CHAIR);
-        Long middleGroupId = createMiddleGroup(chairToken, "Check In Alpha", "Elder A");
-        Long cellId = createCell(chairToken, middleGroupId, "Check In A1", "Leader A1");
         Long groupId = createRetreatGroup(chairToken, "Check In Group 1");
         Long participantId = createParticipant("Filter Person", "010-5555-7890");
-        mockMvc.perform(patch("/api/admin/participants/" + participantId + "/church-cell")
-                        .header("Authorization", "Bearer " + chairToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("churchCellId", cellId))))
-                .andExpect(status().isOk());
         mockMvc.perform(patch("/api/admin/participants/" + participantId + "/retreat-group")
                         .header("Authorization", "Bearer " + chairToken)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -2650,14 +2798,14 @@ class GmcRetreatApplicationTests {
         mockMvc.perform(get("/api/admin/check-ins")
                         .param("checkedIn", "true")
                         .param("retreatGroupId", groupId.toString())
-                        .param("churchCellId", cellId.toString())
-                        .param("keyword", "7890")
+                        .param("keyword", "Young Adults")
                         .header("Authorization", "Bearer " + chairToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content.length()").value(1))
                 .andExpect(jsonPath("$.data.content[0].participantId").value(participantId))
                 .andExpect(jsonPath("$.data.content[0].retreatGroupId").value(groupId))
-                .andExpect(jsonPath("$.data.content[0].churchCellId").value(cellId));
+                .andExpect(jsonPath("$.data.content[0].middleGroupName").value("Dream"))
+                .andExpect(jsonPath("$.data.content[0].cellName").value("Young Adults"));
     }
 
     @Test
@@ -3051,30 +3199,6 @@ class GmcRetreatApplicationTests {
         ));
     }
 
-    private Long createMiddleGroup(String accessToken, String name, String elderName) throws Exception {
-        MvcResult result = mockMvc.perform(post("/api/admin/community/middle-groups")
-                        .header("Authorization", "Bearer " + accessToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(middleGroupRequest(name, elderName, 0)))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
-        return response.path("data").path("id").asLong();
-    }
-
-    private Long createCell(String accessToken, Long middleGroupId, String name, String cellLeaderName) throws Exception {
-        MvcResult result = mockMvc.perform(post("/api/admin/community/cells")
-                        .header("Authorization", "Bearer " + accessToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(cellRequest(middleGroupId, name, cellLeaderName, 0)))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
-        return response.path("data").path("id").asLong();
-    }
-
     private Long createRetreatGroup(String accessToken, String name) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/admin/retreat-groups")
                         .header("Authorization", "Bearer " + accessToken)
@@ -3122,29 +3246,31 @@ class GmcRetreatApplicationTests {
         return response.path("data").path("id").asLong();
     }
 
+    private Long createScheduleWithParticipation(
+            String accessToken,
+            String title,
+            String category,
+            String scheduleDate
+    ) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/admin/schedules")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(scheduleRequestWithParticipation(
+                                title, category, scheduleDate, "09:00", "10:00", true
+                        )))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        return objectMapper.readTree(result.getResponse().getContentAsString())
+                .path("data")
+                .path("id")
+                .asLong();
+    }
+
     private Long createParticipant(String name, String phoneNumber) throws Exception {
         MvcResult result = createRegistration(name, phoneNumber, "Young Adults", true);
         JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
         return response.path("data").path("registration").path("id").asLong();
-    }
-
-    private String middleGroupRequest(String name, String elderName, int displayOrder) throws Exception {
-        return objectMapper.writeValueAsString(Map.of(
-                "name", name,
-                "elderName", elderName,
-                "description", name + " description",
-                "displayOrder", displayOrder
-        ));
-    }
-
-    private String cellRequest(Long middleGroupId, String name, String cellLeaderName, int displayOrder) throws Exception {
-        return objectMapper.writeValueAsString(Map.of(
-                "middleGroupId", middleGroupId,
-                "name", name,
-                "cellLeaderName", cellLeaderName,
-                "description", name + " description",
-                "displayOrder", displayOrder
-        ));
     }
 
     private String retreatGroupRequest(String name, int displayOrder) throws Exception {
@@ -3176,15 +3302,54 @@ class GmcRetreatApplicationTests {
     ) throws Exception {
         return objectMapper.writeValueAsString(Map.of(
                 "title", title,
-                "description", title + " description",
-                "scheduleDate", "2026-07-01",
-                "startsAt", "2026-07-01T09:00:00Z",
-                "endsAt", "2026-07-01T10:00:00Z",
+                "scheduleDate", "2026-08-14",
+                "startsAt", "2026-08-14T09:00:00+09:00",
+                "endsAt", "2026-08-14T10:00:00+09:00",
                 "location", "Main Chapel",
                 "category", category,
                 "targetAudience", targetAudience,
                 "active", active,
-                "displayOrder", displayOrder
+                "displayOrder", displayOrder,
+                "collectParticipation", false
+        ));
+    }
+
+    private String scheduleRequestWithParticipation(
+            String title,
+            String category,
+            String scheduleDate,
+            String startsTime,
+            String endsTime,
+            boolean collectParticipation
+    ) throws Exception {
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("title", title);
+        request.put("scheduleDate", scheduleDate);
+        if (startsTime != null && endsTime != null) {
+            request.put("startsAt", scheduleDate + "T" + startsTime + ":00+09:00");
+            request.put("endsAt", scheduleDate + "T" + endsTime + ":00+09:00");
+        }
+        request.put("category", category);
+        request.put("targetAudience", "ALL");
+        request.put("active", true);
+        request.put("displayOrder", startsTime == null ? 0 : 540);
+        request.put("collectParticipation", collectParticipation);
+        return objectMapper.writeValueAsString(request);
+    }
+
+    private String participationOptionRequest(
+            String optionType,
+            String label,
+            String eventDate,
+            int displayOrder,
+            boolean active
+    ) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "optionType", optionType,
+                "label", label,
+                "eventDate", eventDate,
+                "displayOrder", displayOrder,
+                "active", active
         ));
     }
 
@@ -3217,12 +3382,12 @@ class GmcRetreatApplicationTests {
     private MvcResult createRegistration(
             String name,
             String phoneNumber,
-            String churchCellDepartment,
+            String cellName,
             boolean privacyConsentAgreed
     ) throws Exception {
         return mockMvc.perform(post("/api/registrations")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(registrationRequest(name, phoneNumber, churchCellDepartment, privacyConsentAgreed)))
+                        .content(registrationRequest(name, phoneNumber, cellName, privacyConsentAgreed)))
                 .andExpect(status().isOk())
                 .andReturn();
     }
@@ -3241,7 +3406,7 @@ class GmcRetreatApplicationTests {
     private String registrationRequest(
             String name,
             String phoneNumber,
-            String churchCellDepartment,
+            String cellName,
             boolean privacyConsentAgreed
     ) throws Exception {
         return objectMapper.writeValueAsString(Map.ofEntries(
@@ -3249,10 +3414,12 @@ class GmcRetreatApplicationTests {
                 Map.entry("gender", "FEMALE"),
                 Map.entry("birthYear", 1991),
                 Map.entry("phoneNumber", phoneNumber),
-                Map.entry("churchCellDepartment", churchCellDepartment),
+                Map.entry("middleGroupName", "Dream"),
+                Map.entry("cellName", cellName),
                 Map.entry("privacyConsentAgreed", privacyConsentAgreed),
                 Map.entry("lookupKey", DEFAULT_LOOKUP_KEY),
                 Map.entry("attendanceType", "FULL"),
+                Map.entry("selectedOptionIds", List.of()),
                 Map.entry("inboundTransportationMethod", "GROUP_BUS"),
                 Map.entry("outboundTransportationMethod", "GROUP_BUS")
         ));
@@ -3268,10 +3435,12 @@ class GmcRetreatApplicationTests {
         body.put("gender", "FEMALE");
         body.put("birthYear", 1991);
         body.put("phoneNumber", phoneNumber);
-        body.put("churchCellDepartment", "Young Adults");
+        body.put("middleGroupName", "Dream");
+        body.put("cellName", "Young Adults");
         body.put("privacyConsentAgreed", true);
         body.put("lookupKey", DEFAULT_LOOKUP_KEY);
         body.put("attendanceType", "FULL");
+        body.put("selectedOptionIds", List.of());
         body.put("inboundTransportationMethod", "GROUP_BUS");
         body.put("outboundTransportationMethod", "GROUP_BUS");
         body.putAll(attendanceOverrides);
@@ -3306,8 +3475,10 @@ class GmcRetreatApplicationTests {
         update.put("gender", "FEMALE");
         update.put("birthYear", 1992);
         update.put("phoneNumber", phoneNumber);
-        update.put("churchCellDepartment", "Updated Cell");
+        update.put("middleGroupName", "Updated Middle Group");
+        update.put("cellName", "Updated Cell");
         update.put("attendanceType", "FULL");
+        update.put("selectedOptionIds", List.of());
         update.put("inboundTransportationMethod", "GROUP_BUS");
         update.put("outboundTransportationMethod", "GROUP_BUS");
         update.putAll(attendanceOverrides);
@@ -3329,6 +3500,29 @@ class GmcRetreatApplicationTests {
         body.put("lookupKey", lookupKey);
         body.put("update", update);
         return objectMapper.writeValueAsString(body);
+    }
+
+    private Long participationOptionId(String eventDate, String label) {
+        return jdbcTemplate.queryForObject(
+                """
+                        SELECT id
+                        FROM retreat_participation_options
+                        WHERE event_date = CAST(? AS DATE) AND label = ?
+                          AND retreat_id = (SELECT id FROM retreats WHERE status = 'OPEN')
+                        """,
+                Long.class,
+                eventDate,
+                label
+        );
+    }
+
+    private boolean tableExists(String tableName) {
+        Boolean exists = jdbcTemplate.queryForObject(
+                "SELECT to_regclass('public.' || ?) IS NOT NULL",
+                Boolean.class,
+                tableName
+        );
+        return Boolean.TRUE.equals(exists);
     }
 
     private int countOccurrences(String value, String needle) {

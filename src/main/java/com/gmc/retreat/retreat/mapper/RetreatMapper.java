@@ -19,6 +19,8 @@ public interface RetreatMapper {
 
     Optional<Retreat> findOpen();
 
+    Optional<Retreat> findRegistrationOpen();
+
     int insert(RetreatInsert retreat);
 
     int updateMetadata(
@@ -32,6 +34,11 @@ public interface RetreatMapper {
             @Param("id") Long id,
             @Param("status") RetreatStatus status,
             @Param("participantCount") Integer participantCount
+    );
+
+    int updateRegistrationOpen(
+            @Param("id") Long id,
+            @Param("registrationOpen") Boolean registrationOpen
     );
 
     int countRegisteredParticipants(@Param("retreatId") Long retreatId);

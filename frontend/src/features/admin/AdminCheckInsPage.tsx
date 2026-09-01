@@ -94,7 +94,7 @@ export function AdminCheckInsPage() {
                     {item.checkedIn ? "체크인 완료" : "미체크인"}
                   </span>
                 </td>
-                <td>{item.churchCellName ?? "-"}</td>
+                <td>{item.cellName ?? "-"}</td>
                 <td>{item.retreatGroupName ?? "-"}</td>
                 <td>{item.checkedInAt ? new Date(item.checkedInAt).toLocaleString() : "-"}</td>
                 <td>

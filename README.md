@@ -1,8 +1,8 @@
-# Retreat Ops
+# 청년2부 수련회 운영
 
-`church-retreat-ops`는 교회 수련회 준비와 현장 운영을 위한 운영 도구입니다.
+`church-retreat-ops`는 지구촌교회 드림공동체 청년2부 수련회의 신청과 현장 운영을 위한 도구입니다.
 
-현재는 백엔드 기반, 관리자 인증 기반, 참가자 등록, 관리자 참가자 관리, 공동체 구조, 수련회 조 편성, 공지 도메인, 일정 도메인, 체크인 도메인, 참가비 관리 도메인과 단일 현재 수련회 생명주기가 구현되어 있습니다. 프론트엔드는 `frontend/`에 Vite React 관리자/공개 앱이 구성되어 있습니다.
+현재는 관리자 인증, 참가자 등록·본인 수정, 동적 참석·식사 항목, 참가자 관리, 수련회 조 편성, 공지, 일정, 체크인, 참가비와 단일 현재 수련회 생명주기가 구현되어 있습니다. 프론트엔드는 `frontend/`에 Vite React 관리자/공개 앱이 구성되어 있습니다.
 
 ## 현재 완료된 단계
 
@@ -39,14 +39,19 @@
 - 참가자 등록 API
 - 개인정보 동의 필수 검증
 - 전화번호 정규화와 DB check constraint
-- 개인 조회 키 1회 표시 및 BCrypt 해시 저장
+- 참가자가 정한 6자리 조회 키를 BCrypt 해시로만 저장
 - 동일 이름 + 전화번호 활성 등록 중복 시 기존 행 덮어쓰기
 - 등록 생성, 덮어쓰기, 본인 수정 이력 저장
-- 이름 + 전화번호 마지막 4자리 + 조회 키 본인 조회
+- 이름 + 조회 키 본인 조회, 전화번호 마지막 4자리 재확인 후 수정
 - 설정 기반 본인 수정 허용/차단
+- 신규 신청 마감 후에도 운영 중에는 본인 수정 허용
+- 본인 수정 시각과 변경 이력을 운영진에게 표시
+- 수련회별 동적 프로그램·식사 선택
 - 관리자 등록 목록/상세/이력 읽기 API
 
 자세한 내용은 [docs/phase2-participant-registration.md](docs/phase2-participant-registration.md)를 참고합니다.
+
+시간표와 참석·식사 선택 연동은 [docs/dynamic-participation-options.md](docs/dynamic-participation-options.md)를 참고합니다.
 
 ### Phase 3: 관리자 참가자 관리
 
@@ -59,16 +64,11 @@
 
 자세한 내용은 [docs/phase3-admin-participant-management.md](docs/phase3-admin-participant-management.md)를 참고합니다.
 
-### Phase 4: 공동체 구조
+### Phase 4: 참가자 소속 정보
 
-- 교회 중그룹 `church_middle_groups`
-- 교회 셀 `church_cells`
-- 참가자와 교회 셀의 nullable 링크 `registrations.church_cell_id`
-- 기존 자유 입력 `churchCellDepartment` 유지
-- 중그룹/셀 CRUD와 활성 상태 변경 API
-- 공동체 트리 API
-- 관리자 참가자 교회 셀 link/unlink API
-- 관리자 참가자 목록/상세 응답에 정규화된 중그룹/셀 정보 포함
+- 신청 시 중그룹 `middleGroupName`과 셀 `cellName` 선택 입력
+- 별도 공동체 마스터와 관리 화면 없이 신청 당시 문자열 스냅샷 저장
+- 관리자 참가자·체크인·참가비·조 편성 화면에서 소속 표시
 
 자세한 내용은 [docs/phase4-community-structure.md](docs/phase4-community-structure.md)를 참고합니다.
 
@@ -82,7 +82,7 @@
 - 참가자 수련회 조 배정/해제 API
 - 수련회 조장 지정/해제 API
 - 관리자 참가자 목록/상세 응답에 수련회 조 정보 포함
-- 기존 교회 중그룹/셀과 `churchCellDepartment` 응답 동작 유지
+- 신청 당시 중그룹·셀 정보와 수련회 조 정보를 분리해 유지
 
 자세한 내용은 [docs/phase5-retreat-group-assignment.md](docs/phase5-retreat-group-assignment.md)를 참고합니다.
 
@@ -94,20 +94,20 @@
 - 공지 활성/비활성 상태 변경 API
 - 공지 고정/고정 해제 API
 - 노출 기간 `visibleFrom`, `visibleUntil`
-- 전체, 등록 상태, 납부 상태, 새가족, 돌봄 대상, 교회 중그룹/셀, 수련회 조, 관리자 역할 대상 조건
+- 전체, 등록 상태, 납부 상태, 새가족, 돌봄 대상, 수련회 조, 관리자 역할 대상 조건
 - `STAFF` 이상 조회, `CHAIR` 이상 변경
 
 자세한 내용은 [docs/phase6-announcement-domain.md](docs/phase6-announcement-domain.md)를 참고합니다.
 
-### Phase 7: 일정 도메인
+### Phase 7: 시간표와 신청 항목 통합
 
 - 관리자 일정 `retreat_schedule_items`
 - 일정 생성/목록/상세/수정 API
-- 일정 활성/비활성 상태 변경 API
-- 일정 일자 `scheduleDate`, 시작/종료 시각 `startsAt`, `endsAt`
-- `startsAt`과 `endsAt`은 모두 `scheduleDate`와 같은 날짜여야 함
-- 일정 카테고리와 간단한 대상 구분
-- 장소, 설명, 같은 날 정렬용 `displayOrder`
+- 날짜별 카드형 시간표와 일정 추가·수정 화면
+- 선택 입력 가능한 시작/종료 시각과 `시간 미정` 일정
+- `collectParticipation`으로 신청서 노출과 선택 인원 집계
+- 식사·프로그램 일정과 참가자 선택을 같은 트랜잭션에서 동기화
+- 수련회 기간 변경 시 일차 기준 이동, 범위 밖 일정 비공개
 - `STAFF` 이상 조회, `CHAIR` 이상 변경
 
 자세한 내용은 [docs/phase7-schedule-domain.md](docs/phase7-schedule-domain.md)를 참고합니다.
@@ -141,12 +141,13 @@
 
 - 수련회 `retreats`와 `DRAFT → OPEN → CLOSED` 상태 전환
 - `DRAFT` 또는 `OPEN` 수련회는 DB 전체에서 최대 하나
-- 공개 신청은 `OPEN` 수련회에만 생성
-- 참가 신청, 수련회 조, 공지, 일정은 수련회별로 분리
+- 운영 상태 `OPEN`과 신규 신청 접수 `registrationOpen`을 분리
+- 신규 신청을 마감해도 `OPEN` 동안 기존 참가자 본인 수정 가능
+- 참가 신청, 참석·식사 항목, 수련회 조, 공지, 일정은 수련회별로 분리
 - 수련회 종료 시 활성 참가 인원수를 요약으로 저장
 - 종료된 수련회의 참가자 상세는 현재 운영 API에서 제외
 - 종료된 수련회의 시간표는 `retreatId`로 조회 가능
-- 관리자 수련회 생성, 설정 변경, 신청 시작, 종료 화면
+- 관리자 수련회 생성, 설정 변경, 신규 신청 열기·마감, 운영 종료 화면
 
 자세한 내용은 [docs/multi-retreat-foundation.md](docs/multi-retreat-foundation.md)를 참고합니다.
 
@@ -207,11 +208,11 @@ docker compose down -v
 
 ## 앱 아이덴티티 설정
 
-화면에 표시되는 앱 이름, 교회/단체명, 행사명은 환경변수로 바꿀 수 있습니다. 기본값은 특정 교회에 묶이지 않는 플레이스홀더입니다.
+화면에 표시되는 앱 이름, 교회/단체명, 행사명은 환경변수로 바꿀 수 있습니다. 현재 수련회가 있으면 응답의 행사명은 수련회 이름을 사용합니다.
 
-- `APP_IDENTITY_APP_NAME`: 기본값 `Retreat Ops`
-- `APP_IDENTITY_ORGANIZATION_NAME`: 기본값 `Your Church`
-- `APP_IDENTITY_EVENT_NAME`: 기본값 `Your Retreat`
+- `APP_IDENTITY_APP_NAME`: 기본값 `청년2부 수련회`
+- `APP_IDENTITY_ORGANIZATION_NAME`: 기본값 `지구촌교회 드림공동체 청년2부`
+- `APP_IDENTITY_EVENT_NAME`: 현재 수련회가 없을 때 사용할 기본 행사명
 
 현재 설정값 확인:
 
@@ -234,8 +235,7 @@ npm run dev
 주요 라우트:
 
 - 공개 화면: `/public`, `/public/register`, `/public/self-lookup`, `/public/check-in`
-- 관리자 화면: `/admin/login`, `/admin/dashboard`, `/admin/participants`, `/admin/fees`
-- 다음 확장 라우트: `/admin/community`, `/admin/retreat-groups`, `/admin/announcements`, `/admin/schedules`, `/admin/check-ins`
+- 관리자 화면: `/admin/login`, `/admin/dashboard`, `/admin/retreats`, `/admin/schedules`, `/admin/participants`, `/admin/retreat-groups`, `/admin/announcements`, `/admin/check-ins`, `/admin/fees`
 
 프론트엔드 빌드 확인:
 
@@ -296,7 +296,13 @@ curl -s http://localhost:8080/api/admin/auth/me \
 
 ## 참가자 등록 테스트
 
-참가자 등록은 공개 API입니다. 응답의 `data.lookupKey`는 이 응답에서만 평문으로 표시됩니다.
+참가자 등록은 운영진이 현재 수련회의 신규 신청을 연 동안만 가능합니다. 먼저 공개 참석·식사 항목을 조회합니다.
+
+```bash
+curl -s http://localhost:8080/api/participation-options
+```
+
+조회 키는 참가자가 정한 숫자 6자리이며 서버에는 BCrypt 해시만 저장됩니다.
 
 ```bash
 curl -s -X POST http://localhost:8080/api/registrations \
@@ -306,8 +312,16 @@ curl -s -X POST http://localhost:8080/api/registrations \
     "gender":"FEMALE",
     "birthYear":1991,
     "phoneNumber":"010-1234-5678",
-    "churchCellDepartment":"Young Adults",
-    "privacyConsentAgreed":true
+    "middleGroupName":"드림 중그룹",
+    "cellName":"사랑 셀",
+    "privacyConsentAgreed":true,
+    "lookupKey":"123456",
+    "attendanceType":"FULL",
+    "lodgingNight1":true,
+    "lodgingNight2":true,
+    "selectedOptionIds":[],
+    "inboundTransportationMethod":"GROUP_BUS",
+    "outboundTransportationMethod":"GROUP_BUS"
   }'
 ```
 
@@ -318,28 +332,11 @@ curl -s -X POST http://localhost:8080/api/registrations/self/lookup \
   -H 'Content-Type: application/json' \
   -d '{
     "name":"Grace Kim",
-    "phoneLastFour":"5678",
-    "lookupKey":"<lookupKey>"
+    "lookupKey":"123456"
   }'
 ```
 
-본인 수정:
-
-```bash
-curl -s -X PUT http://localhost:8080/api/registrations/self \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "name":"Grace Kim",
-    "phoneLastFour":"5678",
-    "lookupKey":"<lookupKey>",
-    "update":{
-      "gender":"FEMALE",
-      "birthYear":1992,
-      "phoneNumber":"010-9999-0000",
-      "churchCellDepartment":"Updated Cell"
-    }
-  }'
-```
+본인 수정의 전체 요청 예시는 [http/02-participant-registration.http](http/02-participant-registration.http)를 참고합니다. 신규 신청을 마감한 뒤에도 수련회가 `OPEN`인 동안 수정할 수 있으며 운영진 목록에 마지막 본인 수정 시각이 표시됩니다.
 
 관리자 등록 목록과 상세는 JWT가 필요합니다.
 
@@ -374,44 +371,9 @@ curl -s -X PATCH http://localhost:8080/api/admin/registrations/1/management \
   }'
 ```
 
-## 공동체 구조 테스트
-
-중그룹과 셀 관리는 JWT가 필요합니다. `STAFF`는 조회, `CHAIR` 이상은 생성/수정/활성 상태 변경과 참가자 셀 연결을 수행할 수 있습니다.
-
-```bash
-curl -s -X POST http://localhost:8080/api/admin/community/middle-groups \
-  -H 'Authorization: Bearer <accessToken>' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "name":"Alpha",
-    "elderName":"Elder A",
-    "description":"Alpha middle group",
-    "displayOrder":0
-  }'
-
-curl -s -X POST http://localhost:8080/api/admin/community/cells \
-  -H 'Authorization: Bearer <accessToken>' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "middleGroupId":1,
-    "name":"A1",
-    "cellLeaderName":"Leader A1",
-    "description":"A1 cell",
-    "displayOrder":0
-  }'
-
-curl -s http://localhost:8080/api/admin/community/tree \
-  -H 'Authorization: Bearer <accessToken>'
-
-curl -s -X PATCH http://localhost:8080/api/admin/participants/1/church-cell \
-  -H 'Authorization: Bearer <accessToken>' \
-  -H 'Content-Type: application/json' \
-  -d '{"churchCellId":1}'
-```
-
 ## 수련회 조 편성 테스트
 
-수련회 조는 교회 중그룹/셀과 별도의 임시 운영 구조입니다. `STAFF`는 조회, `CHAIR` 이상은 생성/수정/활성 상태 변경, 참가자 배정/해제, 조장 지정/해제를 수행할 수 있습니다.
+수련회 조는 신청 당시 중그룹·셀 정보와 별도의 임시 운영 구조입니다. `STAFF`는 조회, `CHAIR` 이상은 생성/수정/활성 상태 변경, 참가자 배정/해제, 조장 지정/해제를 수행할 수 있습니다.
 
 ```bash
 curl -s -X POST http://localhost:8080/api/admin/retreat-groups \
@@ -471,28 +433,28 @@ curl -s -X PATCH http://localhost:8080/api/admin/announcements/1/pinned \
   -d '{"pinned":false}'
 ```
 
-## 일정 도메인 테스트
+## 시간표 테스트
 
-일정 관리는 JWT가 필요합니다. `STAFF`는 조회, `CHAIR` 이상은 생성/수정/활성 상태 변경을 수행할 수 있습니다.
+시간표 관리는 JWT가 필요합니다. `STAFF`는 조회, `CHAIR` 이상은 생성/수정/공개 상태 변경을 수행할 수 있습니다. `collectParticipation`을 켜면 같은 일정이 참가 신청서에도 표시됩니다.
 
 ```bash
 curl -s -X POST http://localhost:8080/api/admin/schedules \
   -H 'Authorization: Bearer <accessToken>' \
   -H 'Content-Type: application/json' \
   -d '{
-    "title":"Opening Worship",
-    "description":"Retreat opening worship in the main chapel.",
-    "scheduleDate":"2026-07-01",
-    "startsAt":"2026-07-01T09:00:00Z",
-    "endsAt":"2026-07-01T10:30:00Z",
-    "location":"Main Chapel",
-    "category":"WORSHIP",
+    "title":"저녁식사",
+    "scheduleDate":"2027-01-15",
+    "startsAt":"2027-01-15T18:00:00+09:00",
+    "endsAt":"2027-01-15T19:00:00+09:00",
+    "location":"식당",
+    "category":"MEAL",
     "targetAudience":"ALL",
     "active":true,
-    "displayOrder":0
+    "displayOrder":1080,
+    "collectParticipation":true
   }'
 
-curl -s 'http://localhost:8080/api/admin/schedules?date=2026-07-01&category=WORSHIP&active=true' \
+curl -s 'http://localhost:8080/api/admin/schedules?date=2027-01-15&category=MEAL&active=true' \
   -H 'Authorization: Bearer <accessToken>'
 
 curl -s -X PATCH http://localhost:8080/api/admin/schedules/1/active \
@@ -564,7 +526,9 @@ APP_REGISTRATION_SELF_EDIT_ENABLED
 현재 공개 API:
 
 - `GET /api/health`
+- `GET /api/app/identity`
 - `POST /api/admin/auth/login`
+- `GET /api/participation-options`
 - `POST /api/registrations`
 - `POST /api/registrations/self/lookup`
 - `PUT /api/registrations/self`
@@ -578,24 +542,14 @@ JWT가 필요한 API:
 - `POST /api/admin/retreats`
 - `PATCH /api/admin/retreats/{id}`
 - `PATCH /api/admin/retreats/{id}/status`
+- `PATCH /api/admin/retreats/{id}/registration-open`
+- `GET /api/admin/participation-options`
 - `GET /api/admin/registrations`
 - `GET /api/admin/registrations/{id}`
 - `GET /api/admin/registrations/{id}/histories`
 - `PATCH /api/admin/registrations/{id}/fee-paid`
 - `PATCH /api/admin/registrations/{id}/status`
 - `PATCH /api/admin/registrations/{id}/management`
-- `GET /api/admin/community/middle-groups`
-- `GET /api/admin/community/middle-groups/{id}`
-- `POST /api/admin/community/middle-groups`
-- `PATCH /api/admin/community/middle-groups/{id}`
-- `PATCH /api/admin/community/middle-groups/{id}/active`
-- `GET /api/admin/community/cells`
-- `GET /api/admin/community/cells/{id}`
-- `POST /api/admin/community/cells`
-- `PATCH /api/admin/community/cells/{id}`
-- `PATCH /api/admin/community/cells/{id}/active`
-- `GET /api/admin/community/tree`
-- `PATCH /api/admin/participants/{participantId}/church-cell`
 - `GET /api/admin/retreat-groups`
 - `GET /api/admin/retreat-groups/{id}`
 - `POST /api/admin/retreat-groups`

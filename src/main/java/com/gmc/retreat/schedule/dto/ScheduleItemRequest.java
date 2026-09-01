@@ -13,12 +13,13 @@ public record ScheduleItemRequest(
         @NotBlank @Size(max = 150) String title,
         @Size(max = 10000) String description,
         @NotNull LocalDate scheduleDate,
-        @NotNull OffsetDateTime startsAt,
-        @NotNull OffsetDateTime endsAt,
+        OffsetDateTime startsAt,
+        OffsetDateTime endsAt,
         @Size(max = 150) String location,
         @NotNull ScheduleCategory category,
         @NotNull ScheduleTargetAudience targetAudience,
         @NotNull Boolean active,
-        @NotNull @Min(0) Integer displayOrder
+        @NotNull @Min(0) Integer displayOrder,
+        @NotNull Boolean collectParticipation
 ) {
 }

@@ -25,4 +25,14 @@ public interface ScheduleItemMapper {
     int updateScheduleItem(ScheduleItemUpsert scheduleItem);
 
     int updateActive(@Param("id") Long id, @Param("active") Boolean active, @Param("adminId") Long adminId);
+
+    int shiftScheduleItems(
+            @Param("retreatId") Long retreatId,
+            @Param("dayShift") long dayShift,
+            @Param("startsOn") LocalDate startsOn,
+            @Param("endsOn") LocalDate endsOn,
+            @Param("adminId") Long adminId
+    );
+
+    int syncLinkedParticipationOptions(@Param("retreatId") Long retreatId);
 }

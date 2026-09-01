@@ -12,6 +12,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 public record RegistrationSelfUpdateRequest(
         @NotBlank @Size(max = 50) String name,
@@ -23,18 +24,12 @@ public record RegistrationSelfUpdateRequest(
             @NotNull Gender gender,
             @NotNull @Min(1900) @Max(2026) Integer birthYear,
             @NotBlank String phoneNumber,
-            @Size(max = 100) String churchCellDepartment,
+            @Size(max = 100) String middleGroupName,
+            @Size(max = 100) String cellName,
             @NotNull AttendanceType attendanceType,
             Boolean lodgingNight1,
             Boolean lodgingNight2,
-            Boolean attendDay1Morning,
-            Boolean attendDay1Afternoon,
-            Boolean attendDay1Worship,
-            Boolean attendDay2Morning,
-            Boolean attendDay2Afternoon,
-            Boolean attendDay2Worship,
-            Boolean attendDay3Morning,
-            Boolean attendDay3Afternoon,
+            @NotNull List<@NotNull Long> selectedOptionIds,
             OffsetDateTime plannedArrivalAt,
             OffsetDateTime plannedDepartureAt,
             @Size(max = 300) String partialAttendanceNote,
