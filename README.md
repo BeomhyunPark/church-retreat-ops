@@ -2,7 +2,7 @@
 
 `church-retreat-ops`는 교회 수련회 준비와 현장 운영을 위한 운영 도구입니다.
 
-현재는 백엔드 기반, 관리자 인증 기반, 참가자 등록, 관리자 참가자 관리, 공동체 구조, 수련회 조 편성, 공지 도메인, 일정 도메인, 체크인 도메인, 참가비 관리 도메인 Phase 9가 구현되어 있습니다. 프론트엔드는 `frontend/`에 Vite React 앱 셸이 구성되어 있습니다.
+현재는 백엔드 기반, 관리자 인증 기반, 참가자 등록, 관리자 참가자 관리, 공동체 구조, 수련회 조 편성, 공지 도메인, 일정 도메인, 체크인 도메인, 참가비 관리 도메인과 단일 현재 수련회 생명주기가 구현되어 있습니다. 프론트엔드는 `frontend/`에 Vite React 관리자/공개 앱이 구성되어 있습니다.
 
 ## 현재 완료된 단계
 
@@ -136,6 +136,19 @@
 - `STAFF` 이상 조회, `CHAIR` 이상 참가비 상태 변경
 
 자세한 내용은 [docs/phase9-fee-management-domain.md](docs/phase9-fee-management-domain.md)를 참고합니다.
+
+### 단일 현재 수련회 생명주기
+
+- 수련회 `retreats`와 `DRAFT → OPEN → CLOSED` 상태 전환
+- `DRAFT` 또는 `OPEN` 수련회는 DB 전체에서 최대 하나
+- 공개 신청은 `OPEN` 수련회에만 생성
+- 참가 신청, 수련회 조, 공지, 일정은 수련회별로 분리
+- 수련회 종료 시 활성 참가 인원수를 요약으로 저장
+- 종료된 수련회의 참가자 상세는 현재 운영 API에서 제외
+- 종료된 수련회의 시간표는 `retreatId`로 조회 가능
+- 관리자 수련회 생성, 설정 변경, 신청 시작, 종료 화면
+
+자세한 내용은 [docs/multi-retreat-foundation.md](docs/multi-retreat-foundation.md)를 참고합니다.
 
 ## 기술 스택
 
@@ -560,6 +573,11 @@ APP_REGISTRATION_SELF_EDIT_ENABLED
 JWT가 필요한 API:
 
 - `GET /api/admin/auth/me`
+- `GET /api/admin/retreats`
+- `GET /api/admin/retreats/current`
+- `POST /api/admin/retreats`
+- `PATCH /api/admin/retreats/{id}`
+- `PATCH /api/admin/retreats/{id}/status`
 - `GET /api/admin/registrations`
 - `GET /api/admin/registrations/{id}`
 - `GET /api/admin/registrations/{id}/histories`
@@ -595,7 +613,7 @@ JWT가 필요한 API:
 - `PATCH /api/admin/announcements/{id}`
 - `PATCH /api/admin/announcements/{id}/active`
 - `PATCH /api/admin/announcements/{id}/pinned`
-- `GET /api/admin/schedules`
+- `GET /api/admin/schedules` (`retreatId`를 지정하면 종료된 수련회 시간표 조회)
 - `GET /api/admin/schedules/{id}`
 - `POST /api/admin/schedules`
 - `PATCH /api/admin/schedules/{id}`
@@ -617,12 +635,12 @@ JWT가 필요한 API:
 아래 기능은 현재 단계에서 의도적으로 제외되어 있습니다.
 
 - 참가자 로그인 계정
-- 프론트엔드
 - 장로/셀 리더 로그인 또는 `admin_users` 연결
 - 카카오톡, SMS, 푸시, 이메일 공지 발송
 - 참가자 공개 공지 화면과 읽음 확인
 - 참가자 공개 일정 화면, 일정 알림, 캘린더 연동, 반복 일정, 출석 추적
 - 참가자 공개 체크인 화면, 공개 QR 스캔 API, QR scanner UI, 체크인 알림, 체크인 통계 dashboard
 - 실 결제 gateway, 영수증 업로드, 환불 workflow, 정산 자동화
+- 종료된 수련회 참가자 개인정보 자동 삭제/익명화 정책
 
 참가자는 관리자 계정이 아닙니다. 관리자 로그인 계정은 수련회 운영진과 시스템 관리자를 위한 `admin_users`에만 저장됩니다.

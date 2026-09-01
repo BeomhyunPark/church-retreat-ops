@@ -37,6 +37,7 @@ import com.gmc.retreat.registration.mapper.RegistrationSelfUpdate;
 import com.gmc.retreat.registration.mapper.RegistrationPrivacyAccessLogInsert;
 import com.gmc.retreat.registration.mapper.RegistrationPrivacyAccessLogMapper;
 import com.gmc.retreat.security.auth.AdminPrincipal;
+import com.gmc.retreat.retreat.service.RetreatService;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +60,7 @@ public class RegistrationService {
     private final PasswordEncoder passwordEncoder;
     private final RegistrationProperties registrationProperties;
     private final ObjectMapper objectMapper;
+    private final RetreatService retreatService;
 
     public RegistrationService(
             RegistrationMapper registrationMapper,
@@ -68,7 +70,8 @@ public class RegistrationService {
             CommunityService communityService,
             PasswordEncoder passwordEncoder,
             RegistrationProperties registrationProperties,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            RetreatService retreatService
     ) {
         this.registrationMapper = registrationMapper;
         this.registrationHistoryMapper = registrationHistoryMapper;
@@ -78,10 +81,12 @@ public class RegistrationService {
         this.passwordEncoder = passwordEncoder;
         this.registrationProperties = registrationProperties;
         this.objectMapper = objectMapper;
+        this.retreatService = retreatService;
     }
 
     @Transactional
     public RegistrationCreateResponse createOrOverwrite(RegistrationCreateRequest request) {
+        Long retreatId = retreatService.requireOpenRetreatId();
         String name = normalizeName(request.name());
         String normalizedName = normalizeName(request.name());
         String phoneNumber = PhoneNumberNormalizer.normalize(request.phoneNumber());
@@ -118,6 +123,7 @@ public class RegistrationService {
 
         if (existing == null) {
             RegistrationInsert insert = new RegistrationInsert(
+                    retreatId,
                     name,
                     normalizedName,
                     request.gender(),

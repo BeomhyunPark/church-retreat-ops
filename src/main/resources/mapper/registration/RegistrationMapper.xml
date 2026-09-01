@@ -97,6 +97,9 @@
     </sql>
 
     <sql id="listFilters">
+        AND r.retreat_id = (
+            SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+        )
         <if test="keyword != null and keyword != ''">
             AND (
                 lower(r.name) LIKE lower(concat('%', #{keyword}, '%'))
@@ -156,6 +159,9 @@
         FROM registrations r
         <include refid="commonJoins" />
         WHERE r.id = #{id}
+          AND r.retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </select>
 
     <select id="findActiveByNormalizedNameAndPhoneNumber" resultMap="RegistrationResultMap">
@@ -165,6 +171,7 @@
         WHERE r.normalized_name = #{normalizedName}
           AND r.phone_number = #{phoneNumber}
           AND r.status = 'REGISTERED'
+          AND r.retreat_id = (SELECT id FROM retreats WHERE status = 'OPEN')
     </select>
 
     <select id="findActiveByNormalizedNameAndPhoneLastFour" resultMap="RegistrationResultMap">
@@ -174,6 +181,7 @@
         WHERE r.normalized_name = #{normalizedName}
           AND r.phone_last_four = #{phoneLastFour}
           AND r.status = 'REGISTERED'
+          AND r.retreat_id = (SELECT id FROM retreats WHERE status = 'OPEN')
         ORDER BY r.id ASC
     </select>
 
@@ -183,6 +191,7 @@
         <include refid="commonJoins" />
         WHERE r.normalized_name = #{normalizedName}
           AND r.status = 'REGISTERED'
+          AND r.retreat_id = (SELECT id FROM retreats WHERE status = 'OPEN')
         ORDER BY r.id ASC
     </select>
 
@@ -210,7 +219,7 @@
     <insert id="insert" parameterType="com.gmc.retreat.registration.mapper.RegistrationInsert"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO registrations (
-            name, normalized_name, gender, birth_year, phone_number, phone_last_four,
+            retreat_id, name, normalized_name, gender, birth_year, phone_number, phone_last_four,
             church_cell_department, lookup_key_hash, privacy_consent_agreed, fee_paid, status,
             attendance_type,
             planned_arrival_at, planned_departure_at, partial_attendance_note,
@@ -226,7 +235,7 @@
             outbound_carpool_preferred_area, outbound_carpool_preferred_note, outbound_worship_bus_ride_slot
         )
         VALUES (
-            #{name}, #{normalizedName}, #{gender}, #{birthYear}, #{phoneNumber}, #{phoneLastFour},
+            #{retreatId}, #{name}, #{normalizedName}, #{gender}, #{birthYear}, #{phoneNumber}, #{phoneLastFour},
             #{churchCellDepartment}, #{lookupKeyHash}, #{privacyConsentAgreed}, #{feePaid}, #{status},
             #{attendanceType},
             #{plannedArrivalAt}, #{plannedDepartureAt}, #{partialAttendanceNote},
@@ -288,6 +297,7 @@
             outbound_worship_bus_ride_slot = #{outboundWorshipBusRideSlot},
             updated_at = now()
         WHERE id = #{id}
+          AND retreat_id = (SELECT id FROM retreats WHERE status = 'OPEN')
     </update>
 
     <update id="selfUpdate" parameterType="com.gmc.retreat.registration.mapper.RegistrationSelfUpdate">
@@ -331,6 +341,7 @@
             outbound_worship_bus_ride_slot = #{outboundWorshipBusRideSlot},
             updated_at = now()
         WHERE id = #{id}
+          AND retreat_id = (SELECT id FROM retreats WHERE status = 'OPEN')
     </update>
 
     <update id="updateFeePaid">
@@ -338,6 +349,9 @@
         SET fee_paid = #{feePaid},
             updated_at = now()
         WHERE id = #{id}
+          AND retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </update>
 
     <update id="updateStatus">
@@ -345,6 +359,9 @@
         SET status = #{status},
             updated_at = now()
         WHERE id = #{id}
+          AND retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </update>
 
     <update id="updateManagement" parameterType="com.gmc.retreat.registration.mapper.RegistrationManagementUpdate">
@@ -354,6 +371,9 @@
             care_target = #{careTarget},
             updated_at = now()
         WHERE id = #{id}
+          AND retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </update>
 
     <update id="updateChurchCell">
@@ -361,6 +381,9 @@
         SET church_cell_id = #{churchCellId},
             updated_at = now()
         WHERE id = #{id}
+          AND retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </update>
 
 </mapper>

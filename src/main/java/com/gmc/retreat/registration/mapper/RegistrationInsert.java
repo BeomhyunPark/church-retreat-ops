@@ -9,6 +9,7 @@ import java.time.OffsetDateTime;
 
 public class RegistrationInsert {
     private Long id;
+    private final Long retreatId;
     private final String name;
     private final String normalizedName;
     private final Gender gender;
@@ -54,6 +55,7 @@ public class RegistrationInsert {
     private final WorshipBusRideSlot outboundWorshipBusRideSlot;
 
     public RegistrationInsert(
+            Long retreatId,
             String name,
             String normalizedName,
             Gender gender,
@@ -98,6 +100,7 @@ public class RegistrationInsert {
             String outboundCarpoolPreferredNote,
             WorshipBusRideSlot outboundWorshipBusRideSlot
     ) {
+        this.retreatId = retreatId;
         this.name = name;
         this.normalizedName = normalizedName;
         this.gender = gender;
@@ -149,6 +152,10 @@ public class RegistrationInsert {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getRetreatId() {
+        return retreatId;
     }
 
     public String getName() {

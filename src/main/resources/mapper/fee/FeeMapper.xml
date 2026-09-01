@@ -57,8 +57,11 @@
 
     <sql id="RosterFilters">
         <where>
+            AND r.retreat_id = (
+                SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+            )
             <if test="feePaid != null">
-                r.fee_paid = #{feePaid}
+                AND r.fee_paid = #{feePaid}
             </if>
             <if test="retreatGroupId != null">
                 AND rg.id = #{retreatGroupId}
@@ -97,18 +100,27 @@
         <include refid="FeeColumns" />
         <include refid="FeeJoins" />
         WHERE r.id = #{participantId}
+          AND r.retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </select>
 
     <select id="countParticipantById" resultType="int">
         SELECT COUNT(*)
         FROM registrations
         WHERE id = #{participantId}
+          AND retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </select>
 
     <select id="findFeePaidByParticipantId" resultType="java.lang.Boolean">
         SELECT fee_paid
         FROM registrations
         WHERE id = #{participantId}
+          AND retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </select>
 
     <select id="updateFeePaidIfChanged" resultType="java.lang.Boolean">
@@ -116,6 +128,9 @@
             SELECT id, fee_paid
             FROM registrations
             WHERE id = #{participantId}
+              AND retreat_id = (
+                  SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+              )
               AND fee_paid &lt;&gt; #{feePaid}
             FOR UPDATE
         ),

@@ -10,6 +10,7 @@ import { AdminParticipantDetailPage } from "../features/admin/AdminParticipantDe
 import { AdminParticipantsPage } from "../features/admin/AdminParticipantsPage";
 import { AdminProfilePage } from "../features/admin/AdminProfilePage";
 import { AdminRetreatGroupsPage } from "../features/admin/AdminRetreatGroupsPage";
+import { AdminRetreatsPage } from "../features/admin/AdminRetreatsPage";
 import { AdminSchedulesPage } from "../features/admin/AdminSchedulesPage";
 import { AppHomePage } from "../features/home/AppHomePage";
 import { PublicCheckInPage } from "../features/public/PublicCheckInPage";
@@ -45,6 +46,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/admin/dashboard" replace /> },
       { path: "dashboard", element: <AdminDashboardPage /> },
+      { path: "retreats", element: <AdminRetreatsPage /> },
       { path: "participants", element: <AdminParticipantsPage /> },
       { path: "participants/:participantId", element: <AdminParticipantDetailPage /> },
       { path: "fees", element: <AdminFeesPage /> },

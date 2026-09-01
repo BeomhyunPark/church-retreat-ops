@@ -12,6 +12,7 @@ import com.gmc.retreat.schedule.dto.ScheduleItemResponse;
 import com.gmc.retreat.schedule.mapper.ScheduleItemMapper;
 import com.gmc.retreat.schedule.mapper.ScheduleItemUpsert;
 import com.gmc.retreat.security.auth.AdminPrincipal;
+import com.gmc.retreat.retreat.service.RetreatService;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -23,20 +24,23 @@ import org.springframework.util.StringUtils;
 public class ScheduleItemService {
 
     private final ScheduleItemMapper scheduleItemMapper;
+    private final RetreatService retreatService;
 
-    public ScheduleItemService(ScheduleItemMapper scheduleItemMapper) {
+    public ScheduleItemService(ScheduleItemMapper scheduleItemMapper, RetreatService retreatService) {
         this.scheduleItemMapper = scheduleItemMapper;
+        this.retreatService = retreatService;
     }
 
     @Transactional(readOnly = true)
     public List<ScheduleItemResponse> findScheduleItems(
             AdminPrincipal admin,
+            Long retreatId,
             LocalDate scheduleDate,
             ScheduleCategory category,
             Boolean active
     ) {
         requireRole(admin, AdminRole.STAFF);
-        return scheduleItemMapper.findScheduleItems(scheduleDate, category, active)
+        return scheduleItemMapper.findScheduleItems(retreatId, scheduleDate, category, active)
                 .stream()
                 .map(ScheduleItemResponse::from)
                 .toList();
@@ -51,6 +55,7 @@ public class ScheduleItemService {
     @Transactional
     public ScheduleItemResponse createScheduleItem(AdminPrincipal admin, ScheduleItemRequest request) {
         requireRole(admin, AdminRole.CHAIR);
+        retreatService.requireCurrentRetreatId();
         ValidatedScheduleItem validated = validateRequest(request);
         ScheduleItemUpsert insert = new ScheduleItemUpsert(
                 null,

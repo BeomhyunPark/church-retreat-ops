@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gmc.retreat.retreat.mapper.RetreatMapper">
+    <resultMap id="RetreatResultMap" type="com.gmc.retreat.retreat.domain.Retreat">
+        <constructor>
+            <arg column="id" javaType="java.lang.Long" />
+            <arg column="name" javaType="java.lang.String" />
+            <arg column="starts_on" javaType="java.time.LocalDate" />
+            <arg column="ends_on" javaType="java.time.LocalDate" />
+            <arg column="status" javaType="com.gmc.retreat.retreat.domain.RetreatStatus" />
+            <arg column="participant_count" javaType="java.lang.Integer" />
+            <arg column="created_at" javaType="java.time.OffsetDateTime" />
+            <arg column="updated_at" javaType="java.time.OffsetDateTime" />
+        </constructor>
+    </resultMap>
+
+    <sql id="RetreatColumns">
+        id, name, starts_on, ends_on, status, participant_count, created_at, updated_at
+    </sql>
+
+    <select id="findAll" resultMap="RetreatResultMap">
+        SELECT <include refid="RetreatColumns" />
+        FROM retreats
+        ORDER BY starts_on DESC, id DESC
+    </select>
+
+    <select id="findById" resultMap="RetreatResultMap">
+        SELECT <include refid="RetreatColumns" />
+        FROM retreats
+        WHERE id = #{id}
+    </select>
+
+    <select id="findCurrent" resultMap="RetreatResultMap">
+        SELECT <include refid="RetreatColumns" />
+        FROM retreats
+        WHERE status IN ('DRAFT', 'OPEN')
+    </select>
+
+    <select id="findOpen" resultMap="RetreatResultMap">
+        SELECT <include refid="RetreatColumns" />
+        FROM retreats
+        WHERE status = 'OPEN'
+    </select>
+
+    <insert id="insert" parameterType="com.gmc.retreat.retreat.mapper.RetreatInsert"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO retreats (name, starts_on, ends_on, status)
+        VALUES (#{name}, #{startsOn}, #{endsOn}, 'DRAFT')
+    </insert>
+
+    <update id="updateMetadata">
+        UPDATE retreats
+        SET name = #{name},
+            starts_on = #{startsOn},
+            ends_on = #{endsOn},
+            updated_at = now()
+        WHERE id = #{id}
+          AND status IN ('DRAFT', 'OPEN')
+    </update>
+
+    <update id="updateStatus">
+        UPDATE retreats
+        SET status = #{status},
+            participant_count = #{participantCount},
+            updated_at = now()
+        WHERE id = #{id}
+    </update>
+
+    <select id="countRegisteredParticipants" resultType="int">
+        SELECT COUNT(*)
+        FROM registrations
+        WHERE retreat_id = #{retreatId}
+          AND status = 'REGISTERED'
+    </select>
+</mapper>

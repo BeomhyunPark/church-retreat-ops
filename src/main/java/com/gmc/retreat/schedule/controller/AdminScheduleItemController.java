@@ -34,13 +34,20 @@ public class AdminScheduleItemController {
     @GetMapping
     public ApiResponse<List<ScheduleItemResponse>> schedules(
             @AuthenticationPrincipal AdminPrincipal admin,
+            @RequestParam(required = false) Long retreatId,
             @RequestParam(value = "date", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
             LocalDate scheduleDate,
             @RequestParam(required = false) ScheduleCategory category,
             @RequestParam(required = false) Boolean active
     ) {
-        return ApiResponse.success(scheduleItemService.findScheduleItems(admin, scheduleDate, category, active));
+        return ApiResponse.success(scheduleItemService.findScheduleItems(
+                admin,
+                retreatId,
+                scheduleDate,
+                category,
+                active
+        ));
     }
 
     @GetMapping("/{id}")

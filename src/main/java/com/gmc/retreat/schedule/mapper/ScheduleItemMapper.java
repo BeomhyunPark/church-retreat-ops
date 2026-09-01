@@ -12,6 +12,7 @@ import org.apache.ibatis.annotations.Param;
 public interface ScheduleItemMapper {
 
     List<ScheduleItem> findScheduleItems(
+            @Param("retreatId") Long retreatId,
             @Param("scheduleDate") LocalDate scheduleDate,
             @Param("category") ScheduleCategory category,
             @Param("active") Boolean active

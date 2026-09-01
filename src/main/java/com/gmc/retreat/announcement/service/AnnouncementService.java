@@ -17,6 +17,7 @@ import com.gmc.retreat.error.BusinessException;
 import com.gmc.retreat.error.ErrorCode;
 import com.gmc.retreat.registration.domain.RegistrationStatus;
 import com.gmc.retreat.retreat.mapper.RetreatGroupMapper;
+import com.gmc.retreat.retreat.service.RetreatService;
 import com.gmc.retreat.security.auth.AdminPrincipal;
 import java.time.OffsetDateTime;
 import java.util.HashSet;
@@ -36,15 +37,18 @@ public class AnnouncementService {
     private final AnnouncementMapper announcementMapper;
     private final CommunityMapper communityMapper;
     private final RetreatGroupMapper retreatGroupMapper;
+    private final RetreatService retreatService;
 
     public AnnouncementService(
             AnnouncementMapper announcementMapper,
             CommunityMapper communityMapper,
-            RetreatGroupMapper retreatGroupMapper
+            RetreatGroupMapper retreatGroupMapper,
+            RetreatService retreatService
     ) {
         this.announcementMapper = announcementMapper;
         this.communityMapper = communityMapper;
         this.retreatGroupMapper = retreatGroupMapper;
+        this.retreatService = retreatService;
     }
 
     @Transactional(readOnly = true)
@@ -65,6 +69,7 @@ public class AnnouncementService {
     @Transactional
     public AnnouncementResponse createAnnouncement(AdminPrincipal admin, AnnouncementRequest request) {
         requireRole(admin, AdminRole.CHAIR);
+        retreatService.requireCurrentRetreatId();
         ValidatedAnnouncement validated = validateRequest(request);
         AnnouncementUpsert insert = new AnnouncementUpsert(
                 null,

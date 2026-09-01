@@ -2,6 +2,7 @@ import { apiRequest } from "../../shared/api/client";
 
 export type AdminRoleValue = "STAFF" | "CHAIR" | "PASTOR" | "SYSTEM_ADMIN";
 export type AdminStatusValue = "ACTIVE" | "INACTIVE" | "LOCKED";
+export type RetreatStatusValue = "DRAFT" | "OPEN" | "CLOSED";
 
 const ROLE_LABELS: Record<AdminRoleValue, string> = {
   STAFF: "스태프",
@@ -31,6 +32,23 @@ export type AdminAccount = {
   lastLoginAt?: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type Retreat = {
+  id: number;
+  name: string;
+  startsOn: string;
+  endsOn: string;
+  status: RetreatStatusValue;
+  participantCount?: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RetreatPayload = {
+  name: string;
+  startsOn: string;
+  endsOn: string;
 };
 
 export type AdminAccountPayload = {
@@ -226,6 +244,7 @@ export type ScheduleItem = {
 };
 
 export type ScheduleFilters = {
+  retreatId?: number;
   active?: boolean;
   category?: string;
   date?: string;
@@ -333,6 +352,34 @@ export function loginAdmin(email: string, password: string) {
 
 export function getAdminProfile() {
   return apiRequest<AdminProfile>("/admin/auth/me", { auth: true });
+}
+
+export function getRetreats() {
+  return apiRequest<Retreat[]>("/admin/retreats", { auth: true });
+}
+
+export function createRetreat(payload: RetreatPayload) {
+  return apiRequest<Retreat>("/admin/retreats", {
+    auth: true,
+    method: "POST",
+    body: payload
+  });
+}
+
+export function updateRetreat(id: number, payload: RetreatPayload) {
+  return apiRequest<Retreat>(`/admin/retreats/${id}`, {
+    auth: true,
+    method: "PATCH",
+    body: payload
+  });
+}
+
+export function updateRetreatStatus(id: number, status: RetreatStatusValue) {
+  return apiRequest<Retreat>(`/admin/retreats/${id}/status`, {
+    auth: true,
+    method: "PATCH",
+    body: { status }
+  });
 }
 
 export function getAdminRegistrations(filtersOrSize: AdminRegistrationFilters | number = {}) {
@@ -472,6 +519,10 @@ export function updateAnnouncementPinned(id: number, pinned: boolean) {
 
 export function getSchedules(filters: ScheduleFilters = {}) {
   const params = new URLSearchParams();
+
+  if (filters.retreatId !== undefined) {
+    params.set("retreatId", String(filters.retreatId));
+  }
 
   if (filters.date) {
     params.set("date", filters.date);

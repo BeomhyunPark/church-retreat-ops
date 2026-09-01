@@ -1,0 +1,53 @@
+@baseUrl = http://localhost:8080
+
+### Retreat history and current summary
+GET {{baseUrl}}/api/admin/retreats
+Authorization: Bearer {{adminToken}}
+
+### Current retreat
+GET {{baseUrl}}/api/admin/retreats/current
+Authorization: Bearer {{adminToken}}
+
+### Create the next retreat in DRAFT
+POST {{baseUrl}}/api/admin/retreats
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "2027 Winter Retreat",
+  "startsOn": "2027-01-15",
+  "endsOn": "2027-01-17"
+}
+
+### Update current retreat metadata
+PATCH {{baseUrl}}/api/admin/retreats/{{retreatId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "2027 Winter Retreat",
+  "startsOn": "2027-01-15",
+  "endsOn": "2027-01-17"
+}
+
+### Open registration
+PATCH {{baseUrl}}/api/admin/retreats/{{retreatId}}/status
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "status": "OPEN"
+}
+
+### Close retreat and retain participant count summary
+PATCH {{baseUrl}}/api/admin/retreats/{{retreatId}}/status
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "status": "CLOSED"
+}
+
+### View the archived schedule
+GET {{baseUrl}}/api/admin/schedules?retreatId={{retreatId}}
+Authorization: Bearer {{adminToken}}

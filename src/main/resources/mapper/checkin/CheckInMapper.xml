@@ -51,8 +51,11 @@
 
     <sql id="RosterFilters">
         <where>
+            AND r.retreat_id = (
+                SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+            )
             <if test="checkedIn != null">
-                COALESCE(ci.checked_in, FALSE) = #{checkedIn}
+                AND COALESCE(ci.checked_in, FALSE) = #{checkedIn}
             </if>
             <if test="retreatGroupId != null">
                 AND rg.id = #{retreatGroupId}
@@ -91,12 +94,18 @@
         <include refid="RosterColumns" />
         <include refid="RosterJoins" />
         WHERE r.id = #{participantId}
+          AND r.retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </select>
 
     <select id="countParticipantById" resultType="int">
         SELECT COUNT(*)
         FROM registrations
         WHERE id = #{participantId}
+          AND retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </select>
 
     <select id="upsertCheckInIfNotCheckedIn" resultType="java.lang.Long">

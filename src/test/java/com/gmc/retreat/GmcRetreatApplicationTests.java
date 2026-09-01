@@ -102,6 +102,11 @@ class GmcRetreatApplicationTests {
         jdbcTemplate.update("DELETE FROM retreat_groups");
         jdbcTemplate.update("DELETE FROM church_cells");
         jdbcTemplate.update("DELETE FROM church_middle_groups");
+        jdbcTemplate.update("DELETE FROM retreats");
+        jdbcTemplate.update("""
+                INSERT INTO retreats (name, starts_on, ends_on, status)
+                VALUES ('Test Retreat', DATE '2026-08-14', DATE '2026-08-16', 'OPEN')
+                """);
     }
 
     @Test
@@ -238,6 +243,190 @@ class GmcRetreatApplicationTests {
         );
 
         assertThat(scheduleTableCount).isEqualTo(1);
+    }
+
+    @Test
+    void flywayMigrationCreatesRetreatFoundationAndCurrentRetreat() {
+        Integer retreatTableCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM information_schema.tables
+                        WHERE table_schema = 'public'
+                          AND table_name = 'retreats'
+                        """,
+                Integer.class
+        );
+        Integer retreatLinkCount = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM information_schema.columns
+                        WHERE table_schema = 'public'
+                          AND table_name IN (
+                              'registrations',
+                              'retreat_groups',
+                              'announcements',
+                              'retreat_schedule_items'
+                          )
+                          AND column_name = 'retreat_id'
+                        """,
+                Integer.class
+        );
+        Integer currentRetreatCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM retreats WHERE status IN ('DRAFT', 'OPEN')",
+                Integer.class
+        );
+
+        assertThat(retreatTableCount).isEqualTo(1);
+        assertThat(retreatLinkCount).isEqualTo(4);
+        assertThat(currentRetreatCount).isEqualTo(1);
+    }
+
+    @Test
+    void retreatLifecycleClosesWithSummaryAndIsolatesTheNextRetreat() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long currentRetreatId = jdbcTemplate.queryForObject(
+                "SELECT id FROM retreats WHERE status = 'OPEN'",
+                Long.class
+        );
+        Long previousParticipantId = createParticipant("Repeat Participant", "010-1234-5678");
+        Long cancelledParticipantId = createParticipant("Cancelled Participant", "010-1234-0000");
+        mockMvc.perform(patch("/api/admin/registrations/" + cancelledParticipantId + "/status")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status":"CANCELLED"}
+                                """))
+                .andExpect(status().isOk());
+        Long previousScheduleId = createSchedule(
+                chairToken,
+                "Previous Retreat Worship",
+                "WORSHIP",
+                "ALL",
+                true,
+                0
+        );
+
+        mockMvc.perform(patch("/api/admin/retreats/" + currentRetreatId + "/status")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status":"CLOSED"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("CLOSED"))
+                .andExpect(jsonPath("$.data.participantCount").value(1));
+
+        Long retainedScheduleRetreatId = jdbcTemplate.queryForObject(
+                "SELECT retreat_id FROM retreat_schedule_items WHERE id = ?",
+                Long.class,
+                previousScheduleId
+        );
+        assertThat(retainedScheduleRetreatId).isEqualTo(currentRetreatId);
+
+        mockMvc.perform(get("/api/admin/schedules")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .param("retreatId", currentRetreatId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(previousScheduleId))
+                .andExpect(jsonPath("$.data[0].title").value("Previous Retreat Worship"));
+
+        mockMvc.perform(post("/api/registrations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registrationRequest(
+                                "Closed Registration",
+                                "010-9999-0000",
+                                "Young Adults",
+                                true
+                        )))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("REGISTRATION_NOT_OPEN"));
+
+        MvcResult createdRetreatResult = mockMvc.perform(post("/api/admin/retreats")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name":"2027 Winter Retreat",
+                                  "startsOn":"2027-01-15",
+                                  "endsOn":"2027-01-17"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("DRAFT"))
+                .andReturn();
+        Long nextRetreatId = objectMapper.readTree(createdRetreatResult.getResponse().getContentAsString())
+                .path("data")
+                .path("id")
+                .asLong();
+
+        mockMvc.perform(post("/api/registrations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registrationRequest(
+                                "Draft Registration",
+                                "010-9999-1111",
+                                "Young Adults",
+                                true
+                        )))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("REGISTRATION_NOT_OPEN"));
+
+        mockMvc.perform(patch("/api/admin/retreats/" + nextRetreatId + "/status")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status":"OPEN"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("OPEN"));
+
+        Long nextParticipantId = createParticipant("Repeat Participant", "010-1234-5678");
+        assertThat(nextParticipantId).isNotEqualTo(previousParticipantId);
+
+        mockMvc.perform(get("/api/admin/registrations/" + previousParticipantId)
+                        .header("Authorization", "Bearer " + chairToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("REGISTRATION_NOT_FOUND"));
+    }
+
+    @Test
+    void staffCanReadRetreatsButCannotChangeLifecycle() throws Exception {
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+
+        mockMvc.perform(get("/api/admin/retreats")
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].status").value("OPEN"));
+
+        mockMvc.perform(post("/api/admin/retreats")
+                        .header("Authorization", "Bearer " + staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name":"Forbidden Retreat",
+                                  "startsOn":"2027-03-01",
+                                  "endsOn":"2027-03-03"
+                                }
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    void cannotCreateAnotherRetreatWhileOneIsCurrent() throws Exception {
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+
+        mockMvc.perform(post("/api/admin/retreats")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name":"Overlapping Retreat",
+                                  "startsOn":"2027-02-01",
+                                  "endsOn":"2027-02-03"
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("CURRENT_RETREAT_ALREADY_EXISTS"));
     }
 
     @Test

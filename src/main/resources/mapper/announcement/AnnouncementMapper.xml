@@ -54,6 +54,9 @@
         SELECT
         <include refid="AnnouncementColumns" />
         <include refid="AnnouncementJoins" />
+        WHERE a.retreat_id = (
+            SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+        )
         ORDER BY a.is_pinned DESC, a.created_at DESC, a.id DESC
     </select>
 
@@ -62,6 +65,9 @@
         <include refid="AnnouncementColumns" />
         <include refid="AnnouncementJoins" />
         WHERE a.id = #{id}
+          AND a.retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </select>
 
     <select id="findTargetsByAnnouncementId" resultMap="AnnouncementTargetResultMap">
@@ -73,10 +79,11 @@
 
     <insert id="insertAnnouncement" parameterType="com.gmc.retreat.announcement.mapper.AnnouncementUpsert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO announcements (
-            title, content, is_pinned, is_active, visible_from, visible_until,
+            retreat_id, title, content, is_pinned, is_active, visible_from, visible_until,
             created_by_admin_id, updated_by_admin_id
         )
         VALUES (
+            (SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')),
             #{title}, #{content}, #{pinned}, #{active}, #{visibleFrom}, #{visibleUntil},
             #{adminId}, #{adminId}
         )
@@ -93,6 +100,9 @@
             updated_by_admin_id = #{adminId},
             updated_at = now()
         WHERE id = #{id}
+          AND retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </update>
 
     <update id="updateActive">
@@ -101,6 +111,9 @@
             updated_by_admin_id = #{adminId},
             updated_at = now()
         WHERE id = #{id}
+          AND retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </update>
 
     <update id="updatePinned">
@@ -109,6 +122,9 @@
             updated_by_admin_id = #{adminId},
             updated_at = now()
         WHERE id = #{id}
+          AND retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </update>
 
     <insert id="insertTarget" parameterType="com.gmc.retreat.announcement.mapper.AnnouncementTargetInsert">

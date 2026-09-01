@@ -38,17 +38,20 @@ public class RetreatGroupService {
     private final RegistrationMapper registrationMapper;
     private final RegistrationHistoryMapper registrationHistoryMapper;
     private final ObjectMapper objectMapper;
+    private final RetreatService retreatService;
 
     public RetreatGroupService(
             RetreatGroupMapper retreatGroupMapper,
             RegistrationMapper registrationMapper,
             RegistrationHistoryMapper registrationHistoryMapper,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            RetreatService retreatService
     ) {
         this.retreatGroupMapper = retreatGroupMapper;
         this.registrationMapper = registrationMapper;
         this.registrationHistoryMapper = registrationHistoryMapper;
         this.objectMapper = objectMapper;
+        this.retreatService = retreatService;
     }
 
     @Transactional(readOnly = true)
@@ -69,6 +72,7 @@ public class RetreatGroupService {
     @Transactional
     public RetreatGroupResponse createGroup(AdminPrincipal admin, RetreatGroupRequest request) {
         requireRole(admin, AdminRole.CHAIR);
+        retreatService.requireCurrentRetreatId();
         String name = normalizeRequired(request.name());
         ensureGroupNameAvailable(null, name);
         RetreatGroupUpsert insert = new RetreatGroupUpsert(
