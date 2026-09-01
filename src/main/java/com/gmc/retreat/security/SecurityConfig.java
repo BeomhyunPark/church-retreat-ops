@@ -29,6 +29,7 @@ public class SecurityConfig {
             "/api/admin/auth/login",
             "/api/registrations",
             "/api/registrations/self/lookup",
+            "/api/registrations/self/check-in-qr",
             "/api/registrations/self",
             "/v3/api-docs/**",
             "/swagger-ui/**",
@@ -49,7 +50,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/health", "/api/app/identity", "/api/participation-options",
                                 "/api/admin/auth/login",
-                                "/api/registrations", "/api/registrations/self/lookup", "/api/registrations/self",
+                                "/api/registrations", "/api/registrations/self/lookup",
+                                "/api/registrations/self/check-in-qr", "/api/registrations/self",
                                 "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                         .permitAll()
                         .anyRequest().authenticated()

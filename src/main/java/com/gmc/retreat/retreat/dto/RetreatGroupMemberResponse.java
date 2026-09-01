@@ -15,6 +15,7 @@ public record RetreatGroupMemberResponse(
         String middleGroupName,
         String cellName,
         Boolean leader,
+        Integer displayOrder,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {
@@ -30,6 +31,7 @@ public record RetreatGroupMemberResponse(
                 member.middleGroupName(),
                 member.cellName(),
                 member.leader(),
+                member.displayOrder(),
                 member.createdAt(),
                 member.updatedAt()
         );

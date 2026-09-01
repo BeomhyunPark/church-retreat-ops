@@ -1,3 +1,4 @@
+-- Make the timetable the source of truth for participation collection.
 ALTER TABLE retreat_schedule_items
     ALTER COLUMN starts_at DROP NOT NULL,
     ALTER COLUMN ends_at DROP NOT NULL,
@@ -40,7 +41,7 @@ ALTER TABLE retreat_schedule_items
 ALTER TABLE retreat_participation_options
     ADD COLUMN schedule_item_id BIGINT UNIQUE REFERENCES retreat_schedule_items (id);
 
--- V19 created the first template from the then-current retreat dates. If that
+-- V21 created the first template from the then-current retreat dates. If that
 -- same retreat was later rescheduled, move the whole template as a set while
 -- preserving option ids and participant selections.
 WITH current_anchor AS (

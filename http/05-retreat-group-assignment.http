@@ -57,6 +57,15 @@ Content-Type: application/json
 GET {{baseUrl}}/api/admin/retreat-groups/{{retreatGroupId}}/members
 Authorization: Bearer {{adminToken}}
 
+### Update retreat group member order
+PATCH {{baseUrl}}/api/admin/retreat-groups/{{retreatGroupId}}/members/order
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "participantIds": [{{participantId}}]
+}
+
 ### Retreat group tree
 GET {{baseUrl}}/api/admin/retreat-groups/tree
 Authorization: Bearer {{adminToken}}

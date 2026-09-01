@@ -19,10 +19,13 @@ Phase 5는 수련회 운영을 위한 임시 조를 만들고 참가자를 조�
 수련회 조원:
 
 - 테이블: `retreat_group_members`
-- 주요 필드: `retreat_group_id`, `registration_id`, `leader`
+- 주요 필드: `retreat_group_id`, `registration_id`, `leader`, `display_order`
 - 한 참가자는 한 수련회 조에만 배정될 수 있습니다.
 - 한 수련회 조에는 한 명의 조장만 둘 수 있습니다.
 - 조장도 참가자이며 `admin_users`와 연결하지 않습니다.
+- 조원 순서는 조별 `display_order`로 저장하며 조원 목록과 트리 조회에도 같은 순서를 사용합니다.
+- 새 조원은 해당 조의 마지막에 추가됩니다.
+- 조장 지정 시 해당 참가자는 맨 위로 이동하며, 조장 해제 후에도 이동된 순서를 유지합니다.
 
 ## 역할 정책
 
@@ -36,6 +39,7 @@ STAFF < CHAIR < PASTOR < SYSTEM_ADMIN
 - 수련회 조 생성/수정/활성 상태 변경 API: `CHAIR` 이상
 - 참가자 수련회 조 배정/해제: `CHAIR` 이상
 - 수련회 조장 지정/해제: `CHAIR` 이상
+- 수련회 조원 순서 변경: `CHAIR` 이상
 
 ## API 요약
 
@@ -48,6 +52,7 @@ POST   /api/admin/retreat-groups
 PATCH  /api/admin/retreat-groups/{id}
 PATCH  /api/admin/retreat-groups/{id}/active
 GET    /api/admin/retreat-groups/{id}/members
+PATCH  /api/admin/retreat-groups/{id}/members/order
 GET    /api/admin/retreat-groups/tree
 ```
 
@@ -63,6 +68,14 @@ DELETE /api/admin/participants/{participantId}/retreat-group
 ```json
 {
   "retreatGroupId": 10
+}
+```
+
+조원 순서 저장 요청은 현재 조원 전체를 원하는 순서로 전달합니다. 누락, 중복 또는 다른 조 참가자가 포함되면 거부됩니다.
+
+```json
+{
+  "participantIds": [20, 15, 31]
 }
 ```
 

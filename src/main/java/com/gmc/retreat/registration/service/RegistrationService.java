@@ -2,6 +2,7 @@ package com.gmc.retreat.registration.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gmc.retreat.admin.domain.AdminRole;
+import com.gmc.retreat.checkin.service.CheckInService;
 import com.gmc.retreat.error.BusinessException;
 import com.gmc.retreat.error.ErrorCode;
 import com.gmc.retreat.fee.mapper.FeeEventInsert;
@@ -22,6 +23,7 @@ import com.gmc.retreat.registration.dto.PageResponse;
 import com.gmc.retreat.registration.dto.RegistrationCreateRequest;
 import com.gmc.retreat.registration.dto.RegistrationCreateResponse;
 import com.gmc.retreat.registration.dto.RegistrationCreateResponse.ResultType;
+import com.gmc.retreat.registration.dto.RegistrationCheckInQrResponse;
 import com.gmc.retreat.registration.dto.RegistrationHistoryResponse;
 import com.gmc.retreat.registration.dto.RegistrationResponse;
 import com.gmc.retreat.registration.dto.RegistrationSelfLookupRequest;
@@ -62,6 +64,7 @@ public class RegistrationService {
     private final RegistrationProperties registrationProperties;
     private final ObjectMapper objectMapper;
     private final RetreatService retreatService;
+    private final CheckInService checkInService;
 
     public RegistrationService(
             RegistrationMapper registrationMapper,
@@ -72,7 +75,8 @@ public class RegistrationService {
             PasswordEncoder passwordEncoder,
             RegistrationProperties registrationProperties,
             ObjectMapper objectMapper,
-            RetreatService retreatService
+            RetreatService retreatService,
+            CheckInService checkInService
     ) {
         this.registrationMapper = registrationMapper;
         this.registrationHistoryMapper = registrationHistoryMapper;
@@ -83,6 +87,7 @@ public class RegistrationService {
         this.registrationProperties = registrationProperties;
         this.objectMapper = objectMapper;
         this.retreatService = retreatService;
+        this.checkInService = checkInService;
     }
 
     @Transactional
@@ -176,7 +181,8 @@ public class RegistrationService {
             insertHistory(created.id(), RegistrationHistoryChangeType.CREATED, null, snapshot(created));
             return new RegistrationCreateResponse(
                     ResultType.CREATED,
-                    registrationResponse(created)
+                    registrationResponse(created),
+                    checkInService.issueParticipantQr(created.id())
             );
         }
 
@@ -225,13 +231,23 @@ public class RegistrationService {
         insertHistory(updated.id(), RegistrationHistoryChangeType.OVERWRITTEN, previousSnapshot, snapshot(updated));
         return new RegistrationCreateResponse(
                 ResultType.OVERWRITTEN,
-                registrationResponse(updated)
+                registrationResponse(updated),
+                checkInService.issueParticipantQr(updated.id())
         );
     }
 
     @Transactional(readOnly = true)
     public RegistrationResponse selfLookup(RegistrationSelfLookupRequest request) {
         return registrationResponse(authenticateParticipantByName(request.name(), request.lookupKey()));
+    }
+
+    @Transactional
+    public RegistrationCheckInQrResponse selfCheckInQr(RegistrationSelfLookupRequest request) {
+        Registration registration = authenticateParticipantByName(request.name(), request.lookupKey());
+        return new RegistrationCheckInQrResponse(
+                registrationResponse(registration),
+                checkInService.issueParticipantQr(registration.id())
+        );
     }
 
     @Transactional

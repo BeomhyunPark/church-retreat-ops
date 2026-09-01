@@ -1966,6 +1966,83 @@ class GmcRetreatApplicationTests {
     }
 
     @Test
+    void chairCanPersistMemberOrderAndLeaderStaysAtTopAfterRemoval() throws Exception {
+        Long firstParticipantId = objectMapper.readTree(
+                createRegistration("First Member", "010-1111-1001", "Young Adults", true)
+                        .getResponse().getContentAsString()
+        ).path("data").path("registration").path("id").asLong();
+        Long secondParticipantId = objectMapper.readTree(
+                createRegistration("Second Member", "010-1111-1002", "Young Adults", true)
+                        .getResponse().getContentAsString()
+        ).path("data").path("registration").path("id").asLong();
+        Long thirdParticipantId = objectMapper.readTree(
+                createRegistration("Third Member", "010-1111-1003", "Young Adults", true)
+                        .getResponse().getContentAsString()
+        ).path("data").path("registration").path("id").asLong();
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long groupId = createRetreatGroup(chairToken, "Group 1");
+
+        for (Long participantId : List.of(firstParticipantId, secondParticipantId, thirdParticipantId)) {
+            mockMvc.perform(patch("/api/admin/participants/" + participantId + "/retreat-group")
+                            .header("Authorization", "Bearer " + chairToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of("retreatGroupId", groupId))))
+                    .andExpect(status().isOk());
+        }
+
+        mockMvc.perform(patch("/api/admin/retreat-groups/" + groupId + "/members/order")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "participantIds", List.of(thirdParticipantId, firstParticipantId, secondParticipantId)
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].participantId").value(thirdParticipantId))
+                .andExpect(jsonPath("$.data[0].displayOrder").value(0))
+                .andExpect(jsonPath("$.data[1].participantId").value(firstParticipantId))
+                .andExpect(jsonPath("$.data[2].participantId").value(secondParticipantId));
+
+        mockMvc.perform(patch("/api/admin/retreat-groups/" + groupId + "/leader")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("participantId", secondParticipantId))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(delete("/api/admin/retreat-groups/" + groupId + "/leader")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("confirmText", "DELETE"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].participantId").value(secondParticipantId))
+                .andExpect(jsonPath("$.data[0].displayOrder").value(0))
+                .andExpect(jsonPath("$.data[1].participantId").value(thirdParticipantId))
+                .andExpect(jsonPath("$.data[2].participantId").value(firstParticipantId));
+    }
+
+    @Test
+    void memberOrderMustContainEveryCurrentGroupMemberExactlyOnce() throws Exception {
+        Long participantId = objectMapper.readTree(
+                createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
+                        .getResponse().getContentAsString()
+        ).path("data").path("registration").path("id").asLong();
+        String chairToken = accessTokenForRole(AdminRole.CHAIR);
+        Long groupId = createRetreatGroup(chairToken, "Group 1");
+
+        mockMvc.perform(patch("/api/admin/participants/" + participantId + "/retreat-group")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("retreatGroupId", groupId))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/admin/retreat-groups/" + groupId + "/members/order")
+                        .header("Authorization", "Bearer " + chairToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("participantIds", List.of()))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
     void removingRetreatGroupLeaderRequiresMatchingConfirmText() throws Exception {
         JsonNode created = objectMapper.readTree(
                 createRegistration("Grace Kim", "010-1234-5678", "Young Adults", true)
@@ -2826,7 +2903,7 @@ class GmcRetreatApplicationTests {
         JsonNode response = objectMapper.readTree(issueResult.getResponse().getContentAsString());
         String rawToken = response.path("data").path("token").asText();
         String storedTokenHash = jdbcTemplate.queryForObject(
-                "SELECT " + SENSITIVE_TOKEN_DB_FIELD + " FROM participant_check_in_tokens WHERE participant_id = ?",
+                "SELECT " + SENSITIVE_TOKEN_DB_FIELD + " FROM participant_check_in_tokens WHERE participant_id = ? ORDER BY id DESC LIMIT 1",
                 String.class,
                 participantId
         );
@@ -2845,6 +2922,102 @@ class GmcRetreatApplicationTests {
 
         assertNoSensitiveCheckInFields(issueResult.getResponse().getContentAsString());
         assertNoSensitiveCheckInFields(revokeResult.getResponse().getContentAsString());
+    }
+
+    @Test
+    void registrationAutomaticallyIssuesArrivalQrWithoutStoringRawToken() throws Exception {
+        MvcResult createResult = createRegistration("Arrival QR Person", "010-5555-1111", "Young Adults", true);
+
+        JsonNode response = objectMapper.readTree(createResult.getResponse().getContentAsString());
+        Long participantId = response.path("data").path("registration").path("id").asLong();
+        String rawToken = response.path("data").path("checkInQr").path("token").asText();
+        String storedTokenHash = jdbcTemplate.queryForObject(
+                "SELECT " + SENSITIVE_TOKEN_DB_FIELD + " FROM participant_check_in_tokens WHERE participant_id = ?",
+                String.class,
+                participantId
+        );
+        Long issuedByAdminId = jdbcTemplate.queryForObject(
+                "SELECT issued_by_admin_id FROM participant_check_in_tokens WHERE participant_id = ?",
+                Long.class,
+                participantId
+        );
+
+        assertThat(rawToken).isNotBlank();
+        assertThat(storedTokenHash).isNotBlank().isNotEqualTo(rawToken);
+        assertThat(issuedByAdminId).isNull();
+        assertThat(response.path("data").path("checkInQr").path("expiresAt").asText())
+                .isEqualTo("2099-12-31T23:59:59+09:00");
+        assertNoSensitiveCheckInFields(createResult.getResponse().getContentAsString());
+    }
+
+    @Test
+    void participantCanReissueArrivalQrAndPreviousQrIsRevoked() throws Exception {
+        JsonNode created = objectMapper.readTree(
+                createRegistration("QR Reissue Person", "010-5555-2222", "Young Adults", true)
+                        .getResponse().getContentAsString()
+        );
+        Long participantId = created.path("data").path("registration").path("id").asLong();
+        String previousToken = created.path("data").path("checkInQr").path("token").asText();
+
+        MvcResult reissueResult = mockMvc.perform(post("/api/registrations/self/check-in-qr")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "QR Reissue Person",
+                                "lookupKey", DEFAULT_LOOKUP_KEY
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.registration.id").value(participantId))
+                .andExpect(jsonPath("$.data.checkInQr.token").isString())
+                .andReturn();
+
+        JsonNode reissued = objectMapper.readTree(reissueResult.getResponse().getContentAsString());
+        assertThat(reissued.path("data").path("checkInQr").path("token").asText()).isNotEqualTo(previousToken);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM participant_check_in_tokens WHERE participant_id = ? AND revoked_at IS NULL",
+                Integer.class,
+                participantId
+        )).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM participant_check_in_tokens WHERE participant_id = ? AND revoked_at IS NOT NULL",
+                Integer.class,
+                participantId
+        )).isEqualTo(1);
+        assertNoSensitiveCheckInFields(reissueResult.getResponse().getContentAsString());
+    }
+
+    @Test
+    void staffCanCheckInArrivalByValidQr() throws Exception {
+        JsonNode created = objectMapper.readTree(
+                createRegistration("QR Check In Person", "010-5555-3333", "Young Adults", true)
+                        .getResponse().getContentAsString()
+        );
+        Long participantId = created.path("data").path("registration").path("id").asLong();
+        String rawToken = created.path("data").path("checkInQr").path("token").asText();
+        String staffToken = accessTokenForRole(AdminRole.STAFF);
+
+        MvcResult checkInResult = mockMvc.perform(post("/api/admin/check-ins/qr")
+                        .header("Authorization", "Bearer " + staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("token", rawToken))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.participantId").value(participantId))
+                .andExpect(jsonPath("$.data.checkedIn").value(true))
+                .andExpect(jsonPath("$.data.checkInMethod").value("QR"))
+                .andReturn();
+
+        mockMvc.perform(post("/api/admin/check-ins/qr")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("token", rawToken))))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(post("/api/admin/check-ins/qr")
+                        .header("Authorization", "Bearer " + staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("token", "invalid-token"))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("CHECK_IN_TOKEN_INVALID"));
+
+        assertNoSensitiveCheckInFields(checkInResult.getResponse().getContentAsString());
     }
 
     @Test
@@ -2893,7 +3066,7 @@ class GmcRetreatApplicationTests {
         );
 
         assertThat(activeTokenCount).isEqualTo(1);
-        assertThat(revokedTokenCount).isEqualTo(1);
+        assertThat(revokedTokenCount).isEqualTo(2);
         assertNoSensitiveCheckInFields(firstIssueResult.getResponse().getContentAsString());
         assertNoSensitiveCheckInFields(secondIssueResult.getResponse().getContentAsString());
     }

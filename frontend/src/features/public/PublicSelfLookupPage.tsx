@@ -1,8 +1,9 @@
 import { useState, type KeyboardEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { lookupRegistration, type RegistrationSelfLookupPayload } from "./publicApi";
+import { lookupRegistrationWithCheckInQr, type RegistrationSelfLookupPayload } from "./publicApi";
 import { StatusMessage } from "../../shared/ui/StatusMessage";
+import { CheckInQrCard } from "../../shared/ui/CheckInQrCard";
 
 const STEP_FIELDS: Array<keyof RegistrationSelfLookupPayload> = ["name", "lookupKey"];
 
@@ -10,7 +11,7 @@ export function PublicSelfLookupPage() {
   const [step, setStep] = useState(0);
   const [shake, setShake] = useState(false);
   const { register, handleSubmit, trigger, formState } = useForm<RegistrationSelfLookupPayload>();
-  const mutation = useMutation({ mutationFn: lookupRegistration });
+  const mutation = useMutation({ mutationFn: lookupRegistrationWithCheckInQr });
 
   const isLastStep = step === STEP_FIELDS.length - 1;
 
@@ -108,13 +109,18 @@ export function PublicSelfLookupPage() {
 
       {mutation.isError ? <StatusMessage message={mutation.error.message} tone="error" /> : null}
       {mutation.data ? (
-        <div className="result-card">
-          <strong>{mutation.data.name}</strong>
-          <span>{mutation.data.phoneNumber}</span>
-          <span className={mutation.data.feePaid ? "status-pill status-pill--success" : "status-pill status-pill--warning"}>
-            {mutation.data.feePaid ? "참가비 납부 완료" : "참가비 확인 필요"}
+        <div className="result-card result-card--with-qr">
+          <strong>{mutation.data.registration.name}</strong>
+          <span>{mutation.data.registration.phoneNumber}</span>
+          <span className={mutation.data.registration.feePaid ? "status-pill status-pill--success" : "status-pill status-pill--warning"}>
+            {mutation.data.registration.feePaid ? "참가비 납부 완료" : "참가비 확인 필요"}
           </span>
-          <span>등록 상태: {mutation.data.status === "REGISTERED" ? "등록 완료" : mutation.data.status}</span>
+          <span>등록 상태: {mutation.data.registration.status === "REGISTERED" ? "등록 완료" : mutation.data.registration.status}</span>
+          <CheckInQrCard
+            token={mutation.data.checkInQr.token}
+            expiresAt={mutation.data.checkInQr.expiresAt}
+            participantName={mutation.data.registration.name}
+          />
         </div>
       ) : null}
     </section>

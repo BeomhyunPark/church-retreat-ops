@@ -1,3 +1,4 @@
+-- Store participant-provided church affiliation snapshots directly.
 ALTER TABLE registrations
     ADD COLUMN middle_group_name VARCHAR(100),
     ADD COLUMN cell_name VARCHAR(100);

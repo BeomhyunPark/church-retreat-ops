@@ -3,6 +3,7 @@ package com.gmc.retreat.checkin.controller;
 import com.gmc.retreat.api.ApiResponse;
 import com.gmc.retreat.checkin.dto.CheckInCancellationRequest;
 import com.gmc.retreat.checkin.dto.CheckInRosterResponse;
+import com.gmc.retreat.checkin.dto.CheckInQrScanRequest;
 import com.gmc.retreat.checkin.dto.CheckInTokenIssueRequest;
 import com.gmc.retreat.checkin.dto.CheckInTokenIssueResponse;
 import com.gmc.retreat.checkin.dto.CheckInTokenRevokeResponse;
@@ -63,6 +64,14 @@ public class AdminCheckInController {
             @PathVariable Long participantId
     ) {
         return ApiResponse.success(checkInService.manuallyCheckIn(admin, participantId));
+    }
+
+    @PostMapping("/qr")
+    public ApiResponse<CheckInRosterResponse> checkInByQr(
+            @AuthenticationPrincipal AdminPrincipal admin,
+            @Valid @RequestBody CheckInQrScanRequest request
+    ) {
+        return ApiResponse.success(checkInService.checkInByQr(admin, request));
     }
 
     @PatchMapping("/{participantId}/cancel")

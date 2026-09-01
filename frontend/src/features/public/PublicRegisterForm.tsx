@@ -19,6 +19,7 @@ import {
   type RegisterFormValues
 } from "./publicRegisterFormModel";
 import { StatusMessage } from "../../shared/ui/StatusMessage";
+import { CheckInQrCard } from "../../shared/ui/CheckInQrCard";
 
 export function PublicRegisterForm() {
   const [registered, setRegistered] = useState(false);
@@ -913,6 +914,13 @@ export function PublicRegisterForm() {
             <p className="eyebrow">Registered</p>
             <h2>등록 끝났어요</h2>
             <p className="muted">방금 정한 비밀번호로 내 등록을 확인할 수 있어요.</p>
+            {mutation.data ? (
+              <CheckInQrCard
+                token={mutation.data.checkInQr.token}
+                expiresAt={mutation.data.checkInQr.expiresAt}
+                participantName={mutation.data.registration.name}
+              />
+            ) : null}
             <div className="completion-actions">
               <Link className="button button--primary" to="/public/self-lookup">
                 내 등록 확인

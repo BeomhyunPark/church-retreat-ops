@@ -8,9 +8,11 @@ import {
   getAdminRegistrations,
   getParticipationOptions,
   getRetreatGroups,
+  getRetreatGroupTree,
   removeParticipantFromRetreatGroup,
   removeRetreatGroupLeader,
   updateRetreatGroup,
+  updateRetreatGroupMemberOrder,
   type AdminRegistration,
   type ParticipationOption,
   type RetreatGroup
@@ -21,6 +23,7 @@ import { StatusMessage } from "../../shared/ui/StatusMessage";
 // ─── Types & Constants ────────────────────────────────────────────────────────
 
 type DragDropState = { [participantId: number]: number | null };
+type MemberOrderState = { [groupId: number]: number[] };
 
 type BoardGroup = RetreatGroup & { isNew?: boolean };
 
@@ -126,6 +129,7 @@ function RetreatGroupBoard({
   const [deletedGroupIds, setDeletedGroupIds] = useState<number[]>([]);
   const [draft, setDraft] = useState<DragDropState>({});
   const [draftLeaders, setDraftLeaders] = useState<{ [groupId: number]: number | null }>({});
+  const [memberOrder, setMemberOrder] = useState<MemberOrderState>({});
   const [hasChanges, setHasChanges] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [expandedGroupId, setExpandedGroupId] = useState<number | null>(null);
@@ -144,6 +148,10 @@ function RetreatGroupBoard({
     queryKey: ["admin", "registrations", "for-board"],
     queryFn: () => getAdminRegistrations({ size: 500 })
   });
+  const groupTreeQuery = useQuery({
+    queryKey: ["admin", "retreat-groups", "tree"],
+    queryFn: getRetreatGroupTree
+  });
   const allRegs = useMemo(() => registrationsQuery.data?.content ?? [], [registrationsQuery.data]);
   const activeRegs = useMemo(() => allRegs.filter(r => r.status === "REGISTERED"), [allRegs]);
 
@@ -153,6 +161,13 @@ function RetreatGroupBoard({
       .sort((a, b) => a.displayOrder - b.displayOrder || a.id - b.id),
     [groups]
   );
+
+  const persistedMemberOrder = useMemo<MemberOrderState>(() =>
+    Object.fromEntries((groupTreeQuery.data?.groups ?? []).map(group => [
+      group.id,
+      group.members.map(member => member.participantId)
+    ])),
+    [groupTreeQuery.data]);
 
   const sortedGroups = boardGroups;
 
@@ -221,6 +236,18 @@ function RetreatGroupBoard({
     if (draft[pid] !== undefined) return draft[pid];
     return activeRegs.find(r => r.id === pid)?.retreatGroupId ?? null;
   }, [draft, activeRegs]);
+
+  const getOrderedParticipantIds = useCallback((groupId: number, orderState = memberOrder) => {
+    const assignedIds = activeRegs
+      .filter(reg => getAssignedGroupId(reg.id) === groupId)
+      .map(reg => reg.id);
+    const assignedIdSet = new Set(assignedIds);
+    const preferredIds = orderState[groupId] ?? persistedMemberOrder[groupId] ?? [];
+    return [
+      ...preferredIds.filter(id => assignedIdSet.delete(id)),
+      ...assignedIds.filter(id => assignedIdSet.has(id))
+    ];
+  }, [activeRegs, getAssignedGroupId, memberOrder, persistedMemberOrder]);
 
   // 특정 조의 현재 조장 participantId (draft 반영)
   const getGroupLeaderId = useCallback((groupId: number): number | null => {
@@ -319,6 +346,13 @@ function RetreatGroupBoard({
           await assignRetreatGroupLeader(realGroupId, leaderId);
         }
       }
+
+      // 3) 조원 표시 순서 저장
+      for (const group of sortedGroups) {
+        const realGroupId = groupIdMap.get(group.id);
+        if (realGroupId === undefined) continue;
+        await updateRetreatGroupMemberOrder(realGroupId, getOrderedParticipantIds(group.id));
+      }
     },
     onSuccess: async () => {
       setDeletedGroupIds([]);
@@ -327,6 +361,7 @@ function RetreatGroupBoard({
       setShowModal(false);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["admin", "registrations"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin", "retreat-groups", "tree"] }),
         onChanged()
       ]);
       setHasChanges(false);
@@ -335,8 +370,33 @@ function RetreatGroupBoard({
 
   const handleDrop = useCallback((targetGid: number | null, pid: number) => {
     setDraft(prev => ({ ...prev, [pid]: targetGid }));
+    setMemberOrder(prev => {
+      const next = { ...prev };
+      sortedGroups.forEach(group => {
+        next[group.id] = getOrderedParticipantIds(group.id, prev).filter(id => id !== pid);
+      });
+      if (targetGid !== null) next[targetGid] = [...(next[targetGid] ?? []), pid];
+      return next;
+    });
     setHasChanges(true);
-  }, []);
+  }, [getOrderedParticipantIds, sortedGroups]);
+
+  const handleMemberDrop = useCallback((targetGid: number, pid: number, targetPid: number) => {
+    if (pid === targetPid) return;
+    setDraft(prev => ({ ...prev, [pid]: targetGid }));
+    setMemberOrder(prev => {
+      const next = { ...prev };
+      sortedGroups.forEach(group => {
+        next[group.id] = getOrderedParticipantIds(group.id, prev).filter(id => id !== pid);
+      });
+      const targetOrder = next[targetGid] ?? [];
+      const targetIndex = targetOrder.indexOf(targetPid);
+      targetOrder.splice(targetIndex < 0 ? targetOrder.length : targetIndex, 0, pid);
+      next[targetGid] = targetOrder;
+      return next;
+    });
+    setHasChanges(true);
+  }, [getOrderedParticipantIds, sortedGroups]);
 
   const handleToggleLeader = useCallback((groupId: number, pid: number) => {
     setDraftLeaders(prev => {
@@ -348,8 +408,12 @@ function RetreatGroupBoard({
         })?.id ?? null);
       return { ...prev, [groupId]: curLeaderId === pid ? null : pid };
     });
+    setMemberOrder(prev => ({
+      ...prev,
+      [groupId]: [pid, ...getOrderedParticipantIds(groupId, prev).filter(id => id !== pid)]
+    }));
     setHasChanges(true);
-  }, [activeRegs, draft]);
+  }, [activeRegs, draft, getOrderedParticipantIds]);
 
   const CARD_WIDTH = 310;
   const CARD_GAP = 14;
@@ -382,6 +446,7 @@ function RetreatGroupBoard({
     setDeletedGroupIds([]);
     setDraft({});
     setDraftLeaders({});
+    setMemberOrder(persistedMemberOrder);
     setHasChanges(false);
   };
 
@@ -573,7 +638,9 @@ function RetreatGroupBoard({
                 width={CARD_WIDTH}
                 leaderId={getGroupLeaderId(group.id)}
                 slots={slots}
+                orderedParticipantIds={getOrderedParticipantIds(group.id)}
                 onDrop={pid => handleDrop(group.id, pid)}
+                onMemberDrop={(pid, targetPid) => handleMemberDrop(group.id, pid, targetPid)}
                 onGroupDrop={draggedId => reorderGroupMutation.mutate({ draggedId, targetId: group.id })}
                 onToggleLeader={pid => handleToggleLeader(group.id, pid)}
                 onExpand={() => setExpandedGroupId(group.id)}
@@ -621,6 +688,7 @@ function RetreatGroupBoard({
         sortedGroups={sortedGroups}
         getAssignedGroupId={getAssignedGroupId}
         slots={slots}
+        onUnassign={pid => handleDrop(null, pid)}
       />
 
       {/* ── Legend ───────────────────────────────────────────── */}
@@ -654,7 +722,11 @@ function RetreatGroupBoard({
       {expandedGroupId !== null && (() => {
         const group = sortedGroups.find(g => g.id === expandedGroupId);
         if (!group) return null;
-        const members = activeRegs.filter(reg => {
+        const memberById = new Map(activeRegs.map(reg => [reg.id, reg] as const));
+        const members = getOrderedParticipantIds(group.id).flatMap(id => {
+          const reg = memberById.get(id);
+          return reg ? [reg] : [];
+        }).filter(reg => {
           const gid = draft[reg.id] !== undefined ? draft[reg.id] : reg.retreatGroupId;
           return gid === group.id;
         });
@@ -677,7 +749,8 @@ function RetreatGroupBoard({
 const NAME_COL_W = 108;
 
 function GroupBoard({
-  group, activeRegs, draft, width, leaderId, slots, onDrop, onGroupDrop, onToggleLeader, onExpand, onDeactivate
+  group, activeRegs, draft, width, leaderId, slots, orderedParticipantIds, onDrop, onMemberDrop,
+  onGroupDrop, onToggleLeader, onExpand, onDeactivate
 }: {
   group: RetreatGroup;
   activeRegs: AdminRegistration[];
@@ -685,7 +758,9 @@ function GroupBoard({
   width: number;
   leaderId: number | null;
   slots: ParticipationOption[];
+  orderedParticipantIds: number[];
   onDrop: (pid: number) => void;
+  onMemberDrop: (pid: number, targetPid: number) => void;
   onGroupDrop: (draggedGroupId: number) => void;
   onToggleLeader: (pid: number) => void;
   onExpand: () => void;
@@ -694,11 +769,15 @@ function GroupBoard({
   const [dragOver, setDragOver] = useState(false);
 
   const members = useMemo(() => {
-    return activeRegs.filter(reg => {
+    const memberById = new Map(activeRegs.filter(reg => {
       const gid = draft[reg.id] !== undefined ? draft[reg.id] : reg.retreatGroupId;
       return gid === group.id;
+    }).map(reg => [reg.id, reg] as const));
+    return orderedParticipantIds.flatMap(id => {
+      const member = memberById.get(id);
+      return member ? [member] : [];
     });
-  }, [activeRegs, draft, group.id]);
+  }, [activeRegs, draft, group.id, orderedParticipantIds]);
 
   const maleCount = members.filter(m => m.gender === "MALE").length;
   const femaleCount = members.filter(m => m.gender === "FEMALE").length;
@@ -718,6 +797,7 @@ function GroupBoard({
     <div
       onDragOver={e => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(false); }}
+      onDragEnd={() => setDragOver(false)}
       onDrop={e => {
         e.preventDefault();
         setDragOver(false);
@@ -732,6 +812,7 @@ function GroupBoard({
         border: `2px solid ${dragOver ? "var(--color-primary)" : "var(--color-border)"}`,
         borderRadius: "12px", overflow: "hidden",
         transition: "border-color 0.15s, background 0.15s",
+        height: "fit-content"
       }}
     >
       {/* ── 조 헤더 */}
@@ -835,6 +916,10 @@ function GroupBoard({
               slots={slots}
               isLeader={leaderId === member.id}
               onToggleLeader={() => onToggleLeader(member.id)}
+              onDropMember={pid => {
+                setDragOver(false);
+                onMemberDrop(pid, member.id);
+              }}
             />
           ))}
         </div>
@@ -853,10 +938,10 @@ function GroupBoard({
       </div>
 
       {/* ── 시간대별 인원 footer */}
-      <div style={{ padding: "8px 14px 12px", borderTop: "1px solid var(--color-border)", background: "var(--color-background)" }}>
-        <div style={{ display: "grid", gridTemplateColumns: `${NAME_COL_W}px 1fr` }}>
+      <div style={{ padding: "8px 14px", borderTop: "1px solid var(--color-border)", background: "var(--color-background)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: `${NAME_COL_W}px 1fr`, marginLeft: "4px" }}>
           <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--color-muted)", alignSelf: "center", lineHeight: 1.3 }}>
-            시간대별<br />인원
+            시간대별 인원
           </span>
           <div style={{ display: "grid", gridTemplateColumns: `repeat(${slotCount}, 1fr)` }}>
             {slotCounts.map((n, i) => (
@@ -875,12 +960,13 @@ function GroupBoard({
 // ─── Board Member Row ─────────────────────────────────────────────────────────
 
 function BoardMemberRow({
-  participant, isLeader, onToggleLeader, slots
+  participant, isLeader, onToggleLeader, slots, onDropMember
 }: {
   participant: AdminRegistration;
   isLeader: boolean;
   onToggleLeader: () => void;
   slots: ParticipationOption[];
+  onDropMember: (pid: number) => void;
 }) {
   const isFull = participant.attendanceType === "FULL";
   const color = isFull ? COLOR_FULL : COLOR_PARTIAL;
@@ -892,6 +978,16 @@ function BoardMemberRow({
       onDragStart={e => {
         e.dataTransfer.effectAllowed = "move";
         e.dataTransfer.setData("participantId", String(participant.id));
+      }}
+      onDragOver={e => {
+        e.preventDefault();
+      }}
+      onDrop={e => {
+        const pid = parseInt(e.dataTransfer.getData("participantId"));
+        if (Number.isNaN(pid)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        onDropMember(pid);
       }}
       style={{
         display: "grid",
@@ -985,27 +1081,52 @@ function TimelineBar({
 // ─── Candidate Section ────────────────────────────────────────────────────────
 
 function CandidateSection({
-  registrations, totalCount, sortedGroups, getAssignedGroupId, slots
+  registrations, totalCount, sortedGroups, getAssignedGroupId, slots, onUnassign
 }: {
   registrations: AdminRegistration[];
   totalCount: number;
   sortedGroups: RetreatGroup[];
   getAssignedGroupId: (pid: number) => number | null;
   slots: ParticipationOption[];
+  onUnassign: (pid: number) => void;
 }) {
+  const [dragOver, setDragOver] = useState(false);
+
   return (
-    <div>
+    <div
+      onDragOver={e => {
+        e.preventDefault();
+        setDragOver(true);
+      }}
+      onDragLeave={e => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(false);
+      }}
+      onDrop={e => {
+        e.preventDefault();
+        setDragOver(false);
+        const pid = parseInt(e.dataTransfer.getData("participantId"));
+        if (!Number.isNaN(pid)) onUnassign(pid);
+      }}
+      style={{
+        border: `2px dashed ${dragOver ? "var(--color-primary)" : "transparent"}`,
+        borderRadius: "12px",
+        padding: "10px",
+        margin: "-10px",
+        background: dragOver ? "rgb(23 107 91 / 0.04)" : "transparent",
+        transition: "border-color 0.15s, background 0.15s"
+      }}
+    >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
           <h2 style={{ fontSize: "1.1rem" }}>참가자 목록</h2>
           <strong style={{ color: "var(--color-primary-dark)" }}>
             {registrations.length}명<span style={{ fontWeight: 400, color: "var(--color-muted)", fontSize: "0.8rem" }}> / 전체 {totalCount}명</span>
           </strong>
-          <span style={{ fontSize: "0.8rem", color: "var(--color-muted)" }}>미배정 참가자만 표시됩니다. 카드를 드래그하여 위의 조에 배정하세요.</span>
+          <span style={{ fontSize: "0.8rem", color: "var(--color-muted)" }}>조원을 이 영역으로 드래그하면 미배정으로 이동합니다.</span>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(175px, 1fr))", gap: "10px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(148px, 1fr))", gap: "10px" }}>
         {registrations.map(reg => (
           <CandidateCard
             key={reg.id}
@@ -1044,13 +1165,19 @@ function CandidateCard({
         padding: "10px",
         cursor: "grab",
         userSelect: "none",
-        transition: "box-shadow 0.1s"
+        transition: "box-shadow 0.1s",
+        display: "flex",
+        flexDirection: "column",
+        gap: "9px"
       }}
     >
       {/* Name + attendance type badge */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "3px", gap: "4px" }}>
-        <span style={{ fontWeight: 700, fontSize: "0.88rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {participant.name}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "4px" }}>
+        <span style={{
+          fontWeight: 700, fontSize: "0.82rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: participant.gender === "MALE" ? "rgba(59,130,246,0.1)" : "rgba(236,72,153,0.1)",
+          borderRadius: "999px", padding: "2px 9px",
+        }}>
+          {String(participant.birthYear).slice(2)} {participant.name}
         </span>
         <span style={{
           fontSize: "0.68rem", fontWeight: 700, flexShrink: 0,
@@ -1062,20 +1189,17 @@ function CandidateCard({
         </span>
       </div>
 
-      {/* Info */}
-      <div style={{ fontSize: "0.73rem", color: "var(--color-muted)", marginBottom: "7px" }}>
-        {participant.gender === "MALE" ? "남" : "여"} · {String(participant.birthYear).slice(2)} · {participant.cellName ?? "-"}
-        {participant.newcomer && (
-          <span style={{ marginLeft: "4px", color: "var(--color-primary-dark)", fontWeight: 700 }}>새가족</span>
-        )}
-      </div>
-
       {/* Timeline bar */}
       <TimelineBar segments={segments} color={color} slotCount={slots.length} />
 
       {/* Assignment status */}
-      <div style={{ marginTop: "6px", fontSize: "0.7rem", fontWeight: 600, color: assignedGroup ? "var(--color-primary-dark)" : "var(--color-muted)" }}>
-        {assignedGroup ? assignedGroup.name : "미배정"}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "0.7rem", fontWeight: 600, color: assignedGroup ? "var(--color-primary-dark)" : "var(--color-muted)" }}>
+        <span>
+          {participant.middleGroupName ?? "-"} · {participant.cellName ?? "-"}
+        </span>
+        {participant.newcomer && (
+          <span style={{ marginLeft: "4px", color: "var(--color-primary-dark)", fontWeight: 700 }}>새가족</span>
+        )}
       </div>
     </div>
   );

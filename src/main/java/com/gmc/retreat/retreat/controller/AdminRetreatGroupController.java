@@ -6,6 +6,7 @@ import com.gmc.retreat.common.dto.ActiveUpdateRequest;
 import com.gmc.retreat.registration.dto.AdminRegistrationResponse;
 import com.gmc.retreat.retreat.dto.RetreatGroupLeaderRequest;
 import com.gmc.retreat.retreat.dto.RetreatGroupMemberResponse;
+import com.gmc.retreat.retreat.dto.RetreatGroupMemberOrderRequest;
 import com.gmc.retreat.retreat.dto.RetreatGroupRequest;
 import com.gmc.retreat.retreat.dto.RetreatGroupResponse;
 import com.gmc.retreat.retreat.dto.RetreatGroupTreeResponse;
@@ -91,6 +92,15 @@ public class AdminRetreatGroupController {
             @PathVariable Long id
     ) {
         return ApiResponse.success(retreatGroupService.findMembers(admin, id));
+    }
+
+    @PatchMapping("/{id}/members/order")
+    public ApiResponse<List<RetreatGroupMemberResponse>> updateMemberOrder(
+            @AuthenticationPrincipal AdminPrincipal admin,
+            @PathVariable Long id,
+            @Valid @RequestBody RetreatGroupMemberOrderRequest request
+    ) {
+        return ApiResponse.success(retreatGroupService.updateMemberOrder(admin, id, request));
     }
 
     @GetMapping("/tree")

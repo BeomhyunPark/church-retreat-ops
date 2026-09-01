@@ -18,6 +18,7 @@ import com.gmc.retreat.retreat.domain.RetreatGroupMember;
 import com.gmc.retreat.retreat.dto.RetreatGroupAssignmentRequest;
 import com.gmc.retreat.retreat.dto.RetreatGroupLeaderRequest;
 import com.gmc.retreat.retreat.dto.RetreatGroupMemberResponse;
+import com.gmc.retreat.retreat.dto.RetreatGroupMemberOrderRequest;
 import com.gmc.retreat.retreat.dto.RetreatGroupRequest;
 import com.gmc.retreat.retreat.dto.RetreatGroupResponse;
 import com.gmc.retreat.retreat.dto.RetreatGroupTreeResponse;
@@ -28,6 +29,8 @@ import com.gmc.retreat.retreat.mapper.RetreatGroupUpsert;
 import com.gmc.retreat.security.auth.AdminPrincipal;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -148,7 +151,8 @@ public class RetreatGroupService {
                                         member.id(),
                                         member.participantId(),
                                         member.participantName(),
-                                        member.leader()
+                                        member.leader(),
+                                        member.displayOrder()
                                 ))
                                 .toList()
                 ))
@@ -209,7 +213,36 @@ public class RetreatGroupService {
         } else {
             retreatGroupMapper.markLeader(groupId, request.participantId());
         }
+        retreatGroupMapper.moveMemberToTop(groupId, request.participantId());
         return updatedRegistrationResponse(request.participantId(), previousSnapshot, admin.id());
+    }
+
+    @Transactional
+    public List<RetreatGroupMemberResponse> updateMemberOrder(
+            AdminPrincipal admin,
+            Long groupId,
+            RetreatGroupMemberOrderRequest request
+    ) {
+        requireRole(admin, AdminRole.CHAIR);
+        findGroupOrThrow(groupId);
+
+        List<Long> requestedIds = request.participantIds();
+        Set<Long> requestedIdSet = Set.copyOf(requestedIds);
+        Set<Long> currentIdSet = retreatGroupMapper.findMembersByGroupId(groupId)
+                .stream()
+                .map(RetreatGroupMember::participantId)
+                .collect(Collectors.toSet());
+        if (requestedIdSet.size() != requestedIds.size() || !requestedIdSet.equals(currentIdSet)) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+
+        for (int index = 0; index < requestedIds.size(); index += 1) {
+            retreatGroupMapper.updateMemberDisplayOrder(groupId, requestedIds.get(index), index);
+        }
+        return retreatGroupMapper.findMembersByGroupId(groupId)
+                .stream()
+                .map(RetreatGroupMemberResponse::from)
+                .toList();
     }
 
     @Transactional

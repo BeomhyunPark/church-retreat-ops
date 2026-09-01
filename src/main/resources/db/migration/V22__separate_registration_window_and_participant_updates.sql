@@ -1,3 +1,4 @@
+-- Separate new registration availability from participant self-editing.
 ALTER TABLE retreats
     ADD COLUMN registration_open BOOLEAN NOT NULL DEFAULT FALSE;
 

@@ -14,6 +14,7 @@ public record RetreatGroupMember(
         String middleGroupName,
         String cellName,
         Boolean leader,
+        Integer displayOrder,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {

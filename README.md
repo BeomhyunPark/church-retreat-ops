@@ -120,8 +120,9 @@
 - 체크인 취소/되돌리기와 취소 사유 필수 입력
 - 체크인/취소 이벤트 이력 저장
 - 체크인/취소 수행 관리자와 시각 기록
-- 향후 QR 체크인을 위한 관리자 토큰 발급/폐기 API
-- `STAFF` 이상 조회/수동 체크인, `CHAIR` 이상 체크인 취소와 QR 토큰 관리
+- 참가 신청/본인 확인 시 도착 체크인 QR 발급 및 이미지 저장
+- 관리자 카메라 QR 스캐너와 도착 체크인 처리
+- `STAFF` 이상 조회/수동·QR 체크인, `CHAIR` 이상 체크인 취소와 QR 토큰 관리
 
 자세한 내용은 [docs/phase8-check-in-domain.md](docs/phase8-check-in-domain.md)를 참고합니다.
 
@@ -243,6 +244,93 @@ npm run dev
 cd frontend
 npm run build
 ```
+
+## 홈 서버 운영형 배포
+
+운영형 배포에서는 Vite 개발 서버를 실행하지 않습니다. React 정적 파일은 Caddy가 제공하고,
+같은 도메인의 `/api/*` 요청만 localhost의 Spring Boot로 전달합니다.
+
+### 1. 프론트엔드 빌드와 배포
+
+```bash
+npm --prefix frontend ci
+npm --prefix frontend run build
+mkdir -p /mnt/c/Users/dkrak/AppData/Local/church-retreat-ops/www
+rsync -a --delete frontend/dist/ /mnt/c/Users/dkrak/AppData/Local/church-retreat-ops/www/
+```
+
+`frontend/dist/`는 로컬 빌드 산출물이므로 Git에 포함하지 않습니다. 배포할 때마다 기존 배포
+디렉터리를 비운 뒤 `dist/`의 내용만 Windows의
+`C:\Users\dkrak\AppData\Local\church-retreat-ops\www`에 복사합니다. 이 홈 서버는 Windows가
+80/443을 받고 Caddy를 실행하므로 WSL의 `/var/www`는 사용하지 않습니다.
+
+### 2. Spring Boot 빌드와 실행
+
+```bash
+./gradlew bootJar
+sudo install -d /opt/church-retreat-ops
+sudo install -m 0644 build/libs/church-retreat-ops-0.0.1-SNAPSHOT.jar /opt/church-retreat-ops/app.jar
+```
+
+운영 실행에는 `deploy/church-retreat-ops.service`를 사용합니다. 전용 OS 사용자
+`church-retreat-ops`와 `/etc/church-retreat-ops/church-retreat-ops.env`를 만든 뒤 서비스를
+설치합니다. 환경 파일은 저장소에 추가하거나 출력하지 않습니다.
+
+필수 환경변수:
+
+- `APP_DB_URL`, `APP_DB_USERNAME`, `APP_DB_PASSWORD`
+- 충분히 긴 무작위 값인 `APP_JWT_SECRET`
+- `APP_SYSTEM_ADMIN_EMAIL`, `APP_SYSTEM_ADMIN_PASSWORD`, `APP_SYSTEM_ADMIN_NAME`
+- 화면 표시용 `APP_IDENTITY_APP_NAME`, `APP_IDENTITY_ORGANIZATION_NAME`, `APP_IDENTITY_EVENT_NAME`
+
+```bash
+sudo deploy/install-demo.sh "$PWD"
+curl --fail http://127.0.0.1:8080/api/health
+```
+
+설치 스크립트는 기존 참가자 레코드가 한 건이라도 있으면 데모 배포를 거부합니다. 기존 DB가
+비어 있다는 검증을 우회해 Caddy를 시작하지 않습니다.
+
+`prod` 프로필은 Windows Caddy가 WSL2 NAT 경계를 넘어 접근할 수 있도록 WSL의
+`0.0.0.0:8080`에 바인딩합니다. Windows 또는 공유기에서 8080을 전달하지 않으며,
+외부에서는 Caddy를 통해서만 API에 접근합니다.
+
+### 3. Caddy와 HTTPS
+
+이 호스트에서는 WinGet으로 설치한 Windows Caddy를 사용합니다. Linux Caddy나
+`/etc/caddy`를 추가하지 않습니다. 해당 도메인의 DNS가 홈 서버를 가리키고 외부 TCP
+80/443이 Windows Caddy에 도달해야 자동 HTTPS 인증서 발급이 가능합니다.
+
+```powershell
+$deployDir = "$env:LOCALAPPDATA\church-retreat-ops"
+$wslBackend = ((wsl.exe -d Ubuntu --exec hostname -I).Trim() -split '\s+')[0]
+$env:WSL_BACKEND = $wslBackend
+Copy-Item deploy\Caddyfile "$deployDir\Caddyfile"
+caddy.exe validate --config "$deployDir\Caddyfile"
+caddy.exe start --config "$deployDir\Caddyfile"
+curl.exe --fail https://retreat.greengroove.app/
+curl.exe --fail https://retreat.greengroove.app/api/health
+```
+
+WSL2 NAT 주소는 WSL 재시작 후 바뀔 수 있으므로 Caddy를 시작하거나 reload할 때마다
+`WSL_BACKEND`를 다시 계산합니다.
+
+### 4. 데모 배포 롤백
+
+Windows PowerShell에서 Caddy를 중지한 뒤 WSL 서비스를 제거합니다.
+
+```powershell
+caddy.exe stop
+wsl.exe -d Ubuntu -u root --exec `
+  /home/user/code/church-retreat-ops/deploy/rollback-demo.sh
+```
+
+PostgreSQL은 저장소 루트에서 `docker compose stop postgres`로 중지합니다. 위 롤백은 DB
+볼륨을 삭제하지 않습니다. 데모 DB 볼륨 삭제가 필요하면 실제 데이터가 없음을 별도로 확인한
+후에만 수행합니다.
+
+검증 시 등록/조회/로그인 테스트에는 가상 정보만 사용합니다. 실제 이름, 전화번호,
+lookup key, 비밀번호 또는 운영 토큰을 명령 기록, 로그, 문서에 남기지 않습니다.
 
 ## 테스트
 
@@ -465,7 +553,7 @@ curl -s -X PATCH http://localhost:8080/api/admin/schedules/1/active \
 
 ## 체크인 도메인 테스트
 
-체크인 관리는 JWT가 필요합니다. `STAFF`는 roster 조회와 수동 체크인을 수행할 수 있고, `CHAIR` 이상은 체크인 취소와 QR 토큰 발급/폐기를 수행할 수 있습니다.
+실제 체크인 처리는 JWT가 필요합니다. `STAFF`는 roster 조회와 수동·QR 도착 체크인을 수행할 수 있고, `CHAIR` 이상은 체크인 취소와 관리자 QR 토큰 발급/폐기를 수행할 수 있습니다. 참가자 QR은 2026년 8월 18일 23:59:59(한국 시간)에 만료됩니다.
 
 ```bash
 curl -s http://localhost:8080/api/admin/check-ins \
@@ -593,7 +681,7 @@ JWT가 필요한 API:
 - 카카오톡, SMS, 푸시, 이메일 공지 발송
 - 참가자 공개 공지 화면과 읽음 확인
 - 참가자 공개 일정 화면, 일정 알림, 캘린더 연동, 반복 일정, 출석 추적
-- 참가자 공개 체크인 화면, 공개 QR 스캔 API, QR scanner UI, 체크인 알림, 체크인 통계 dashboard
+- 참가자 공개 셀프 체크인 API, 퇴장 QR, 체크인 알림, 체크인 통계 dashboard
 - 실 결제 gateway, 영수증 업로드, 환불 workflow, 정산 자동화
 - 종료된 수련회 참가자 개인정보 자동 삭제/익명화 정책
 

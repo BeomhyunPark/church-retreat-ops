@@ -1,3 +1,4 @@
+-- Add retreat-specific participation and meal options.
 CREATE TABLE retreat_participation_options (
     id BIGSERIAL PRIMARY KEY,
     retreat_id BIGINT NOT NULL REFERENCES retreats (id),

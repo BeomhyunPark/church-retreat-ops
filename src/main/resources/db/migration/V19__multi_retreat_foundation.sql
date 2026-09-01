@@ -1,3 +1,4 @@
+-- Introduce the single active retreat lifecycle after production QR migrations.
 CREATE TABLE retreats (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(150) NOT NULL,

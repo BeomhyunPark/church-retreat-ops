@@ -2,6 +2,7 @@ package com.gmc.retreat.checkin.mapper;
 
 import com.gmc.retreat.checkin.domain.CheckInMethod;
 import com.gmc.retreat.checkin.domain.CheckInRosterItem;
+import com.gmc.retreat.checkin.domain.CheckInTokenRecord;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -40,6 +41,8 @@ public interface CheckInMapper {
     int insertEvent(CheckInEventInsert event);
 
     int insertToken(CheckInTokenInsert token);
+
+    Optional<CheckInTokenRecord> findTokenByHash(@Param("tokenHash") String tokenHash);
 
     int revokeActiveTokensByParticipantId(@Param("participantId") Long participantId);
 
