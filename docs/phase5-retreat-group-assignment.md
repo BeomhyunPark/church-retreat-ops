@@ -6,7 +6,7 @@
 
 Phase 5는 수련회 운영을 위한 임시 조를 만들고 참가자를 조에 배정할 수 있게 합니다.
 
-교회 중그룹과 교회 셀은 정규 교회 공동체 구조입니다. 수련회 조는 이번 수련회 운영을 위한 임시 구조이며 교회 셀이 아닙니다. 장로와 셀 리더는 관리자 역할이 아니고, 수련회 조장은 조 안에서의 참가자 수준 역할입니다.
+중그룹과 셀은 참가자가 신청 시 입력한 소속 문자열입니다. 수련회 조는 이번 수련회 운영을 위한 별도의 임시 구조입니다. 수련회 조장은 조 안에서의 참가자 수준 역할이며 관리자가 아닙니다.
 
 ## 도메인 모델
 
@@ -98,22 +98,19 @@ DELETE /api/admin/retreat-groups/{groupId}/leader
 
 ## 참가자 응답 변경
 
-관리자 참가자 목록과 상세 응답은 기존 교회 공동체 필드를 그대로 유지하면서 수련회 조 정보를 추가합니다.
+관리자 참가자 목록과 상세 응답은 신청 시 입력한 소속과 수련회 조 정보를 함께 제공합니다.
 
 ```json
 {
-  "churchCellDepartment": "Young Adults",
-  "churchCellId": 10,
-  "churchCellName": "A1",
-  "middleGroupId": 3,
-  "middleGroupName": "Alpha",
+  "middleGroupName": "드림 중그룹",
+  "cellName": "사랑 셀",
   "retreatGroupId": 7,
   "retreatGroupName": "Group 1",
   "retreatGroupLeader": true
 }
 ```
 
-`churchCellDepartment`와 `churchCellId`는 수련회 조 배정으로 수정되지 않습니다.
+`middleGroupName`과 `cellName`은 수련회 조 배정으로 수정되지 않습니다.
 
 ## 보안과 개인정보
 

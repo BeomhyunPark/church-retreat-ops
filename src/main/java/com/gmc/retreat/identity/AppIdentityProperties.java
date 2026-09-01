@@ -7,9 +7,9 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "app.identity")
 public class AppIdentityProperties {
 
-    private static final String DEFAULT_APP_NAME = "Retreat Ops";
-    private static final String DEFAULT_ORGANIZATION_NAME = "Your Church";
-    private static final String DEFAULT_EVENT_NAME = "Your Retreat";
+    private static final String DEFAULT_APP_NAME = "청년2부 수련회";
+    private static final String DEFAULT_ORGANIZATION_NAME = "지구촌교회 드림공동체 청년2부";
+    private static final String DEFAULT_EVENT_NAME = "청년2부 수련회";
 
     private String appName = DEFAULT_APP_NAME;
     private String organizationName = DEFAULT_ORGANIZATION_NAME;

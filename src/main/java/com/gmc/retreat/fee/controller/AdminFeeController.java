@@ -34,7 +34,6 @@ public class AdminFeeController {
             @AuthenticationPrincipal AdminPrincipal admin,
             @RequestParam(required = false) Boolean feePaid,
             @RequestParam(required = false) Long retreatGroupId,
-            @RequestParam(required = false) Long churchCellId,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
@@ -43,7 +42,6 @@ public class AdminFeeController {
                 admin,
                 feePaid,
                 retreatGroupId,
-                churchCellId,
                 keyword,
                 page,
                 size

@@ -116,7 +116,7 @@ export function AdminFeesPage() {
                     {item.feePaid ? "납부" : "미납"}
                   </span>
                 </td>
-                <td>{item.churchCellName ?? "-"}</td>
+                <td>{item.cellName ?? "-"}</td>
                 <td>{item.retreatGroupName ?? "-"}</td>
                 <td>{item.feeStatusUpdatedAt ? new Date(item.feeStatusUpdatedAt).toLocaleString() : "-"}</td>
                 <td>

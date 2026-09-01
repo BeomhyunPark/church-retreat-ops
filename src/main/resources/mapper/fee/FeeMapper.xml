@@ -10,10 +10,8 @@
             <arg column="gender" javaType="com.gmc.retreat.registration.domain.Gender" />
             <arg column="birth_year" javaType="java.lang.Integer" />
             <arg column="phone_last_four" javaType="java.lang.String" />
-            <arg column="church_cell_id" javaType="java.lang.Long" />
-            <arg column="church_cell_name" javaType="java.lang.String" />
-            <arg column="middle_group_id" javaType="java.lang.Long" />
             <arg column="middle_group_name" javaType="java.lang.String" />
+            <arg column="cell_name" javaType="java.lang.String" />
             <arg column="retreat_group_id" javaType="java.lang.Long" />
             <arg column="retreat_group_name" javaType="java.lang.String" />
             <arg column="retreat_group_leader" javaType="java.lang.Boolean" />
@@ -39,8 +37,7 @@
 
     <sql id="FeeColumns">
         r.id AS participant_id, r.name, r.gender, r.birth_year, r.phone_last_four,
-        r.church_cell_id, cc.name AS church_cell_name,
-        mg.id AS middle_group_id, mg.name AS middle_group_name,
+        r.middle_group_name, r.cell_name,
         rg.id AS retreat_group_id, rg.name AS retreat_group_name, rgm.leader AS retreat_group_leader,
         r.fee_paid, r.fee_status_updated_at, r.fee_status_updated_by_admin_id,
         fee_admin.name AS fee_status_updated_by_admin_name
@@ -48,8 +45,6 @@
 
     <sql id="FeeJoins">
         FROM registrations r
-        LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
-        LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
         LEFT JOIN retreat_group_members rgm ON rgm.registration_id = r.id
         LEFT JOIN retreat_groups rg ON rg.id = rgm.retreat_group_id
         LEFT JOIN admin_users fee_admin ON fee_admin.id = r.fee_status_updated_by_admin_id
@@ -57,19 +52,21 @@
 
     <sql id="RosterFilters">
         <where>
+            AND r.retreat_id = (
+                SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+            )
             <if test="feePaid != null">
-                r.fee_paid = #{feePaid}
+                AND r.fee_paid = #{feePaid}
             </if>
             <if test="retreatGroupId != null">
                 AND rg.id = #{retreatGroupId}
-            </if>
-            <if test="churchCellId != null">
-                AND r.church_cell_id = #{churchCellId}
             </if>
             <if test="keyword != null and keyword != ''">
                 AND (
                     lower(r.name) LIKE lower(concat('%', #{keyword}, '%'))
                     OR r.phone_last_four = #{keyword}
+                    OR lower(r.middle_group_name) LIKE lower(concat('%', #{keyword}, '%'))
+                    OR lower(r.cell_name) LIKE lower(concat('%', #{keyword}, '%'))
                 )
             </if>
         </where>
@@ -97,18 +94,27 @@
         <include refid="FeeColumns" />
         <include refid="FeeJoins" />
         WHERE r.id = #{participantId}
+          AND r.retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </select>
 
     <select id="countParticipantById" resultType="int">
         SELECT COUNT(*)
         FROM registrations
         WHERE id = #{participantId}
+          AND retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </select>
 
     <select id="findFeePaidByParticipantId" resultType="java.lang.Boolean">
         SELECT fee_paid
         FROM registrations
         WHERE id = #{participantId}
+          AND retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </select>
 
     <select id="updateFeePaidIfChanged" resultType="java.lang.Boolean">
@@ -116,6 +122,9 @@
             SELECT id, fee_paid
             FROM registrations
             WHERE id = #{participantId}
+              AND retreat_id = (
+                  SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+              )
               AND fee_paid &lt;&gt; #{feePaid}
             FOR UPDATE
         ),

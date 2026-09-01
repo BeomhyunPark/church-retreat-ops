@@ -16,6 +16,9 @@
             <arg column="target_audience" javaType="com.gmc.retreat.schedule.domain.ScheduleTargetAudience" />
             <arg column="is_active" javaType="java.lang.Boolean" />
             <arg column="display_order" javaType="java.lang.Integer" />
+            <arg column="collect_participation" javaType="java.lang.Boolean" />
+            <arg column="participation_option_id" javaType="java.lang.Long" />
+            <arg column="selection_count" javaType="java.lang.Long" />
             <arg column="created_by_admin_id" javaType="java.lang.Long" />
             <arg column="created_by_admin_email" javaType="java.lang.String" />
             <arg column="created_by_admin_name" javaType="java.lang.String" />
@@ -31,7 +34,9 @@
 
     <sql id="ScheduleColumns">
         s.id, s.title, s.description, s.schedule_date, s.starts_at, s.ends_at, s.location,
-        s.category, s.target_audience, s.is_active, s.display_order,
+        s.category, s.target_audience, s.is_active, s.display_order, s.collect_participation,
+        option.id AS participation_option_id,
+        COALESCE(option_count.selection_count, 0) AS selection_count,
         s.created_by_admin_id, created_admin.email AS created_by_admin_email,
         created_admin.name AS created_by_admin_name, created_admin.role AS created_by_admin_role,
         s.updated_by_admin_id, updated_admin.email AS updated_by_admin_email,
@@ -41,8 +46,16 @@
 
     <sql id="ScheduleJoins">
         FROM retreat_schedule_items s
-        JOIN admin_users created_admin ON created_admin.id = s.created_by_admin_id
-        JOIN admin_users updated_admin ON updated_admin.id = s.updated_by_admin_id
+        LEFT JOIN admin_users created_admin ON created_admin.id = s.created_by_admin_id
+        LEFT JOIN admin_users updated_admin ON updated_admin.id = s.updated_by_admin_id
+        LEFT JOIN retreat_participation_options option ON option.schedule_item_id = s.id
+        LEFT JOIN (
+            SELECT selection.option_id, COUNT(*) AS selection_count
+            FROM registration_participation_options selection
+            JOIN registrations registration ON registration.id = selection.registration_id
+            WHERE registration.status = 'REGISTERED'
+            GROUP BY selection.option_id
+        ) option_count ON option_count.option_id = option.id
     </sql>
 
     <select id="findScheduleItems" resultMap="ScheduleItemResultMap">
@@ -50,8 +63,18 @@
         <include refid="ScheduleColumns" />
         <include refid="ScheduleJoins" />
         <where>
+            <choose>
+                <when test="retreatId != null">
+                    AND s.retreat_id = #{retreatId}
+                </when>
+                <otherwise>
+                    AND s.retreat_id = (
+                        SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+                    )
+                </otherwise>
+            </choose>
             <if test="scheduleDate != null">
-                s.schedule_date = #{scheduleDate}
+                AND s.schedule_date = #{scheduleDate}
             </if>
             <if test="category != null">
                 AND s.category = #{category}
@@ -60,7 +83,7 @@
                 AND s.is_active = #{active}
             </if>
         </where>
-        ORDER BY s.schedule_date ASC, s.display_order ASC, s.starts_at ASC, s.id ASC
+        ORDER BY s.schedule_date ASC, s.starts_at ASC NULLS LAST, s.display_order ASC, s.id ASC
     </select>
 
     <select id="findScheduleItemById" resultMap="ScheduleItemResultMap">
@@ -68,17 +91,21 @@
         <include refid="ScheduleColumns" />
         <include refid="ScheduleJoins" />
         WHERE s.id = #{id}
+          AND s.retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </select>
 
     <insert id="insertScheduleItem" parameterType="com.gmc.retreat.schedule.mapper.ScheduleItemUpsert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO retreat_schedule_items (
-            title, description, schedule_date, starts_at, ends_at, location,
+            retreat_id, title, description, schedule_date, starts_at, ends_at, location,
             category, target_audience, is_active, display_order,
-            created_by_admin_id, updated_by_admin_id
+            collect_participation, created_by_admin_id, updated_by_admin_id
         )
         VALUES (
+            (SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')),
             #{title}, #{description}, #{scheduleDate}, #{startsAt}, #{endsAt}, #{location},
-            #{category}, #{targetAudience}, #{active}, #{displayOrder},
+            #{category}, #{targetAudience}, #{active}, #{displayOrder}, #{collectParticipation},
             #{adminId}, #{adminId}
         )
     </insert>
@@ -95,9 +122,13 @@
             target_audience = #{targetAudience},
             is_active = #{active},
             display_order = #{displayOrder},
+            collect_participation = #{collectParticipation},
             updated_by_admin_id = #{adminId},
             updated_at = now()
         WHERE id = #{id}
+          AND retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </update>
 
     <update id="updateActive">
@@ -106,5 +137,33 @@
             updated_by_admin_id = #{adminId},
             updated_at = now()
         WHERE id = #{id}
+          AND retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
+    </update>
+
+    <update id="shiftScheduleItems">
+        UPDATE retreat_schedule_items
+        SET schedule_date = schedule_date + CAST(#{dayShift} AS INTEGER),
+            starts_at = starts_at + CAST(#{dayShift} AS INTEGER) * INTERVAL '1 day',
+            ends_at = ends_at + CAST(#{dayShift} AS INTEGER) * INTERVAL '1 day',
+            is_active = is_active
+                AND schedule_date + CAST(#{dayShift} AS INTEGER) BETWEEN #{startsOn} AND #{endsOn},
+            updated_by_admin_id = #{adminId},
+            updated_at = now()
+        WHERE retreat_id = #{retreatId}
+    </update>
+
+    <update id="syncLinkedParticipationOptions">
+        UPDATE retreat_participation_options option
+        SET option_type = CASE WHEN schedule.category = 'MEAL' THEN 'MEAL' ELSE 'PROGRAM' END,
+            label = schedule.title,
+            event_date = schedule.schedule_date,
+            display_order = schedule.display_order,
+            is_active = schedule.is_active AND schedule.collect_participation,
+            updated_at = now()
+        FROM retreat_schedule_items schedule
+        WHERE option.schedule_item_id = schedule.id
+          AND schedule.retreat_id = #{retreatId}
     </update>
 </mapper>

@@ -7,7 +7,8 @@ export type RegisterFormValues = {
   gender: "MALE" | "FEMALE";
   birthYear: number;
   phoneNumber: string;
-  churchCellDepartment?: string;
+  middleGroupName?: string;
+  cellName?: string;
   privacyConsentAgreed: boolean;
   lookupKey: string;
   attendanceType: AttendanceType;
@@ -16,14 +17,7 @@ export type RegisterFormValues = {
   partialAttendanceNote?: string;
   lodgingNight1?: boolean;
   lodgingNight2?: boolean;
-  attendDay1Morning?: boolean;
-  attendDay1Afternoon?: boolean;
-  attendDay1Worship?: boolean;
-  attendDay2Morning?: boolean;
-  attendDay2Afternoon?: boolean;
-  attendDay2Worship?: boolean;
-  attendDay3Morning?: boolean;
-  attendDay3Afternoon?: boolean;
+  selectedOptionIds: number[];
   inboundTransportationMethod: TransportationMethod;
   outboundTransportationMethod: TransportationMethod;
   inboundCarpoolAvailable?: boolean;
@@ -72,18 +66,18 @@ export function getTransportationOptions(attendanceType: AttendanceType): Transp
     return ["GROUP_BUS", "OWN_CAR", "PUBLIC_TRANSIT", "CARPOOL_NEEDED"];
   }
   if (attendanceType === "WORSHIP_ONLY") {
-    return ["WORSHIP_SHUTTLE", "OWN_CAR", "PUBLIC_TRANSIT", "CARPOOL_NEEDED", "NOT_DECIDED"];
+    return ["WORSHIP_SHUTTLE", "OWN_CAR", "PUBLIC_TRANSIT", "CARPOOL_NEEDED"];
   }
-  return ["GROUP_BUS", "WORSHIP_SHUTTLE", "OWN_CAR", "PUBLIC_TRANSIT", "CARPOOL_NEEDED", "NOT_DECIDED"];
+  return ["GROUP_BUS", "WORSHIP_SHUTTLE", "OWN_CAR", "PUBLIC_TRANSIT", "CARPOOL_NEEDED"];
 }
 
 export function getTransportationLabel(method: TransportationMethod): string {
   const labels: Record<TransportationMethod, string> = {
     OWN_CAR: "자차",
-    GROUP_BUS: "함께 이동해요",
+    GROUP_BUS: "단체 이동 차량",
     WORSHIP_SHUTTLE: "집회 차량",
     PUBLIC_TRANSIT: "대중교통",
-    CARPOOL_NEEDED: "카풀 희망",
+    CARPOOL_NEEDED: "이동 지원 요청",
     NOT_DECIDED: "미정"
   };
   return labels[method];
@@ -123,7 +117,8 @@ export function buildRegisterSteps(
     "gender",
     "birthYear",
     "phoneNumber",
-    "churchCellDepartment",
+    "middleGroupName",
+    "cellName",
     "attendanceType"
   ];
 
@@ -147,7 +142,7 @@ export function buildRegisterSteps(
       steps.push("outboundCarpoolPreferredArea", "outboundCarpoolPreferredNote");
     }
   } else if (attendanceType === "PARTIAL") {
-    steps.push("plannedArrivalAt", "plannedDepartureAt", "partialAttendanceNote", "lodgingNight1", "attendDay1Morning");
+    steps.push("plannedArrivalAt", "plannedDepartureAt", "partialAttendanceNote", "lodgingNight1", "selectedOptionIds");
     steps.push("inboundTransportationMethod");
     if (inboundTransportation === "OWN_CAR") {
       steps.push("inboundCarpoolAvailable");
@@ -175,7 +170,7 @@ export function buildRegisterSteps(
       }
     }
   } else if (attendanceType === "WORSHIP_ONLY") {
-    steps.push("attendDay1Morning", "inboundTransportationMethod");
+    steps.push("selectedOptionIds", "inboundTransportationMethod");
     if (inboundTransportation === "OWN_CAR") {
       steps.push("inboundCarpoolAvailable");
       if (inboundCarpoolAvailable === true) {
@@ -237,14 +232,7 @@ export function buildRegistrationPayload(values: RegisterFormValues): Registrati
   if (values.attendanceType === "FULL") {
     delete payload.lodgingNight1;
     delete payload.lodgingNight2;
-    delete payload.attendDay1Morning;
-    delete payload.attendDay1Afternoon;
-    delete payload.attendDay1Worship;
-    delete payload.attendDay2Morning;
-    delete payload.attendDay2Afternoon;
-    delete payload.attendDay2Worship;
-    delete payload.attendDay3Morning;
-    delete payload.attendDay3Afternoon;
+    payload.selectedOptionIds = [];
   }
 
   if (values.attendanceType !== "PARTIAL") {

@@ -2,12 +2,12 @@ package com.gmc.retreat.registration.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gmc.retreat.admin.domain.AdminRole;
-import com.gmc.retreat.community.service.CommunityService;
 import com.gmc.retreat.checkin.service.CheckInService;
 import com.gmc.retreat.error.BusinessException;
 import com.gmc.retreat.error.ErrorCode;
 import com.gmc.retreat.fee.mapper.FeeEventInsert;
 import com.gmc.retreat.fee.mapper.FeeMapper;
+import com.gmc.retreat.participation.mapper.ParticipationOptionMapper;
 import com.gmc.retreat.registration.domain.AttendanceType;
 import com.gmc.retreat.registration.domain.Registration;
 import com.gmc.retreat.registration.domain.RegistrationActorType;
@@ -15,7 +15,6 @@ import com.gmc.retreat.registration.domain.RegistrationHistoryChangeType;
 import com.gmc.retreat.registration.domain.RegistrationStatus;
 import com.gmc.retreat.registration.domain.TransportationMethod;
 import com.gmc.retreat.registration.domain.WorshipBusRideSlot;
-import com.gmc.retreat.registration.dto.AdminParticipantChurchCellUpdateRequest;
 import com.gmc.retreat.registration.dto.AdminRegistrationFeePaidUpdateRequest;
 import com.gmc.retreat.registration.dto.AdminRegistrationManagementUpdateRequest;
 import com.gmc.retreat.registration.dto.AdminRegistrationResponse;
@@ -39,7 +38,10 @@ import com.gmc.retreat.registration.mapper.RegistrationSelfUpdate;
 import com.gmc.retreat.registration.mapper.RegistrationPrivacyAccessLogInsert;
 import com.gmc.retreat.registration.mapper.RegistrationPrivacyAccessLogMapper;
 import com.gmc.retreat.security.auth.AdminPrincipal;
+import com.gmc.retreat.retreat.service.RetreatService;
 import java.time.OffsetDateTime;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -57,10 +59,11 @@ public class RegistrationService {
     private final RegistrationHistoryMapper registrationHistoryMapper;
     private final RegistrationPrivacyAccessLogMapper privacyAccessLogMapper;
     private final FeeMapper feeMapper;
-    private final CommunityService communityService;
+    private final ParticipationOptionMapper participationOptionMapper;
     private final PasswordEncoder passwordEncoder;
     private final RegistrationProperties registrationProperties;
     private final ObjectMapper objectMapper;
+    private final RetreatService retreatService;
     private final CheckInService checkInService;
 
     public RegistrationService(
@@ -68,31 +71,38 @@ public class RegistrationService {
             RegistrationHistoryMapper registrationHistoryMapper,
             RegistrationPrivacyAccessLogMapper privacyAccessLogMapper,
             FeeMapper feeMapper,
-            CommunityService communityService,
+            ParticipationOptionMapper participationOptionMapper,
             PasswordEncoder passwordEncoder,
             RegistrationProperties registrationProperties,
             ObjectMapper objectMapper,
+            RetreatService retreatService,
             CheckInService checkInService
     ) {
         this.registrationMapper = registrationMapper;
         this.registrationHistoryMapper = registrationHistoryMapper;
         this.privacyAccessLogMapper = privacyAccessLogMapper;
         this.feeMapper = feeMapper;
-        this.communityService = communityService;
+        this.participationOptionMapper = participationOptionMapper;
         this.passwordEncoder = passwordEncoder;
         this.registrationProperties = registrationProperties;
         this.objectMapper = objectMapper;
+        this.retreatService = retreatService;
         this.checkInService = checkInService;
     }
 
     @Transactional
     public RegistrationCreateResponse createOrOverwrite(RegistrationCreateRequest request) {
+        Long retreatId = retreatService.requireOpenRetreatId();
         String name = normalizeName(request.name());
         String normalizedName = normalizeName(request.name());
         String phoneNumber = PhoneNumberNormalizer.normalize(request.phoneNumber());
         String phoneLastFour = PhoneNumberNormalizer.lastFour(phoneNumber);
         String lookupKeyHash = passwordEncoder.encode(request.lookupKey());
-        String churchCellDepartment = normalizeOptional(request.churchCellDepartment());
+        String middleGroupName = normalizeOptional(request.middleGroupName());
+        String cellName = normalizeOptional(request.cellName());
+        List<Long> selectedOptionIds = resolveSelectedOptionIds(
+                retreatId, request.attendanceType(), request.selectedOptionIds()
+        );
         validateAttendanceSurvey(
                 request.attendanceType(),
                 request.plannedArrivalAt(),
@@ -116,20 +126,24 @@ public class RegistrationService {
                 request.outboundCarpoolPreferredNote(),
                 request.outboundWorshipBusRideSlot()
         );
-        AttendanceFields attendanceFields = resolveAttendanceFields(request.attendanceType(), request);
+        LodgingFields lodgingFields = resolveLodgingFields(
+                request.attendanceType(), request.lodgingNight1(), request.lodgingNight2()
+        );
 
         Registration existing = registrationMapper.findActiveByNormalizedNameAndPhoneNumber(normalizedName, phoneNumber)
                 .orElse(null);
 
         if (existing == null) {
             RegistrationInsert insert = new RegistrationInsert(
+                    retreatId,
                     name,
                     normalizedName,
                     request.gender(),
                     request.birthYear(),
                     phoneNumber,
                     phoneLastFour,
-                    churchCellDepartment,
+                    middleGroupName,
+                    cellName,
                     lookupKeyHash,
                     true,
                     false,
@@ -138,16 +152,9 @@ public class RegistrationService {
                     request.plannedArrivalAt(),
                     request.plannedDepartureAt(),
                     normalizeOptional(request.partialAttendanceNote()),
-                    attendanceFields.lodgingNight1(),
-                    attendanceFields.lodgingNight2(),
-                    attendanceFields.attendDay1Morning(),
-                    attendanceFields.attendDay1Afternoon(),
-                    attendanceFields.attendDay1Worship(),
-                    attendanceFields.attendDay2Morning(),
-                    attendanceFields.attendDay2Afternoon(),
-                    attendanceFields.attendDay2Worship(),
-                    attendanceFields.attendDay3Morning(),
-                    attendanceFields.attendDay3Afternoon(),
+                    lodgingFields.lodgingNight1(),
+                    lodgingFields.lodgingNight2(),
+                    false, false, false, false, false, false, false, false,
                     request.inboundTransportationMethod(),
                     request.inboundCarpoolAvailable(),
                     request.inboundCarpoolSeats(),
@@ -168,12 +175,13 @@ public class RegistrationService {
                     request.outboundWorshipBusRideSlot()
             );
             registrationMapper.insert(insert);
+            replaceSelections(insert.getId(), selectedOptionIds);
             Registration created = registrationMapper.findById(insert.getId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
             insertHistory(created.id(), RegistrationHistoryChangeType.CREATED, null, snapshot(created));
             return new RegistrationCreateResponse(
                     ResultType.CREATED,
-                    RegistrationResponse.from(created),
+                    registrationResponse(created),
                     checkInService.issueParticipantQr(created.id())
             );
         }
@@ -187,23 +195,17 @@ public class RegistrationService {
                 request.birthYear(),
                 phoneNumber,
                 phoneLastFour,
-                churchCellDepartment,
+                middleGroupName,
+                cellName,
                 lookupKeyHash,
                 true,
                 request.attendanceType(),
                 request.plannedArrivalAt(),
                 request.plannedDepartureAt(),
                 normalizeOptional(request.partialAttendanceNote()),
-                attendanceFields.lodgingNight1(),
-                attendanceFields.lodgingNight2(),
-                attendanceFields.attendDay1Morning(),
-                attendanceFields.attendDay1Afternoon(),
-                attendanceFields.attendDay1Worship(),
-                attendanceFields.attendDay2Morning(),
-                attendanceFields.attendDay2Afternoon(),
-                attendanceFields.attendDay2Worship(),
-                attendanceFields.attendDay3Morning(),
-                attendanceFields.attendDay3Afternoon(),
+                lodgingFields.lodgingNight1(),
+                lodgingFields.lodgingNight2(),
+                false, false, false, false, false, false, false, false,
                 request.inboundTransportationMethod(),
                 request.inboundCarpoolAvailable(),
                 request.inboundCarpoolSeats(),
@@ -223,26 +225,27 @@ public class RegistrationService {
                 request.outboundCarpoolPreferredNote(),
                 request.outboundWorshipBusRideSlot()
         ));
+        replaceSelections(existing.id(), selectedOptionIds);
         Registration updated = registrationMapper.findById(existing.id())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
         insertHistory(updated.id(), RegistrationHistoryChangeType.OVERWRITTEN, previousSnapshot, snapshot(updated));
         return new RegistrationCreateResponse(
                 ResultType.OVERWRITTEN,
-                RegistrationResponse.from(updated),
+                registrationResponse(updated),
                 checkInService.issueParticipantQr(updated.id())
         );
     }
 
     @Transactional(readOnly = true)
     public RegistrationResponse selfLookup(RegistrationSelfLookupRequest request) {
-        return RegistrationResponse.from(authenticateParticipantByName(request.name(), request.lookupKey()));
+        return registrationResponse(authenticateParticipantByName(request.name(), request.lookupKey()));
     }
 
     @Transactional
     public RegistrationCheckInQrResponse selfCheckInQr(RegistrationSelfLookupRequest request) {
         Registration registration = authenticateParticipantByName(request.name(), request.lookupKey());
         return new RegistrationCheckInQrResponse(
-                RegistrationResponse.from(registration),
+                registrationResponse(registration),
                 checkInService.issueParticipantQr(registration.id())
         );
     }
@@ -254,6 +257,10 @@ public class RegistrationService {
         }
 
         Registration registration = authenticateParticipant(request.name(), request.phoneLastFour(), request.lookupKey());
+        Long retreatId = retreatService.requireOperationalRetreatId();
+        List<Long> selectedOptionIds = resolveSelectedOptionIds(
+                retreatId, request.update().attendanceType(), request.update().selectedOptionIds()
+        );
         String newPhoneNumber = PhoneNumberNormalizer.normalize(request.update().phoneNumber());
         String newPhoneLastFour = PhoneNumberNormalizer.lastFour(newPhoneNumber);
         String normalizedName = normalizeName(registration.name());
@@ -288,7 +295,11 @@ public class RegistrationService {
                 request.update().outboundCarpoolPreferredNote(),
                 request.update().outboundWorshipBusRideSlot()
         );
-        AttendanceFields attendanceFields = resolveAttendanceFields(request.update().attendanceType(), request.update());
+        LodgingFields lodgingFields = resolveLodgingFields(
+                request.update().attendanceType(),
+                request.update().lodgingNight1(),
+                request.update().lodgingNight2()
+        );
 
         String previousSnapshot = snapshot(registration);
         registrationMapper.selfUpdate(new RegistrationSelfUpdate(
@@ -297,21 +308,15 @@ public class RegistrationService {
                 request.update().birthYear(),
                 newPhoneNumber,
                 newPhoneLastFour,
-                normalizeOptional(request.update().churchCellDepartment()),
+                normalizeOptional(request.update().middleGroupName()),
+                normalizeOptional(request.update().cellName()),
                 request.update().attendanceType(),
                 request.update().plannedArrivalAt(),
                 request.update().plannedDepartureAt(),
                 normalizeOptional(request.update().partialAttendanceNote()),
-                attendanceFields.lodgingNight1(),
-                attendanceFields.lodgingNight2(),
-                attendanceFields.attendDay1Morning(),
-                attendanceFields.attendDay1Afternoon(),
-                attendanceFields.attendDay1Worship(),
-                attendanceFields.attendDay2Morning(),
-                attendanceFields.attendDay2Afternoon(),
-                attendanceFields.attendDay2Worship(),
-                attendanceFields.attendDay3Morning(),
-                attendanceFields.attendDay3Afternoon(),
+                lodgingFields.lodgingNight1(),
+                lodgingFields.lodgingNight2(),
+                false, false, false, false, false, false, false, false,
                 request.update().inboundTransportationMethod(),
                 request.update().inboundCarpoolAvailable(),
                 request.update().inboundCarpoolSeats(),
@@ -331,10 +336,11 @@ public class RegistrationService {
                 request.update().outboundCarpoolPreferredNote(),
                 request.update().outboundWorshipBusRideSlot()
         ));
+        replaceSelections(registration.id(), selectedOptionIds);
         Registration updated = registrationMapper.findById(registration.id())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
         insertHistory(updated.id(), RegistrationHistoryChangeType.SELF_UPDATED, previousSnapshot, snapshot(updated));
-        return RegistrationResponse.from(updated);
+        return registrationResponse(updated);
     }
 
     @Transactional(readOnly = true)
@@ -347,7 +353,7 @@ public class RegistrationService {
             Boolean careTarget,
             Boolean checkedIn,
             Boolean retreatGroupAssigned,
-            Boolean churchCellAssigned,
+            Boolean cellAssigned,
             AttendanceType attendanceType,
             String transportationNeed,
             List<String> sort,
@@ -360,7 +366,7 @@ public class RegistrationService {
         String normalizedKeyword = normalizeOptional(keyword);
         String normalizedTransportationNeed = normalizeTransportationNeed(transportationNeed);
         String orderBy = buildOrderBy(sort);
-        List<AdminRegistrationResponse> content = registrationMapper.findPage(
+        List<Registration> registrations = registrationMapper.findPage(
                         normalizedKeyword,
                         status,
                         feePaid,
@@ -368,15 +374,19 @@ public class RegistrationService {
                         careTarget,
                         checkedIn,
                         retreatGroupAssigned,
-                        churchCellAssigned,
+                        cellAssigned,
                         attendanceType,
                         normalizedTransportationNeed,
                         orderBy,
                         safeSize,
                         safePage * safeSize
-                )
-                .stream()
-                .map(AdminRegistrationResponse::listItem)
+                );
+        Map<Long, List<Long>> selectedOptionIds = selectionsByRegistrationId(registrations);
+        List<AdminRegistrationResponse> content = registrations.stream()
+                .map(registration -> AdminRegistrationResponse.listItem(
+                        registration,
+                        selectedOptionIds.getOrDefault(registration.id(), List.of())
+                ))
                 .toList();
         long totalElements = registrationMapper.countAll(
                 normalizedKeyword,
@@ -386,7 +396,7 @@ public class RegistrationService {
                 careTarget,
                 checkedIn,
                 retreatGroupAssigned,
-                churchCellAssigned,
+                cellAssigned,
                 attendanceType,
                 normalizedTransportationNeed
         );
@@ -404,7 +414,7 @@ public class RegistrationService {
                 DETAIL_VIEW,
                 "phone_number,transportation_carpool_fields"
         );
-        return AdminRegistrationResponse.detail(registration);
+        return adminDetail(registration);
     }
 
     @Transactional
@@ -449,7 +459,7 @@ public class RegistrationService {
                 snapshot(updated),
                 admin.id()
         );
-        return AdminRegistrationResponse.detail(updated);
+        return adminDetail(updated);
     }
 
     @Transactional
@@ -472,7 +482,7 @@ public class RegistrationService {
                 snapshot(updated),
                 admin.id()
         );
-        return AdminRegistrationResponse.detail(updated);
+        return adminDetail(updated);
     }
 
     @Transactional
@@ -500,34 +510,7 @@ public class RegistrationService {
                 snapshot(updated),
                 admin.id()
         );
-        return AdminRegistrationResponse.detail(updated);
-    }
-
-    @Transactional
-    public AdminRegistrationResponse updateParticipantChurchCell(
-            AdminPrincipal admin,
-            Long participantId,
-            AdminParticipantChurchCellUpdateRequest request
-    ) {
-        requireRole(admin, AdminRole.CHAIR);
-        Registration registration = registrationMapper.findById(participantId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.REGISTRATION_NOT_FOUND));
-        if (request.churchCellId() != null) {
-            communityService.ensureCellExists(request.churchCellId());
-        }
-
-        String previousSnapshot = snapshot(registration);
-        registrationMapper.updateChurchCell(participantId, request.churchCellId());
-        Registration updated = registrationMapper.findById(participantId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
-        insertAdminHistory(
-                updated.id(),
-                RegistrationHistoryChangeType.CHURCH_CELL_UPDATED,
-                previousSnapshot,
-                snapshot(updated),
-                admin.id()
-        );
-        return AdminRegistrationResponse.detail(updated);
+        return adminDetail(updated);
     }
 
     private Registration authenticateParticipant(String name, String phoneLastFour, String lookupKey) {
@@ -636,16 +619,14 @@ public class RegistrationService {
             return transportationMethod == TransportationMethod.OWN_CAR
                     || transportationMethod == TransportationMethod.WORSHIP_SHUTTLE
                     || transportationMethod == TransportationMethod.PUBLIC_TRANSIT
-                    || transportationMethod == TransportationMethod.CARPOOL_NEEDED
-                    || transportationMethod == TransportationMethod.NOT_DECIDED;
+                    || transportationMethod == TransportationMethod.CARPOOL_NEEDED;
         }
 
         return transportationMethod == TransportationMethod.OWN_CAR
                 || transportationMethod == TransportationMethod.GROUP_BUS
                 || transportationMethod == TransportationMethod.WORSHIP_SHUTTLE
                 || transportationMethod == TransportationMethod.PUBLIC_TRANSIT
-                || transportationMethod == TransportationMethod.CARPOOL_NEEDED
-                || transportationMethod == TransportationMethod.NOT_DECIDED;
+                || transportationMethod == TransportationMethod.CARPOOL_NEEDED;
     }
 
     private void validateWorshipBusSlot(
@@ -720,53 +701,13 @@ public class RegistrationService {
         }
     }
 
-    private AttendanceFields resolveAttendanceFields(AttendanceType attendanceType, RegistrationCreateRequest request) {
-        return resolveAttendanceFields(
-                attendanceType,
-                request.lodgingNight1(),
-                request.lodgingNight2(),
-                request.attendDay1Morning(),
-                request.attendDay1Afternoon(),
-                request.attendDay1Worship(),
-                request.attendDay2Morning(),
-                request.attendDay2Afternoon(),
-                request.attendDay2Worship(),
-                request.attendDay3Morning(),
-                request.attendDay3Afternoon()
-        );
-    }
-
-    private AttendanceFields resolveAttendanceFields(AttendanceType attendanceType, RegistrationSelfUpdateRequest.Update update) {
-        return resolveAttendanceFields(
-                attendanceType,
-                update.lodgingNight1(),
-                update.lodgingNight2(),
-                update.attendDay1Morning(),
-                update.attendDay1Afternoon(),
-                update.attendDay1Worship(),
-                update.attendDay2Morning(),
-                update.attendDay2Afternoon(),
-                update.attendDay2Worship(),
-                update.attendDay3Morning(),
-                update.attendDay3Afternoon()
-        );
-    }
-
-    private AttendanceFields resolveAttendanceFields(
+    private LodgingFields resolveLodgingFields(
             AttendanceType attendanceType,
             Boolean lodgingNight1,
-            Boolean lodgingNight2,
-            Boolean attendDay1Morning,
-            Boolean attendDay1Afternoon,
-            Boolean attendDay1Worship,
-            Boolean attendDay2Morning,
-            Boolean attendDay2Afternoon,
-            Boolean attendDay2Worship,
-            Boolean attendDay3Morning,
-            Boolean attendDay3Afternoon
+            Boolean lodgingNight2
     ) {
         if (attendanceType == AttendanceType.FULL) {
-            return new AttendanceFields(true, true, true, true, true, true, true, true, true, true);
+            return new LodgingFields(true, true);
         }
 
         boolean resolvedLodgingNight1 = attendanceType == AttendanceType.WORSHIP_ONLY
@@ -774,32 +715,77 @@ public class RegistrationService {
         boolean resolvedLodgingNight2 = attendanceType == AttendanceType.WORSHIP_ONLY
                 ? false : Boolean.TRUE.equals(lodgingNight2);
 
-        return new AttendanceFields(
-                resolvedLodgingNight1,
-                resolvedLodgingNight2,
-                Boolean.TRUE.equals(attendDay1Morning),
-                Boolean.TRUE.equals(attendDay1Afternoon),
-                Boolean.TRUE.equals(attendDay1Worship),
-                Boolean.TRUE.equals(attendDay2Morning),
-                Boolean.TRUE.equals(attendDay2Afternoon),
-                Boolean.TRUE.equals(attendDay2Worship),
-                Boolean.TRUE.equals(attendDay3Morning),
-                Boolean.TRUE.equals(attendDay3Afternoon)
+        return new LodgingFields(resolvedLodgingNight1, resolvedLodgingNight2);
+    }
+
+    private record LodgingFields(
+            Boolean lodgingNight1,
+            Boolean lodgingNight2
+    ) {
+    }
+
+    private List<Long> resolveSelectedOptionIds(
+            Long retreatId,
+            AttendanceType attendanceType,
+            List<Long> requestedOptionIds
+    ) {
+        if (attendanceType == AttendanceType.FULL) {
+            return participationOptionMapper.findActiveOptionIds(retreatId);
+        }
+        if (requestedOptionIds == null) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+
+        LinkedHashSet<Long> uniqueIds = new LinkedHashSet<>(requestedOptionIds);
+        if (uniqueIds.contains(null)) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+        if (uniqueIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> validIds = participationOptionMapper.findValidActiveOptionIds(
+                retreatId,
+                List.copyOf(uniqueIds)
+        );
+        if (validIds.size() != uniqueIds.size()) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+        return validIds;
+    }
+
+    private void replaceSelections(Long registrationId, List<Long> selectedOptionIds) {
+        participationOptionMapper.deleteSelections(registrationId);
+        if (!selectedOptionIds.isEmpty()) {
+            participationOptionMapper.insertSelections(registrationId, selectedOptionIds);
+        }
+    }
+
+    private RegistrationResponse registrationResponse(Registration registration) {
+        return RegistrationResponse.from(
+                registration,
+                participationOptionMapper.findSelectedOptionIds(registration.id())
         );
     }
 
-    private record AttendanceFields(
-            Boolean lodgingNight1,
-            Boolean lodgingNight2,
-            Boolean attendDay1Morning,
-            Boolean attendDay1Afternoon,
-            Boolean attendDay1Worship,
-            Boolean attendDay2Morning,
-            Boolean attendDay2Afternoon,
-            Boolean attendDay2Worship,
-            Boolean attendDay3Morning,
-            Boolean attendDay3Afternoon
-    ) {
+    private AdminRegistrationResponse adminDetail(Registration registration) {
+        return AdminRegistrationResponse.detail(
+                registration,
+                participationOptionMapper.findSelectedOptionIds(registration.id())
+        );
+    }
+
+    private Map<Long, List<Long>> selectionsByRegistrationId(List<Registration> registrations) {
+        if (registrations.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, List<Long>> result = new HashMap<>();
+        participationOptionMapper.findSelectionsByRegistrationIds(
+                registrations.stream().map(Registration::id).toList()
+        ).forEach(selection -> result.computeIfAbsent(
+                selection.registrationId(), ignored -> new java.util.ArrayList<>()
+        ).add(selection.optionId()));
+        return result;
     }
 
     private void insertHistory(
@@ -858,12 +844,8 @@ public class RegistrationService {
                     Map.entry("birthYear", registration.birthYear()),
                     Map.entry("phoneNumber", registration.phoneNumber()),
                     Map.entry("phoneLastFour", registration.phoneLastFour()),
-                    Map.entry("churchCellDepartment", registration.churchCellDepartment() == null
-                            ? "" : registration.churchCellDepartment()),
-                    Map.entry("churchCellId", registration.churchCellId() == null ? "" : registration.churchCellId()),
-                    Map.entry("churchCellName", registration.churchCellName() == null ? "" : registration.churchCellName()),
-                    Map.entry("middleGroupId", registration.middleGroupId() == null ? "" : registration.middleGroupId()),
                     Map.entry("middleGroupName", registration.middleGroupName() == null ? "" : registration.middleGroupName()),
+                    Map.entry("cellName", registration.cellName() == null ? "" : registration.cellName()),
                     Map.entry("retreatGroupId", registration.retreatGroupId() == null ? "" : registration.retreatGroupId()),
                     Map.entry("retreatGroupName", registration.retreatGroupName() == null ? "" : registration.retreatGroupName()),
                     Map.entry("retreatGroupLeader", registration.retreatGroupLeader() == null
@@ -883,14 +865,7 @@ public class RegistrationService {
                             ? "" : registration.partialAttendanceNote()),
                     Map.entry("lodgingNight1", registration.lodgingNight1()),
                     Map.entry("lodgingNight2", registration.lodgingNight2()),
-                    Map.entry("attendDay1Morning", registration.attendDay1Morning()),
-                    Map.entry("attendDay1Afternoon", registration.attendDay1Afternoon()),
-                    Map.entry("attendDay1Worship", registration.attendDay1Worship()),
-                    Map.entry("attendDay2Morning", registration.attendDay2Morning()),
-                    Map.entry("attendDay2Afternoon", registration.attendDay2Afternoon()),
-                    Map.entry("attendDay2Worship", registration.attendDay2Worship()),
-                    Map.entry("attendDay3Morning", registration.attendDay3Morning()),
-                    Map.entry("attendDay3Afternoon", registration.attendDay3Afternoon()),
+                    Map.entry("selectedOptionIds", participationOptionMapper.findSelectedOptionIds(registration.id())),
                     Map.entry("inboundTransportationMethod", registration.inboundTransportationMethod()),
                     Map.entry("inboundCarpoolAvailable", registration.inboundCarpoolAvailable() == null
                             ? "" : registration.inboundCarpoolAvailable()),

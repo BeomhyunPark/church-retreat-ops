@@ -9,13 +9,15 @@ import java.time.OffsetDateTime;
 
 public class RegistrationInsert {
     private Long id;
+    private final Long retreatId;
     private final String name;
     private final String normalizedName;
     private final Gender gender;
     private final Integer birthYear;
     private final String phoneNumber;
     private final String phoneLastFour;
-    private final String churchCellDepartment;
+    private final String middleGroupName;
+    private final String cellName;
     private final String lookupKeyHash;
     private final Boolean privacyConsentAgreed;
     private final Boolean feePaid;
@@ -54,13 +56,15 @@ public class RegistrationInsert {
     private final WorshipBusRideSlot outboundWorshipBusRideSlot;
 
     public RegistrationInsert(
+            Long retreatId,
             String name,
             String normalizedName,
             Gender gender,
             Integer birthYear,
             String phoneNumber,
             String phoneLastFour,
-            String churchCellDepartment,
+            String middleGroupName,
+            String cellName,
             String lookupKeyHash,
             Boolean privacyConsentAgreed,
             Boolean feePaid,
@@ -98,13 +102,15 @@ public class RegistrationInsert {
             String outboundCarpoolPreferredNote,
             WorshipBusRideSlot outboundWorshipBusRideSlot
     ) {
+        this.retreatId = retreatId;
         this.name = name;
         this.normalizedName = normalizedName;
         this.gender = gender;
         this.birthYear = birthYear;
         this.phoneNumber = phoneNumber;
         this.phoneLastFour = phoneLastFour;
-        this.churchCellDepartment = churchCellDepartment;
+        this.middleGroupName = middleGroupName;
+        this.cellName = cellName;
         this.lookupKeyHash = lookupKeyHash;
         this.privacyConsentAgreed = privacyConsentAgreed;
         this.feePaid = feePaid;
@@ -151,6 +157,10 @@ public class RegistrationInsert {
         this.id = id;
     }
 
+    public Long getRetreatId() {
+        return retreatId;
+    }
+
     public String getName() {
         return name;
     }
@@ -175,8 +185,12 @@ public class RegistrationInsert {
         return phoneLastFour;
     }
 
-    public String getChurchCellDepartment() {
-        return churchCellDepartment;
+    public String getMiddleGroupName() {
+        return middleGroupName;
+    }
+
+    public String getCellName() {
+        return cellName;
     }
 
     public String getLookupKeyHash() {

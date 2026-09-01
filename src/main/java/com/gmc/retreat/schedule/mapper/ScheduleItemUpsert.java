@@ -17,6 +17,7 @@ public class ScheduleItemUpsert {
     private final ScheduleTargetAudience targetAudience;
     private final Boolean active;
     private final Integer displayOrder;
+    private final Boolean collectParticipation;
     private final Long adminId;
 
     public ScheduleItemUpsert(
@@ -31,6 +32,7 @@ public class ScheduleItemUpsert {
             ScheduleTargetAudience targetAudience,
             Boolean active,
             Integer displayOrder,
+            Boolean collectParticipation,
             Long adminId
     ) {
         this.id = id;
@@ -44,6 +46,7 @@ public class ScheduleItemUpsert {
         this.targetAudience = targetAudience;
         this.active = active;
         this.displayOrder = displayOrder;
+        this.collectParticipation = collectParticipation;
         this.adminId = adminId;
     }
 
@@ -93,6 +96,10 @@ public class ScheduleItemUpsert {
 
     public Integer getDisplayOrder() {
         return displayOrder;
+    }
+
+    public Boolean getCollectParticipation() {
+        return collectParticipation;
     }
 
     public Long getAdminId() {

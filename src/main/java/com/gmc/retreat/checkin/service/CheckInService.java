@@ -55,7 +55,6 @@ public class CheckInService {
             AdminPrincipal admin,
             Boolean checkedIn,
             Long retreatGroupId,
-            Long churchCellId,
             String keyword,
             int page,
             int size
@@ -68,7 +67,6 @@ public class CheckInService {
                 checkInMapper.findRoster(
                                 checkedIn,
                                 retreatGroupId,
-                                churchCellId,
                                 normalizedKeyword,
                                 safeSize,
                                 safePage * safeSize
@@ -78,7 +76,7 @@ public class CheckInService {
                         .toList(),
                 safePage,
                 safeSize,
-                checkInMapper.countRoster(checkedIn, retreatGroupId, churchCellId, normalizedKeyword)
+                checkInMapper.countRoster(checkedIn, retreatGroupId, normalizedKeyword)
         );
     }
 

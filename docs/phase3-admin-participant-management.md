@@ -33,7 +33,7 @@ STAFF < CHAIR < PASTOR < SYSTEM_ADMIN
 - `newcomer`: 새가족 여부
 - `care_target`: 돌봄 대상 여부
 
-공동체 소속 정보인 `churchCellDepartment`는 관리자 역할과 분리되어 유지됩니다.
+신청 당시의 `middleGroupName`, `cellName`은 관리자 역할과 분리된 참가자 소속 정보입니다.
 
 ## API
 
@@ -49,16 +49,16 @@ GET /api/admin/registrations/{id}/histories
 
 `GET /api/admin/registrations`는 운영 명단 관리를 위해 아래 쿼리 파라미터를 지원합니다.
 
-- `keyword`: 이름, 휴대폰 끝 4자리, 자유 입력 셀, 교회 셀, 중그룹, 수련회 조 검색
+- `keyword`: 이름, 휴대폰 끝 4자리, 중그룹, 셀, 수련회 조 검색
 - `status`: `REGISTERED`, `CANCELLED`
 - `feePaid`, `newcomer`, `careTarget`, `checkedIn`
-- `retreatGroupAssigned`, `churchCellAssigned`
+- `retreatGroupAssigned`, `cellAssigned`
 - `attendanceType`: `FULL`, `PARTIAL`, `WORSHIP_ONLY`
 - `transportationNeed`: `CARPOOL_NEEDED`, `CARPOOL_AVAILABLE`
 - `sort`: `created_desc`, `name_asc`, `fee_unpaid_first`, `check_in_pending_first`, `group_asc`
 - `page`, `size`
 
-목록 응답은 체크인 여부와 참석/숙박 요약 필드를 포함하지만, 전화번호와 교통 세부 민감 정보는 마스킹 또는 생략합니다.
+목록 응답은 체크인 여부, 참석 항목 ID, 숙박 요약, 참가자가 마지막으로 직접 수정한 `participantUpdatedAt`을 포함하지만 전화번호와 교통 세부 민감 정보는 마스킹 또는 생략합니다.
 
 관리 변경 API:
 
@@ -79,6 +79,8 @@ PATCH /api/admin/registrations/{id}/management
 - 관리자 메모/새가족/돌봄 태그 변경: `ADMIN_MANAGEMENT_UPDATED`
 
 관리자 변경 이력은 `actor_type=ADMIN`과 `actor_admin_user_id`를 저장합니다.
+
+참가자의 본인 수정은 `SELF_UPDATED` 이력과 `participantUpdatedAt`으로 운영진에게 표시됩니다. 신규 신청이 마감된 뒤에도 현재 수련회가 `OPEN`인 동안 본인 수정은 허용됩니다.
 
 ## 개인정보 접근 로그
 

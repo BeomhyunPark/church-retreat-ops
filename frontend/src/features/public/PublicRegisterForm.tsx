@@ -1,8 +1,9 @@
 import { useState, type KeyboardEvent } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm, useWatch } from "react-hook-form";
 import { Link } from "react-router-dom";
-import { createRegistration } from "./publicApi";
+import { createRegistration, getParticipationOptions } from "./publicApi";
+import { ParticipationOptionChecklist } from "./ParticipationOptionChecklist";
 import {
   buildRegistrationPayload,
   buildRegisterSteps,
@@ -38,20 +39,17 @@ export function PublicRegisterForm() {
       privacyConsentAgreed: false,
       lodgingNight1: false,
       lodgingNight2: false,
-      attendDay1Morning: false,
-      attendDay1Afternoon: false,
-      attendDay1Worship: false,
-      attendDay2Morning: false,
-      attendDay2Afternoon: false,
-      attendDay2Worship: false,
-      attendDay3Morning: false,
-      attendDay3Afternoon: false
+      selectedOptionIds: []
     }
   });
 
   const mutation = useMutation({
     mutationFn: createRegistration,
     onSuccess: () => setRegistered(true)
+  });
+  const participationOptionsQuery = useQuery({
+    queryKey: ["public", "participation-options"],
+    queryFn: getParticipationOptions
   });
 
   const attendanceType = useWatch({ control, name: "attendanceType" });
@@ -62,6 +60,7 @@ export function PublicRegisterForm() {
   const inboundWorshipBusRideSlot = useWatch({ control, name: "inboundWorshipBusRideSlot" });
   const outboundWorshipBusRideSlot = useWatch({ control, name: "outboundWorshipBusRideSlot" });
   const gender = useWatch({ control, name: "gender" });
+  const selectedOptionIds = useWatch({ control, name: "selectedOptionIds" }) ?? [];
 
   const currentSteps = buildRegisterSteps(
     attendanceType,
@@ -245,30 +244,33 @@ export function PublicRegisterForm() {
               </label>
             ) : null}
 
-            {/* Step: churchCellDepartment */}
-            {currentSteps[step] === "churchCellDepartment" ? (
+            {/* Step: middleGroupName */}
+            {currentSteps[step] === "middleGroupName" ? (
               <label className="flow-field flow-field--lg">
-                <span>셀</span>
-                <div className="suffix-input">
-                  <input
-                    {...register("churchCellDepartment", {
-                      maxLength: { value: 100, message: "100자 이하로 입력해주세요." },
-                      validate: (value) => {
-                        if (!value) return true; // Optional field
-                        const filtered = validationHelpers.filterTextOnly(value);
-                        return filtered.length > 0 || "한글 또는 영문만 입력 가능합니다.";
-                      }
-                    })}
-                    onChange={(e) => {
-                      const filtered = validationHelpers.filterTextOnly(e.target.value);
-                      e.target.value = filtered;
-                    }}
-                    placeholder="유성현"
-                    autoFocus
-                  />
-                  <span className="suffix-input__suffix">셀</span>
-                </div>
-                {formState.errors.churchCellDepartment && <span className="field-error">{formState.errors.churchCellDepartment.message}</span>}
+                <span>중그룹 (선택)</span>
+                <input
+                  {...register("middleGroupName", {
+                    maxLength: { value: 100, message: "100자 이하로 입력해주세요." }
+                  })}
+                  placeholder="예: 임마누엘 중그룹"
+                  autoFocus
+                />
+                {formState.errors.middleGroupName && <span className="field-error">{formState.errors.middleGroupName.message}</span>}
+              </label>
+            ) : null}
+
+            {/* Step: cellName */}
+            {currentSteps[step] === "cellName" ? (
+              <label className="flow-field flow-field--lg">
+                <span>셀 (선택)</span>
+                <input
+                  {...register("cellName", {
+                    maxLength: { value: 100, message: "100자 이하로 입력해주세요." }
+                  })}
+                  placeholder="예: 유성현 셀"
+                  autoFocus
+                />
+                {formState.errors.cellName && <span className="field-error">{formState.errors.cellName.message}</span>}
               </label>
             ) : null}
 
@@ -312,26 +314,14 @@ export function PublicRegisterForm() {
                         resetField("partialAttendanceNote");
                         setValue("lodgingNight1", false);
                         setValue("lodgingNight2", false);
-                        // 집회만 선택시 다른 일정은 자동으로 false
-                        if (type === "WORSHIP_ONLY") {
-                          setValue("attendDay1Morning", false);
-                          setValue("attendDay1Afternoon", false);
-                          setValue("attendDay1Worship", true);
-                          setValue("attendDay2Morning", false);
-                          setValue("attendDay2Afternoon", false);
-                          setValue("attendDay2Worship", true);
-                          setValue("attendDay3Morning", false);
-                          setValue("attendDay3Afternoon", false);
-                        } else {
-                          setValue("attendDay1Morning", false);
-                          setValue("attendDay1Afternoon", false);
-                          setValue("attendDay1Worship", false);
-                          setValue("attendDay2Morning", false);
-                          setValue("attendDay2Afternoon", false);
-                          setValue("attendDay2Worship", false);
-                          setValue("attendDay3Morning", false);
-                          setValue("attendDay3Afternoon", false);
-                        }
+                        setValue(
+                          "selectedOptionIds",
+                          type === "WORSHIP_ONLY"
+                            ? (participationOptionsQuery.data ?? [])
+                              .filter((option) => option.optionType === "PROGRAM" && option.label.includes("집회"))
+                              .map((option) => option.id)
+                            : []
+                        );
                       }}
                     >
                       {getAttendanceLabel(type)}
@@ -608,6 +598,7 @@ export function PublicRegisterForm() {
               inboundTransportation === "CARPOOL_NEEDED" ? (
                 <label className="flow-field flow-field--lg">
                   <span>어느 동네가 편해요?</span>
+                  <p className="muted">이동 지원은 매칭이 보장되지 않으며, 탑승 위치가 희망 지역과 달라질 수 있습니다.</p>
                   <input
                     {...register("inboundCarpoolPreferredArea", {
                       required: "지역을 입력해주세요.",
@@ -803,6 +794,7 @@ export function PublicRegisterForm() {
               outboundTransportation === "CARPOOL_NEEDED" ? (
                 <label className="flow-field flow-field--lg">
                   <span>어느 동네가 편해요?</span>
+                  <p className="muted">이동 지원은 매칭이 보장되지 않으며, 하차 위치가 희망 지역과 달라질 수 있습니다.</p>
                   <input
                     {...register("outboundCarpoolPreferredArea", {
                       required: "지역을 입력해주세요.",
@@ -850,85 +842,16 @@ export function PublicRegisterForm() {
               </div>
             ) : null}
 
-            {/* Step: attendance checklist */}
-            {currentSteps[step] === "attendDay1Morning" && (attendanceType === "PARTIAL" || attendanceType === "WORSHIP_ONLY") ? (
+            {/* Step: dynamic program and meal checklist */}
+            {currentSteps[step] === "selectedOptionIds" && (attendanceType === "PARTIAL" || attendanceType === "WORSHIP_ONLY") ? (
               <div className="flow-field flow-field--lg">
-                <span>참석 시간</span>
-                {attendanceType === "WORSHIP_ONLY" ? (
-                  <div className="checklist-worship-only">
-                    <p className="checklist-note">집회 시간만 참석합니다</p>
-                    <div className="check-grid">
-                      <div>
-                        <h3 className="checklist-day-label">Day 1</h3>
-                        <div className="check-chip-row">
-                          <label className="check-chip">
-                            <input {...register("attendDay1Worship")} type="checkbox" disabled={true} checked={true} readOnly={true} />
-                            <span className="disabled-text">집회</span>
-                          </label>
-                        </div>
-                      </div>
-                      <div>
-                        <h3 className="checklist-day-label">Day 2</h3>
-                        <div className="check-chip-row">
-                          <label className="check-chip">
-                            <input {...register("attendDay2Worship")} type="checkbox" disabled={true} checked={true} readOnly={true} />
-                            <span className="disabled-text">집회</span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="check-grid">
-                    <div>
-                      <h3 className="checklist-day-label">Day 1</h3>
-                      <div className="check-chip-row">
-                        <label className="check-chip">
-                          <input {...register("attendDay1Morning")} type="checkbox" />
-                          <span>오전</span>
-                        </label>
-                        <label className="check-chip">
-                          <input {...register("attendDay1Afternoon")} type="checkbox" />
-                          <span>오후</span>
-                        </label>
-                        <label className="check-chip">
-                          <input {...register("attendDay1Worship")} type="checkbox" />
-                          <span>집회</span>
-                        </label>
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="checklist-day-label">Day 2</h3>
-                      <div className="check-chip-row">
-                        <label className="check-chip">
-                          <input {...register("attendDay2Morning")} type="checkbox" />
-                          <span>오전</span>
-                        </label>
-                        <label className="check-chip">
-                          <input {...register("attendDay2Afternoon")} type="checkbox" />
-                          <span>오후</span>
-                        </label>
-                        <label className="check-chip">
-                          <input {...register("attendDay2Worship")} type="checkbox" />
-                          <span>집회</span>
-                        </label>
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="checklist-day-label">Day 3</h3>
-                      <div className="check-chip-row">
-                        <label className="check-chip">
-                          <input {...register("attendDay3Morning")} type="checkbox" />
-                          <span>오전</span>
-                        </label>
-                        <label className="check-chip">
-                          <input {...register("attendDay3Afternoon")} type="checkbox" />
-                          <span>오후</span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <span>참석할 프로그램과 식사를 선택해주세요</span>
+                <p className="muted">식수 인원 확인을 위해 식사도 빠짐없이 골라주세요.</p>
+                <ParticipationOptionChecklist
+                  options={participationOptionsQuery.data ?? []}
+                  selectedIds={selectedOptionIds}
+                  onChange={(ids) => setValue("selectedOptionIds", ids, { shouldDirty: true })}
+                />
               </div>
             ) : null}
 

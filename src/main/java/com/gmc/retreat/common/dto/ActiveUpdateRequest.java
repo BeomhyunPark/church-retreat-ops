@@ -1,4 +1,4 @@
-package com.gmc.retreat.community.dto;
+package com.gmc.retreat.common.dto;
 
 import jakarta.validation.constraints.NotNull;
 

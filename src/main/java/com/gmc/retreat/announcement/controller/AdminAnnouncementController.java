@@ -5,7 +5,7 @@ import com.gmc.retreat.announcement.dto.AnnouncementResponse;
 import com.gmc.retreat.announcement.dto.PinnedUpdateRequest;
 import com.gmc.retreat.announcement.service.AnnouncementService;
 import com.gmc.retreat.api.ApiResponse;
-import com.gmc.retreat.community.dto.ActiveUpdateRequest;
+import com.gmc.retreat.common.dto.ActiveUpdateRequest;
 import com.gmc.retreat.security.auth.AdminPrincipal;
 import jakarta.validation.Valid;
 import java.util.List;

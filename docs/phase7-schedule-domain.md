@@ -1,37 +1,26 @@
-# Phase 7 일정 도메인
+# 시간표와 신청 항목 통합
 
-이 문서는 Retreat Ops의 Phase 7 일정 도메인 구현 범위를 설명합니다.
+## 운영 화면
 
-## 목적
+`/admin/schedules`는 현재 수련회 기간을 `1일차`, `2일차`처럼 나눈 카드형 시간표입니다. 운영진은 같은 화면에서 일정을 추가·수정하고 공개 상태와 신청 인원을 확인합니다.
 
-Phase 7은 수련회 운영자가 일정 항목을 작성하고 관리할 수 있는 관리자용 MVP를 제공합니다.
+별도의 참석·식사 설정 화면은 사용하지 않습니다. 기존 `/admin/participation-options` 화면 경로는 시간표로 이동합니다.
 
-이 단계는 일정 데이터를 저장하고 관리자 API로 조회/관리하는 기능까지만 포함합니다. 참가자 화면, 모바일 UI, 캘린더 연동, 알림, 반복 일정, 출석 추적, QR 체크인, 장소/자원 예약, 드래그 앤 드롭 정렬은 구현하지 않습니다.
+## 일정 모델
 
-## 도메인 모델
+`retreat_schedule_items`의 주요 필드:
 
-일정:
-
-- 테이블: `retreat_schedule_items`
-- 주요 필드: `title`, `description`, `schedule_date`, `starts_at`, `ends_at`, `location`
-- 분류: `category`
-- 대상: `target_audience`
-- 운영 상태: `is_active`
-- 같은 날 표시 순서: `display_order`
-- 작성/수정 관리자: `created_by_admin_id`, `updated_by_admin_id`
-
-시간 정책:
-
-- `schedule_date`는 일정 목록 필터와 일자별 표시를 위한 `DATE`입니다.
-- `starts_at`, `ends_at`은 타임존 포함 시각인 `TIMESTAMPTZ`입니다.
-- `ends_at`은 반드시 `starts_at`보다 이후여야 합니다.
-- `starts_at`과 `ends_at`의 로컬 날짜는 모두 `schedule_date`와 같아야 합니다.
-- Phase 7 MVP에서는 날짜 필터링을 단순하게 유지하기 위해 자정을 넘는 일정은 허용하지 않습니다.
-- `display_order`는 0 이상이어야 합니다.
+- `title`, `description`, `location`
+- `schedule_date`
+- 선택 입력인 `starts_at`, `ends_at`
+- `category`, `target_audience`
+- `is_active`, `display_order`
+- `collect_participation`
 
 지원 카테고리:
 
 ```text
+PROGRAM
 WORSHIP
 PRAYER
 MEAL
@@ -45,31 +34,25 @@ NOTICE
 ETC
 ```
 
-지원 대상:
+시작·종료 시각은 둘 다 입력하거나 둘 다 비워야 합니다. 비우면 시간표에서 `시간 미정`으로 표시합니다. 입력한 시각은 한국 시간 기준으로 `scheduleDate`와 같은 날이어야 하며 종료 시각이 시작 시각보다 뒤여야 합니다.
 
-```text
-ALL
-STAFF_ONLY
-LEADERS_ONLY
-NEWCOMERS
-CARE_TARGETS
-```
+일정 날짜는 현재 수련회 기간 안이어야 합니다. 신청 인원을 받는 일정은 공개 신청서가 모든 참가자에게 동일하게 보이므로 대상이 `ALL`이어야 합니다.
 
-대상은 Phase 7 MVP에서 단순 값으로만 저장합니다. 수련회 조, 교회 셀, 중그룹 기반의 고급 대상 지정은 아직 구현하지 않습니다.
+## 신청서 연동
 
-## 역할 정책
+`collectParticipation=true`이면 연결된 `retreat_participation_options`를 생성하거나 갱신합니다.
 
-역할 계층은 기존과 같습니다.
+- `MEAL` 일정은 신청 항목 종류 `MEAL`
+- 그 외 일정은 신청 항목 종류 `PROGRAM`
+- 일정 비공개 또는 `collectParticipation=false`이면 신청 항목도 비공개
+- 연결된 신청 항목 ID와 기존 참가자 선택은 유지
+- 일정 응답의 `selectionCount`로 현재 등록 참가자의 선택 인원 확인
 
-```text
-STAFF < CHAIR < PASTOR < SYSTEM_ADMIN
-```
+## 수련회 기간 변경
 
-- 일정 목록/상세 조회: `STAFF` 이상
-- 일정 생성/수정: `CHAIR` 이상
-- 일정 활성/비활성 변경: `CHAIR` 이상
+수련회 시작일을 변경하면 시간표와 연결된 신청 항목을 기존 일차 차이만큼 함께 이동합니다. 기간을 줄여 새 종료일 밖으로 밀린 일정은 삭제하지 않고 비공개 처리합니다. 참가자 선택 기록도 보존합니다.
 
-## API 요약
+## API와 권한
 
 ```text
 GET   /api/admin/schedules
@@ -79,81 +62,38 @@ PATCH /api/admin/schedules/{id}
 PATCH /api/admin/schedules/{id}/active
 ```
 
-목록 필터:
+- `STAFF` 이상: 목록·상세 조회
+- `CHAIR` 이상: 생성·수정·공개 상태 변경
+- `retreatId`를 지정한 목록 조회: 종료된 수련회 시간표 읽기
 
-```text
-date=2026-07-01
-category=WORSHIP
-active=true
-```
-
-생성/수정 요청:
+생성 예시:
 
 ```json
 {
-  "title": "Opening Worship",
-  "description": "Retreat opening worship in the main chapel.",
-  "scheduleDate": "2026-07-01",
-  "startsAt": "2026-07-01T09:00:00Z",
-  "endsAt": "2026-07-01T10:30:00Z",
-  "location": "Main Chapel",
-  "category": "WORSHIP",
+  "title": "저녁식사",
+  "scheduleDate": "2027-01-15",
+  "startsAt": "2027-01-15T18:00:00+09:00",
+  "endsAt": "2027-01-15T19:00:00+09:00",
+  "location": "식당",
+  "category": "MEAL",
   "targetAudience": "ALL",
   "active": true,
-  "displayOrder": 0
+  "displayOrder": 1080,
+  "collectParticipation": true
 }
 ```
 
-활성 상태 변경:
+`startsAt`, `endsAt`을 생략하면 시간 미정 일정으로 저장할 수 있습니다.
 
-```json
-{
-  "active": false
-}
-```
+응답에는 `collectParticipation`, `participationOptionId`, `selectionCount`가 추가됩니다. 이관 과정에서 생성된 일정은 작성·수정 관리자가 `null`일 수 있습니다.
 
-## 응답
+## 보안
 
-응답은 일정 내용, 시간, 분류, 대상, 작성/수정 관리자 요약을 포함합니다.
+- 모든 시간표 관리 API는 관리자 JWT가 필요합니다.
+- 참가자 조회 키나 해시를 시간표 API에 노출하지 않습니다.
+- 신청 항목 생성과 갱신은 일정 변경과 같은 트랜잭션에서 수행합니다.
 
-```json
-{
-  "id": 1,
-  "title": "Opening Worship",
-  "description": "Retreat opening worship in the main chapel.",
-  "scheduleDate": "2026-07-01",
-  "startsAt": "2026-07-01T09:00:00Z",
-  "endsAt": "2026-07-01T10:30:00Z",
-  "location": "Main Chapel",
-  "category": "WORSHIP",
-  "targetAudience": "ALL",
-  "active": true,
-  "displayOrder": 0,
-  "createdBy": {
-    "id": 1,
-    "email": "admin@example.local",
-    "name": "System Admin",
-    "role": "SYSTEM_ADMIN"
-  },
-  "updatedBy": {
-    "id": 1,
-    "email": "admin@example.local",
-    "name": "System Admin",
-    "role": "SYSTEM_ADMIN"
-  }
-}
-```
-
-## 보안과 개인정보
-
-- 모든 일정 API는 관리자 JWT가 필요합니다.
-- 참가자 공개 일정 API는 아직 구현하지 않습니다.
-- `STAFF_ONLY`와 같은 대상 값은 일정 항목 속성일 뿐이며 관리자 권한 역할과 분리해서 다룹니다.
-- 참가자 조회 키 관련 민감 데이터는 일정 API 응답, 문서 예시, HTTP 예시에 포함하지 않습니다.
-
-## 테스트 명령
-
-Docker Desktop이 실행 중이어야 합니다. 테스트는 Testcontainers PostgreSQL을 사용합니다.
+## 검증
 
 ```bash
 ./gradlew clean test

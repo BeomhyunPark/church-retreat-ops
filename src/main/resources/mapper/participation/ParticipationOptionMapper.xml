@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gmc.retreat.participation.mapper.ParticipationOptionMapper">
+    <resultMap id="OptionResultMap" type="com.gmc.retreat.participation.domain.ParticipationOption">
+        <constructor>
+            <arg column="id" javaType="java.lang.Long" />
+            <arg column="retreat_id" javaType="java.lang.Long" />
+            <arg column="schedule_item_id" javaType="java.lang.Long" />
+            <arg column="option_type" javaType="com.gmc.retreat.participation.domain.ParticipationOptionType" />
+            <arg column="label" javaType="java.lang.String" />
+            <arg column="event_date" javaType="java.time.LocalDate" />
+            <arg column="display_order" javaType="java.lang.Integer" />
+            <arg column="is_active" javaType="java.lang.Boolean" />
+            <arg column="selection_count" javaType="java.lang.Long" />
+            <arg column="created_at" javaType="java.time.OffsetDateTime" />
+            <arg column="updated_at" javaType="java.time.OffsetDateTime" />
+        </constructor>
+    </resultMap>
+
+    <sql id="OptionColumns">
+        option.id, option.retreat_id, option.schedule_item_id, option.option_type, option.label, option.event_date,
+        option.display_order, option.is_active, option.created_at, option.updated_at,
+        COUNT(registration_option.registration_id) FILTER (WHERE registration.status = 'REGISTERED') AS selection_count
+    </sql>
+
+    <select id="findCurrentOptions" resultMap="OptionResultMap">
+        SELECT <include refid="OptionColumns" />
+        FROM retreat_participation_options option
+        LEFT JOIN registration_participation_options registration_option ON registration_option.option_id = option.id
+        LEFT JOIN registrations registration ON registration.id = registration_option.registration_id
+        WHERE option.retreat_id = (SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN'))
+        GROUP BY option.id
+        ORDER BY option.event_date, option.display_order, option.id
+    </select>
+
+    <select id="findCurrentOptionByScheduleItemId" resultMap="OptionResultMap">
+        SELECT <include refid="OptionColumns" />
+        FROM retreat_participation_options option
+        LEFT JOIN registration_participation_options registration_option ON registration_option.option_id = option.id
+        LEFT JOIN registrations registration ON registration.id = registration_option.registration_id
+        WHERE option.schedule_item_id = #{scheduleItemId}
+          AND option.retreat_id = (SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN'))
+        GROUP BY option.id
+    </select>
+
+    <select id="findActiveOpenOptions" resultMap="OptionResultMap">
+        SELECT <include refid="OptionColumns" />
+        FROM retreat_participation_options option
+        LEFT JOIN registration_participation_options registration_option ON FALSE
+        LEFT JOIN registrations registration ON FALSE
+        WHERE option.retreat_id = (SELECT id FROM retreats WHERE status = 'OPEN')
+          AND option.is_active = TRUE
+        GROUP BY option.id
+        ORDER BY option.event_date, option.display_order, option.id
+    </select>
+
+    <select id="findCurrentOptionById" resultMap="OptionResultMap">
+        SELECT <include refid="OptionColumns" />
+        FROM retreat_participation_options option
+        LEFT JOIN registration_participation_options registration_option ON registration_option.option_id = option.id
+        LEFT JOIN registrations registration ON registration.id = registration_option.registration_id
+        WHERE option.id = #{id}
+          AND option.retreat_id = (SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN'))
+        GROUP BY option.id
+    </select>
+
+    <select id="findCurrentOptionIdByDateAndLabel" resultType="java.lang.Long">
+        SELECT id
+        FROM retreat_participation_options
+        WHERE retreat_id = (SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN'))
+          AND event_date = #{eventDate}
+          AND lower(label) = lower(#{label})
+    </select>
+
+    <insert id="insert" parameterType="com.gmc.retreat.participation.mapper.ParticipationOptionUpsert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO retreat_participation_options (
+            retreat_id, schedule_item_id, option_type, label, event_date, display_order, is_active
+        ) VALUES (
+            (SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')),
+            #{scheduleItemId}, #{optionType}, #{label}, #{eventDate}, #{displayOrder}, #{active}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.gmc.retreat.participation.mapper.ParticipationOptionUpsert">
+        UPDATE retreat_participation_options
+        SET option_type = #{optionType}, label = #{label}, event_date = #{eventDate},
+            display_order = #{displayOrder}, is_active = #{active}, updated_at = now()
+        WHERE id = #{id}
+          AND retreat_id = (SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN'))
+    </update>
+
+    <update id="shiftUnlinkedOptions">
+        UPDATE retreat_participation_options
+        SET event_date = event_date + CAST(#{dayShift} AS INTEGER),
+            is_active = is_active
+                AND event_date + CAST(#{dayShift} AS INTEGER) BETWEEN #{startsOn} AND #{endsOn},
+            updated_at = now()
+        WHERE retreat_id = #{retreatId}
+          AND schedule_item_id IS NULL
+    </update>
+
+    <update id="updateActive">
+        UPDATE retreat_participation_options
+        SET is_active = #{active}, updated_at = now()
+        WHERE id = #{id}
+          AND retreat_id = (SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN'))
+    </update>
+
+    <select id="findActiveOptionIds" resultType="java.lang.Long">
+        SELECT id FROM retreat_participation_options
+        WHERE retreat_id = #{retreatId} AND is_active = TRUE
+        ORDER BY event_date, display_order, id
+    </select>
+
+    <select id="findValidActiveOptionIds" resultType="java.lang.Long">
+        SELECT id FROM retreat_participation_options
+        WHERE retreat_id = #{retreatId} AND is_active = TRUE
+          AND id IN
+          <foreach collection="optionIds" item="optionId" open="(" separator="," close=")">
+              #{optionId}
+          </foreach>
+        ORDER BY event_date, display_order, id
+    </select>
+
+    <select id="findSelectedOptionIds" resultType="java.lang.Long">
+        SELECT selection.option_id
+        FROM registration_participation_options selection
+        JOIN retreat_participation_options option ON option.id = selection.option_id
+        WHERE selection.registration_id = #{registrationId}
+        ORDER BY option.event_date, option.display_order, option.id
+    </select>
+
+    <select id="findSelectionsByRegistrationIds" resultType="com.gmc.retreat.participation.domain.RegistrationParticipationSelection">
+        SELECT registration_id, option_id
+        FROM registration_participation_options
+        WHERE registration_id IN
+        <foreach collection="registrationIds" item="registrationId" open="(" separator="," close=")">
+            #{registrationId}
+        </foreach>
+    </select>
+
+    <delete id="deleteSelections">
+        DELETE FROM registration_participation_options WHERE registration_id = #{registrationId}
+    </delete>
+
+    <insert id="insertSelections">
+        INSERT INTO registration_participation_options (registration_id, option_id)
+        VALUES
+        <foreach collection="optionIds" item="optionId" separator=",">
+            (#{registrationId}, #{optionId})
+        </foreach>
+    </insert>
+</mapper>

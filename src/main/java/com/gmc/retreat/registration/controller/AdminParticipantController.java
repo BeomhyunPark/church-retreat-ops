@@ -2,9 +2,7 @@ package com.gmc.retreat.registration.controller;
 
 import com.gmc.retreat.api.ApiResponse;
 import com.gmc.retreat.common.dto.DeleteConfirmationRequest;
-import com.gmc.retreat.registration.dto.AdminParticipantChurchCellUpdateRequest;
 import com.gmc.retreat.registration.dto.AdminRegistrationResponse;
-import com.gmc.retreat.registration.service.RegistrationService;
 import com.gmc.retreat.retreat.dto.RetreatGroupAssignmentRequest;
 import com.gmc.retreat.retreat.service.RetreatGroupService;
 import com.gmc.retreat.security.auth.AdminPrincipal;
@@ -21,24 +19,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/admin/participants")
 public class AdminParticipantController {
 
-    private final RegistrationService registrationService;
     private final RetreatGroupService retreatGroupService;
 
-    public AdminParticipantController(
-            RegistrationService registrationService,
-            RetreatGroupService retreatGroupService
-    ) {
-        this.registrationService = registrationService;
+    public AdminParticipantController(RetreatGroupService retreatGroupService) {
         this.retreatGroupService = retreatGroupService;
-    }
-
-    @PatchMapping("/{participantId}/church-cell")
-    public ApiResponse<AdminRegistrationResponse> updateChurchCell(
-            @AuthenticationPrincipal AdminPrincipal admin,
-            @PathVariable Long participantId,
-            @Valid @RequestBody AdminParticipantChurchCellUpdateRequest request
-    ) {
-        return ApiResponse.success(registrationService.updateParticipantChurchCell(admin, participantId, request));
     }
 
     @PatchMapping("/{participantId}/retreat-group")

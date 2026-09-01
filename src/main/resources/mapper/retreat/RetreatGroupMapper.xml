@@ -24,11 +24,8 @@
             <arg column="participant_name" javaType="java.lang.String" />
             <arg column="gender" javaType="com.gmc.retreat.registration.domain.Gender" />
             <arg column="birth_year" javaType="java.lang.Integer" />
-            <arg column="church_cell_department" javaType="java.lang.String" />
-            <arg column="church_cell_id" javaType="java.lang.Long" />
-            <arg column="church_cell_name" javaType="java.lang.String" />
-            <arg column="middle_group_id" javaType="java.lang.Long" />
             <arg column="middle_group_name" javaType="java.lang.String" />
+            <arg column="cell_name" javaType="java.lang.String" />
             <arg column="leader" javaType="java.lang.Boolean" />
             <arg column="member_display_order" javaType="java.lang.Integer" />
             <arg column="created_at" javaType="java.time.OffsetDateTime" />
@@ -43,8 +40,7 @@
     <sql id="MemberColumns">
         gm.id, gm.retreat_group_id, rg.name AS retreat_group_name,
         r.id AS participant_id, r.name AS participant_name, r.gender, r.birth_year,
-        r.church_cell_department, r.church_cell_id, cc.name AS church_cell_name,
-        mg.id AS middle_group_id, mg.name AS middle_group_name,
+        r.middle_group_name, r.cell_name,
         gm.leader, gm.display_order AS member_display_order, gm.created_at, gm.updated_at
     </sql>
 
@@ -52,14 +48,15 @@
         FROM retreat_group_members gm
         JOIN retreat_groups rg ON rg.id = gm.retreat_group_id
         JOIN registrations r ON r.id = gm.registration_id
-        LEFT JOIN church_cells cc ON cc.id = r.church_cell_id
-        LEFT JOIN church_middle_groups mg ON mg.id = cc.church_middle_group_id
     </sql>
 
     <select id="findGroups" resultMap="RetreatGroupResultMap">
         SELECT
         <include refid="GroupColumns" />
         FROM retreat_groups
+        WHERE retreat_id = (
+            SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+        )
         ORDER BY display_order ASC, name ASC, id ASC
     </select>
 
@@ -68,6 +65,9 @@
         <include refid="GroupColumns" />
         FROM retreat_groups
         WHERE id = #{id}
+          AND retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </select>
 
     <select id="findGroupByName" resultMap="RetreatGroupResultMap">
@@ -75,11 +75,17 @@
         <include refid="GroupColumns" />
         FROM retreat_groups
         WHERE name = #{name}
+          AND retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </select>
 
     <insert id="insertGroup" parameterType="com.gmc.retreat.retreat.mapper.RetreatGroupUpsert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO retreat_groups (name, description, display_order)
-        VALUES (#{name}, #{description}, #{displayOrder})
+        INSERT INTO retreat_groups (retreat_id, name, description, display_order)
+        VALUES (
+            (SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')),
+            #{name}, #{description}, #{displayOrder}
+        )
     </insert>
 
     <update id="updateGroup" parameterType="com.gmc.retreat.retreat.mapper.RetreatGroupUpsert">
@@ -89,6 +95,9 @@
             display_order = #{displayOrder},
             updated_at = now()
         WHERE id = #{id}
+          AND retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </update>
 
     <update id="updateGroupActive">
@@ -96,11 +105,17 @@
         SET active = #{active},
             updated_at = now()
         WHERE id = #{id}
+          AND retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </update>
 
     <delete id="deleteGroupById">
         DELETE FROM retreat_groups
         WHERE id = #{id}
+          AND retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </delete>
 
     <select id="findMembersByGroupId" resultMap="RetreatGroupMemberResultMap">
@@ -108,6 +123,9 @@
         <include refid="MemberColumns" />
         <include refid="MemberJoins" />
         WHERE gm.retreat_group_id = #{groupId}
+          AND rg.retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
         ORDER BY gm.display_order ASC, r.id ASC
     </select>
 
@@ -115,13 +133,20 @@
         SELECT
         <include refid="MemberColumns" />
         <include refid="MemberJoins" />
+        WHERE rg.retreat_id = (
+            SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+        )
         ORDER BY rg.display_order ASC, rg.name ASC, gm.display_order ASC, r.id ASC
     </select>
 
     <select id="findGroupIdByParticipantId" resultType="java.lang.Long">
-        SELECT retreat_group_id
-        FROM retreat_group_members
-        WHERE registration_id = #{participantId}
+        SELECT gm.retreat_group_id
+        FROM retreat_group_members gm
+        JOIN retreat_groups rg ON rg.id = gm.retreat_group_id
+        WHERE gm.registration_id = #{participantId}
+          AND rg.retreat_id = (
+              SELECT id FROM retreats WHERE status IN ('DRAFT', 'OPEN')
+          )
     </select>
 
     <insert id="insertMember">

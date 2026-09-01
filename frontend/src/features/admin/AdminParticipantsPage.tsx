@@ -20,18 +20,18 @@ const PAGE_SIZE_OPTIONS = [10, 20, 30, 50, 100, PAGE_SIZE_ALL] as const;
 type ColumnKey =
   | "name" | "birthYear" | "gender" | "phone" | "middleGroup" | "cell"
   | "attendance" | "group" | "transportation" | "feePaid" | "checkedIn"
-  | "createdAt" | "special";
+  | "createdAt" | "participantUpdatedAt" | "special";
 
 const DEFAULT_COL_ORDER: ColumnKey[] = [
   "name", "birthYear", "gender", "phone", "middleGroup", "cell",
-  "attendance", "group", "transportation", "feePaid", "checkedIn", "createdAt", "special"
+  "attendance", "group", "transportation", "feePaid", "checkedIn", "createdAt", "participantUpdatedAt", "special"
 ];
 
 const COL_LABEL: Record<ColumnKey, string> = {
   name: "이름", birthYear: "또래", gender: "성별", phone: "연락처",
   middleGroup: "중그룹", cell: "셀", attendance: "참석여부", group: "조",
   transportation: "교통", feePaid: "참가비", checkedIn: "체크인",
-  createdAt: "등록일", special: "특이사항"
+  createdAt: "등록일", participantUpdatedAt: "본인 수정", special: "특이사항"
 };
 
 // bidirectional: [primaryAsc, primaryDesc]
@@ -67,6 +67,7 @@ const TD_CLASS: Record<ColumnKey, string> = {
   feePaid:       "participant-fee-paid-cell",
   checkedIn:     "participant-checked-in-cell",
   createdAt:     "participant-created-at-cell",
+  participantUpdatedAt: "participant-updated-at-cell",
   special:       "participant-special-cell",
 };
 
@@ -97,8 +98,8 @@ function useColumnCustomization() {
   const queryClient = useQueryClient();
   const tableRef = useRef<HTMLTableElement>(null);
 
-  const [colOrder, setColOrder] = useState<ColumnKey[] | null>(null);
-  const [widths, setWidths] = useState<Record<ColumnKey, number> | null>(null);
+  const [customColOrder, setColOrder] = useState<ColumnKey[] | null | undefined>(undefined);
+  const [customWidths, setWidths] = useState<Record<ColumnKey, number> | null | undefined>(undefined);
   const [draggedKey, setDraggedKey] = useState<ColumnKey | null>(null);
   const [dragOverKey, setDragOverKey] = useState<ColumnKey | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -108,27 +109,26 @@ function useColumnCustomization() {
   const widthsRef = useRef<Record<ColumnKey, number> | null>(null);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const saveVersionRef = useRef(0);
-  useEffect(() => { colOrderRef.current = colOrder; }, [colOrder]);
-  useEffect(() => { widthsRef.current = widths; }, [widths]);
-
   const prefsQuery = useQuery({
     queryKey: PREFERENCES_QUERY_KEY,
     queryFn: getAdminPreferences,
     staleTime: Infinity
   });
 
-  useEffect(() => {
-    const data = prefsQuery.data;
-    if (!data) return;
-    const savedOrder = data[PREFS_ORDER_KEY];
-    if (Array.isArray(savedOrder) && savedOrder.length === DEFAULT_COL_ORDER.length) {
-      setColOrder(savedOrder as ColumnKey[]);
-    }
-    const savedWidths = data[PREFS_WIDTHS_KEY];
-    if (savedWidths && typeof savedWidths === "object" && !Array.isArray(savedWidths)) {
-      setWidths(savedWidths as Record<ColumnKey, number>);
-    }
-  }, [prefsQuery.data]);
+  const savedOrder = prefsQuery.data?.[PREFS_ORDER_KEY];
+  const savedWidths = prefsQuery.data?.[PREFS_WIDTHS_KEY];
+  const colOrder = customColOrder === undefined
+    ? Array.isArray(savedOrder) && savedOrder.length === DEFAULT_COL_ORDER.length
+      ? savedOrder as ColumnKey[]
+      : null
+    : customColOrder;
+  const widths = customWidths === undefined
+    ? savedWidths && typeof savedWidths === "object" && !Array.isArray(savedWidths)
+      ? savedWidths as Record<ColumnKey, number>
+      : null
+    : customWidths;
+  useEffect(() => { colOrderRef.current = colOrder; }, [colOrder]);
+  useEffect(() => { widthsRef.current = widths; }, [widths]);
 
   const savePreferences = useCallback((patch: Record<string, unknown>) => {
     const current = queryClient.getQueryData<Record<string, unknown>>(PREFERENCES_QUERY_KEY) ?? {};
@@ -280,7 +280,6 @@ export function AdminParticipantsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = useMemo(() => filtersFromSearchParams(searchParams), [searchParams]);
   const [keyword, setKeyword] = useState(filters.keyword ?? "");
-  useEffect(() => { setKeyword(filters.keyword ?? ""); }, [filters.keyword]);
 
   const registrationsQuery = useQuery({
     queryKey: ["admin", "registrations", filters],
@@ -297,6 +296,7 @@ export function AdminParticipantsPage() {
   };
 
   const clearFilters = () => {
+    setKeyword("");
     setSearchParams(searchParamsFromFilters({ page: 0, size: filters.size ?? PAGE_SIZE_DEFAULT }));
   };
 
@@ -435,12 +435,12 @@ export function AdminParticipantsPage() {
             <option value="true">납부</option>
           </select>
           <select
-            className={filters.retreatGroupAssigned !== undefined || filters.churchCellAssigned !== undefined ? "filter-select filter-select--active" : "filter-select"}
+            className={filters.retreatGroupAssigned !== undefined || filters.cellAssigned !== undefined ? "filter-select filter-select--active" : "filter-select"}
             onChange={(e) => {
               const v = e.target.value;
-              updateFilters({ retreatGroupAssigned: v === "NO_GROUP" ? false : undefined, churchCellAssigned: v === "NO_CELL" ? false : undefined });
+              updateFilters({ retreatGroupAssigned: v === "NO_GROUP" ? false : undefined, cellAssigned: v === "NO_CELL" ? false : undefined });
             }}
-            value={filters.retreatGroupAssigned === false ? "NO_GROUP" : filters.churchCellAssigned === false ? "NO_CELL" : ""}
+            value={filters.retreatGroupAssigned === false ? "NO_GROUP" : filters.cellAssigned === false ? "NO_CELL" : ""}
           >
             <option value="">배정</option>
             <option value="NO_GROUP">조 미배정</option>
@@ -461,7 +461,7 @@ export function AdminParticipantsPage() {
             value={filters.transportationNeed ?? ""}
           >
             <option value="">교통</option>
-            <option value="CARPOOL_NEEDED">카풀 필요</option>
+            <option value="CARPOOL_NEEDED">이동 지원 요청</option>
             <option value="CARPOOL_AVAILABLE">카풀 제공</option>
           </select>
           <select
@@ -647,7 +647,7 @@ function getBodyCell(item: AdminRegistration, key: ColumnKey) {
     case "middleGroup":
       return item.middleGroupName ?? "-";
     case "cell":
-      return item.churchCellName ?? item.churchCellDepartment ?? "-";
+      return item.cellName ?? "-";
     case "attendance":
       return formatAttendance(item.attendanceType);
     case "group":
@@ -665,6 +665,10 @@ function getBodyCell(item: AdminRegistration, key: ColumnKey) {
       return <StatusPill tone={item.checkedIn ? "success" : "neutral"}>{item.checkedIn ? "완료" : "미완료"}</StatusPill>;
     case "createdAt":
       return formatDate(item.createdAt);
+    case "participantUpdatedAt":
+      return item.participantUpdatedAt
+        ? <span className="mini-tag mini-tag--warning">{new Date(item.participantUpdatedAt).toLocaleString()}</span>
+        : "-";
     case "special":
       return <SpecialTags newcomer={item.newcomer} careTarget={item.careTarget} cancelled={item.status === "CANCELLED"} />;
   }
@@ -683,7 +687,7 @@ function filtersFromSearchParams(params: URLSearchParams): AdminRegistrationFilt
     careTarget: booleanOrUndefined(params.get("careTarget") ?? ""),
     checkedIn: booleanOrUndefined(params.get("checkedIn") ?? ""),
     retreatGroupAssigned: booleanOrUndefined(params.get("retreatGroupAssigned") ?? ""),
-    churchCellAssigned: booleanOrUndefined(params.get("churchCellAssigned") ?? ""),
+    cellAssigned: booleanOrUndefined(params.get("cellAssigned") ?? ""),
     attendanceType: valueOrUndefined(params.get("attendanceType") ?? "") as AdminRegistrationFilters["attendanceType"],
     transportationNeed: valueOrUndefined(params.get("transportationNeed") ?? "") as AdminRegistrationFilters["transportationNeed"],
     sorts: params.getAll("sort").filter(Boolean)
@@ -701,7 +705,7 @@ function searchParamsFromFilters(filters: AdminRegistrationFilters) {
   if (filters.careTarget !== undefined) params.set("careTarget", String(filters.careTarget));
   if (filters.checkedIn !== undefined) params.set("checkedIn", String(filters.checkedIn));
   if (filters.retreatGroupAssigned !== undefined) params.set("retreatGroupAssigned", String(filters.retreatGroupAssigned));
-  if (filters.churchCellAssigned !== undefined) params.set("churchCellAssigned", String(filters.churchCellAssigned));
+  if (filters.cellAssigned !== undefined) params.set("cellAssigned", String(filters.cellAssigned));
   if (filters.attendanceType) params.set("attendanceType", filters.attendanceType);
   if (filters.transportationNeed) params.set("transportationNeed", filters.transportationNeed);
   (filters.sorts ?? []).forEach((s) => params.append("sort", s));
@@ -744,10 +748,10 @@ function formatTransportationSummary(item: Pick<AdminRegistration, "inboundTrans
 function formatTransportation(value: string | null) {
   switch (value) {
     case "OWN_CAR": return "개인차량";
-    case "GROUP_BUS": return "단체버스";
+    case "GROUP_BUS": return "단체 이동 차량";
     case "WORSHIP_SHUTTLE": return "집회차량";
     case "PUBLIC_TRANSIT": return "대중교통";
-    case "CARPOOL_NEEDED": return "카풀 필요";
+    case "CARPOOL_NEEDED": return "이동 지원 요청";
     case "NOT_DECIDED": return "미정";
     default: return "-";
   }

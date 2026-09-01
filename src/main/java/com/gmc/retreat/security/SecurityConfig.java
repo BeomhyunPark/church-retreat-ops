@@ -25,6 +25,7 @@ public class SecurityConfig {
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/health",
             "/api/app/identity",
+            "/api/participation-options",
             "/api/admin/auth/login",
             "/api/registrations",
             "/api/registrations/self/lookup",
@@ -47,7 +48,8 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/health", "/api/app/identity", "/api/admin/auth/login",
+                        .requestMatchers("/api/health", "/api/app/identity", "/api/participation-options",
+                                "/api/admin/auth/login",
                                 "/api/registrations", "/api/registrations/self/lookup",
                                 "/api/registrations/self/check-in-qr", "/api/registrations/self",
                                 "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")

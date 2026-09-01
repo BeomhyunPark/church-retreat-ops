@@ -1,6 +1,15 @@
 @baseUrl = http://localhost:8080
 
-### Register participant
+### Public participation and meal options for the current OPEN retreat
+GET {{baseUrl}}/api/participation-options
+
+> {%
+    if (response.body.data.length > 0) {
+        client.global.set("participationOptionId", response.body.data[0].id);
+    }
+%}
+
+### Register participant while new applications are open
 POST {{baseUrl}}/api/registrations
 Content-Type: application/json
 
@@ -9,55 +18,55 @@ Content-Type: application/json
   "gender": "FEMALE",
   "birthYear": 1991,
   "phoneNumber": "010-1234-5678",
-  "churchCellDepartment": "Young Adults",
+  "middleGroupName": "드림 중그룹",
+  "cellName": "사랑 셀",
   "privacyConsentAgreed": true,
   "lookupKey": "123456",
   "attendanceType": "FULL",
-  "inboundTransportationMethod": "OWN_CAR",
-  "outboundTransportationMethod": "OWN_CAR",
-  "inboundCarpoolAvailable": true,
-  "inboundCarpoolSeats": 2,
-  "inboundCarpoolArea": "교회에서 출발",
-  "inboundCarpoolRouteArea": "잠실 경유 가능",
-  "outboundCarpoolAvailable": false
+  "lodgingNight1": true,
+  "lodgingNight2": true,
+  "selectedOptionIds": [],
+  "inboundTransportationMethod": "GROUP_BUS",
+  "outboundTransportationMethod": "GROUP_BUS"
 }
 
 > {%
     client.global.set("participantId", response.body.data.registration.id);
-    client.global.set("participantLookupKey", "123456");
 %}
 
-### Self lookup
+### Self lookup remains available after new applications close while retreat is OPEN
 POST {{baseUrl}}/api/registrations/self/lookup
 Content-Type: application/json
 
 {
   "name": "Grace Kim",
-  "lookupKey": "{{participantLookupKey}}"
+  "lookupKey": "123456"
 }
 
-### Self update
+### Self update; operators can see participantUpdatedAt and history afterward
 PUT {{baseUrl}}/api/registrations/self
 Content-Type: application/json
 
 {
   "name": "Grace Kim",
   "phoneLastFour": "5678",
-  "lookupKey": "{{participantLookupKey}}",
+  "lookupKey": "123456",
   "update": {
     "gender": "FEMALE",
     "birthYear": 1992,
     "phoneNumber": "010-9999-0000",
-    "churchCellDepartment": "Updated Cell",
+    "middleGroupName": "드림 중그룹",
+    "cellName": "소망 셀",
     "attendanceType": "PARTIAL",
-    "plannedArrivalAt": "2026-08-01T19:00:00+09:00",
-    "plannedDepartureAt": "2026-08-02T21:00:00+09:00",
-    "partialAttendanceNote": "둘째 날 집회 후 귀가",
     "lodgingNight1": true,
-    "inboundTransportationMethod": "WORSHIP_SHUTTLE",
-    "inboundWorshipBusRideSlot": "DAY1_BEFORE_WORSHIP",
+    "lodgingNight2": false,
+    "selectedOptionIds": [{{participationOptionId}}],
+    "plannedArrivalAt": "2027-01-15T14:00:00+09:00",
+    "plannedDepartureAt": "2027-01-16T20:00:00+09:00",
+    "partialAttendanceNote": "둘째 날 저녁 귀가",
+    "inboundTransportationMethod": "PUBLIC_TRANSIT",
     "outboundTransportationMethod": "CARPOOL_NEEDED",
-    "outboundCarpoolPreferredArea": "서울역 근처",
-    "outboundCarpoolPreferredNote": "교회까지만 와도 괜찮음"
+    "outboundCarpoolPreferredArea": "수지구청역 근처",
+    "outboundCarpoolPreferredNote": "매칭과 탑승 위치가 확정된 것은 아님"
   }
 }

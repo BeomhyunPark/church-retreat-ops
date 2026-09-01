@@ -8,12 +8,12 @@ import { brandInitials, useAppIdentity } from "../identity/appIdentity";
 
 const links = [
   { to: "/admin/dashboard", label: "대시보드", icon: "dashboard" },
+  { to: "/admin/retreats", label: "수련회 관리", icon: "retreats" },
+  { to: "/admin/schedules", label: "시간표", icon: "schedules" },
   { to: "/admin/participants", label: "참가자", icon: "participants" },
   { to: "/admin/fees", label: "참가비", icon: "fees" },
-  // { to: "/admin/community", label: "공동체" },
   { to: "/admin/retreat-groups", label: "수련회 조", icon: "groups" },
   { to: "/admin/announcements", label: "공지", icon: "announcements" },
-  { to: "/admin/schedules", label: "일정", icon: "schedules" },
   { to: "/admin/check-ins", label: "체크인", icon: "checkins" }
 ];
 
@@ -24,6 +24,7 @@ type NavIconName = (typeof links)[number]["icon"] | "accounts";
 function NavIcon({ name }: { name: NavIconName }) {
   const paths: Record<NavIconName, ReactNode> = {
     dashboard: <><rect x="3" y="3" width="7" height="7" rx="2" /><rect x="14" y="3" width="7" height="7" rx="2" /><rect x="3" y="14" width="7" height="7" rx="2" /><rect x="14" y="14" width="7" height="7" rx="2" /></>,
+    retreats: <><path d="M4 20V9l8-5 8 5v11" /><path d="M9 20v-6h6v6M3 20h18" /></>,
     participants: <><circle cx="9" cy="8" r="3" /><path d="M3.5 20c.4-4 2.2-6 5.5-6s5.1 2 5.5 6" /><path d="M15.5 5.5a3 3 0 0 1 0 5.5M17 14c2.2.7 3.3 2.6 3.5 6" /></>,
     fees: <><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M3 10h18M7 15h3" /></>,
     groups: <><circle cx="8" cy="8" r="3" /><circle cx="17" cy="9" r="2.5" /><path d="M2.5 20c.4-4 2.2-6 5.5-6s5.1 2 5.5 6M14 15c3.7-.5 6 1.2 6.5 5" /></>,

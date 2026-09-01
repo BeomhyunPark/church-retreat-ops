@@ -51,7 +51,6 @@ Roster 필터:
 ```text
 feePaid=true
 retreatGroupId=1
-churchCellId=1
 keyword=Grace
 page=0
 size=20
@@ -86,10 +85,8 @@ size=20
   "gender": "FEMALE",
   "birthYear": 1991,
   "phoneLast4": "5678",
-  "churchCellId": 1,
-  "churchCellName": "A1",
-  "middleGroupId": 1,
-  "middleGroupName": "Alpha",
+  "middleGroupName": "드림 중그룹",
+  "cellName": "사랑 셀",
   "retreatGroupId": 1,
   "retreatGroupName": "Group 1",
   "retreatGroupLeader": false,

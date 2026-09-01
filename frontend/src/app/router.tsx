@@ -2,7 +2,6 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AdminAccountsPage } from "../features/admin/AdminAccountsPage";
 import { AdminAnnouncementsPage } from "../features/admin/AdminAnnouncementsPage";
 import { AdminCheckInsPage } from "../features/admin/AdminCheckInsPage";
-import { AdminCommunityPage } from "../features/admin/AdminCommunityPage";
 import { AdminDashboardPage } from "../features/admin/AdminDashboardPage";
 import { AdminFeesPage } from "../features/admin/AdminFeesPage";
 import { AdminLoginPage } from "../features/admin/AdminLoginPage";
@@ -10,6 +9,7 @@ import { AdminParticipantDetailPage } from "../features/admin/AdminParticipantDe
 import { AdminParticipantsPage } from "../features/admin/AdminParticipantsPage";
 import { AdminProfilePage } from "../features/admin/AdminProfilePage";
 import { AdminRetreatGroupsPage } from "../features/admin/AdminRetreatGroupsPage";
+import { AdminRetreatsPage } from "../features/admin/AdminRetreatsPage";
 import { AdminSchedulesPage } from "../features/admin/AdminSchedulesPage";
 import { AppHomePage } from "../features/home/AppHomePage";
 import { PublicCheckInPage } from "../features/public/PublicCheckInPage";
@@ -45,10 +45,11 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/admin/dashboard" replace /> },
       { path: "dashboard", element: <AdminDashboardPage /> },
+      { path: "retreats", element: <AdminRetreatsPage /> },
       { path: "participants", element: <AdminParticipantsPage /> },
       { path: "participants/:participantId", element: <AdminParticipantDetailPage /> },
+      { path: "participation-options", element: <Navigate to="/admin/schedules" replace /> },
       { path: "fees", element: <AdminFeesPage /> },
-      { path: "community", element: <AdminCommunityPage /> },
       { path: "retreat-groups", element: <AdminRetreatGroupsPage /> },
       { path: "announcements", element: <AdminAnnouncementsPage /> },
       { path: "schedules", element: <AdminSchedulesPage /> },
